@@ -39,16 +39,17 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 /* RESPONSIVE LAYOUT */
 @media(min-width:768px){
   .app{max-width:100%;flex-direction:row;align-items:stretch}
-  .topbar{display:none}
-  .bnav{display:none}
+  .topbar{display:none !important}
+  .bnav{display:none !important}
+  .fab{display:none !important}
+  .fab-sec{display:none !important}
   .content{flex:1;padding:28px 32px 28px;overflow-y:auto;height:100dvh}
-  .fab{bottom:32px;right:32px;width:56px;height:56px}
-  .fab-sec{bottom:32px;right:96px;width:42px;height:42px}
-  .toast-wrap{top:80px}
+  .toast-wrap{top:20px;left:260px;transform:none}
   .overlay{align-items:center;justify-content:center}
-  .sheet{border-radius:20px;max-width:520px;width:100%;max-height:90dvh;margin:auto}
+  .sheet{border-radius:20px;max-width:560px;width:100%;max-height:90dvh;margin:auto}
   .sh-hd{display:none}
   .kanban-wrap{margin-left:0;margin-right:0;padding-left:0;padding-right:0}
+  .g2{grid-template-columns:1fr 1fr 1fr 1fr}
 }
 
 /* SIDEBAR */
@@ -658,8 +659,8 @@ const dbDel = async (store, key) => {
 // ============================================================
 const ORDER_STATES = [
   { id:"nuevo",          label:"Nuevo",      color:"var(--blu)", border:"#5b8be8" },
-  { id:"diseniar",       label:"Diseniar",   color:"var(--gold)",border:"#c8a84b" },
-  { id:"pago_pendiente", label:"Pago Pend.", color:"var(--red)", border:"#d95555" },
+  { id:"disenar",       label:"Disenar",   color:"var(--gold)",border:"#c8a84b" },
+  { id:"pago_pendiente", label:"Pago pendiente", color:"var(--red)", border:"#d95555" },
   { id:"pagado",         label:"Pagado",     color:"var(--teal)",border:"#29b8a8" },
   { id:"listo",          label:"Listo",      color:"var(--grn)", border:"#45b87c" },
 ];
@@ -712,10 +713,10 @@ function openWhatsApp(phone, message) {
   const clean = String(phone).replace(/\D/g,"");
   if (!clean) return;
   const full = clean.startsWith("591") ? clean : "591"+clean;
-  const a = document.createElement("a");
-  a.href = "https://wa.me/"+full+"?text="+encodeURIComponent(message||"");
-  a.target = "_blank"; a.rel = "noopener noreferrer";
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  const text = encodeURIComponent(message||"");
+  // whatsapp://send abre WhatsApp Business si es la app por defecto del scheme
+  // En Android, si WA Business esta instalada y configurada como default, la abre
+  window.location.href = "whatsapp://send?phone="+full+"&text="+text;
 }
 function compressImage(file) {
   return new Promise(resolve => {
@@ -801,7 +802,7 @@ async function seed() {
      clientPrice:122,promoterId:"pr1",promoterName:"Maria Gonzalez",
      delivery:"local",deliveryCity:"",deliveryAddress:"",
      status:"listo",statusHistory:[
-       {status:"nuevo",date:now-d(3)},{status:"diseniar",date:now-d(2)},
+       {status:"nuevo",date:now-d(3)},{status:"disenar",date:now-d(2)},
        {status:"pagado",date:now-d(1)},{status:"listo",date:now},
      ],notes:"Fotograbado con foto enviada por WhatsApp",
      date:now-d(3),synced:true,convertedToSale:false},
@@ -809,8 +810,8 @@ async function seed() {
      productId:"p4",productName:"Cadena con Dije",customization:"RV 2024",
      clientPrice:175,promoterId:"pr2",promoterName:"Laura Martinez",
      delivery:"envio",deliveryCity:"Santa Cruz",deliveryAddress:"Av. Canoto 234",
-     status:"diseniar",statusHistory:[
-       {status:"nuevo",date:now-d(1)},{status:"diseniar",date:now},
+     status:"disenar",statusHistory:[
+       {status:"nuevo",date:now-d(1)},{status:"disenar",date:now},
      ],notes:"Envio por transportadora",
      date:now-d(1),synced:true,convertedToSale:false},
     {id:"o3",clientName:"Carmen Lopez",   clientPhone:"70055666",
@@ -818,7 +819,7 @@ async function seed() {
      clientPrice:95,promoterId:"pr1",promoterName:"Maria Gonzalez",
      delivery:"local",deliveryCity:"",deliveryAddress:"",
      status:"pago_pendiente",statusHistory:[
-       {status:"nuevo",date:now-d(2)},{status:"diseniar",date:now-d(1)},
+       {status:"nuevo",date:now-d(2)},{status:"disenar",date:now-d(1)},
        {status:"pago_pendiente",date:now},
      ],notes:"",
      date:now-d(2),synced:false,convertedToSale:false},
@@ -1404,7 +1405,7 @@ function TopBar({user, online, pendingSync, syncing, onSync, onLogout, onBackup}
   return (
     <div className="topbar">
       <div className="tb-l">
-        <span className="tb-brand" style={{fontSize:"1.35rem"}}>Garabato</span>
+        <img src={LOGO_B64} style={{height:"32px",borderRadius:"6px",objectFit:"cover"}} alt="Garabato"/>
       </div>
       <div className="tb-r">
         {pendingSync>0&&online&&(
@@ -1518,7 +1519,7 @@ function HomePage({sales, products, promoters, expenses, role, orders, user, myR
         </div>
       )}
 
-      <div className="shd mt12"><div className="shd-l"><span style={{color:"var(--gold)"}}>G</span> {role==="promoter"?"Mis ventas recientes":"Ventas recientes"}</div></div>
+      <div className="shd mt12"><div className="shd-l">{role==="promoter"?"Mis ventas recientes":"Ventas recientes"}</div></div>
       {mySales.slice(0,5).map(s=><SaleRow key={s.id} sale={s} role={role}/>)}
     </div>
   );
@@ -1531,7 +1532,7 @@ function OrdersPage({orders, products, promoters, user, role, onSave, onAdvance,
   const [view,    setView]    = useState("list");
   const [showForm,setShowForm]= useState(false);
   const [editOrd, setEditOrd] = useState(null);
-  const [expanded,setExpanded]= useState({nuevo:true,diseniar:true,pago_pendiente:true,pagado:true,listo:true});
+  const [expanded,setExpanded]= useState({nuevo:true,disenar:true,pago_pendiente:true,pagado:true,listo:true});
 
   const myOrders = useMemo(()=>
     role==="promoter" ? orders.filter(o=>o.promoterId===user.promoterId) : orders
@@ -1551,7 +1552,7 @@ function OrdersPage({orders, products, promoters, user, role, onSave, onAdvance,
   return (
     <div className="pe">
       <div className="shd">
-        <div className="shd-l"><span style={{color:"var(--gold)"}}>G</span> Pedidos</div>
+        <div className="shd-l">Pedidos</div>
         <div style={{display:"flex",gap:7,alignItems:"center"}}>
           <div className="view-toggle">
             <button className={"vt-btn "+(view==="list"?"act":"off")} onClick={()=>setView("list")}>Lista</button>
@@ -1792,7 +1793,7 @@ function OrderCard({order, promoters, role, isLast, stateColor, onAdvance, onEdi
                 onClick={()=>openWhatsApp(order.clientPhone,
                   order.status==="listo"
                     ?"Hola "+order.clientName+"! Tu pedido de "+order.productName+" ya esta listo"+(order.delivery==="local"?" para retirar en tienda":" para enviar a "+order.deliveryCity)+". Gracias! Garabato"
-                    :order.status==="diseniar"
+                    :order.status==="disenar"
                     ?"Hola "+order.clientName+"! En breve te enviamos el diseno de tu "+order.productName+" para que lo apruebes. Garabato"
                     :"Hola "+order.clientName+"! Te contactamos de Garabato sobre tu pedido de "+order.productName+"."
                 )}>
@@ -1893,7 +1894,7 @@ function OrderForm({order, products, promoters, user, role, onClose, onSave}) {
               <div className="lp-txt">{f.customization.toUpperCase()}</div>
             </div>
           )}
-          <input className="fi" value={f.customization} onChange={e=>set("customization",e.target.value)} placeholder="Texto, foto o logo a grabar"/>
+          <input className="fi" value={f.customization} onChange={e=>set("customization",e.target.value)} placeholder="Texto, foto o diseno a grabar"/>
         </div>
 
         <div className="fg">
@@ -1990,7 +1991,7 @@ function SalesPage({sales, role, user, promoters, onMarkPaid, onEdit, onDelete})
   return (
     <div className="pe">
       <div className="shd">
-        <div className="shd-l"><span style={{color:"var(--gold)"}}>G</span> Ventas</div>
+        <div className="shd-l">Ventas</div>
         <span style={{fontSize:".8rem",color:"var(--gold)",fontFamily:"Playfair Display,serif"}}>{fmt(total)}</span>
       </div>
       <div className="fg">
@@ -2147,7 +2148,7 @@ function SaleEditModal({sale, role, onClose, onSave}) {
 }
 
 function SaleRow({sale, role, showActions, onMarkPaid, onEdit, onDelete}) {
-  const pm={efectivo:"Ef.",transferencia:"Tf.",qr:"QR"};
+  const pm={efectivo:"Efectivo",transferencia:"Transferencia",qr:"QR"};
   return (
     <div className="si">
       <div className="si-ico"><Ic n={sale.isHistoric?"history":"laser"} s={16}/></div>
@@ -2212,7 +2213,7 @@ function InventoryPage({products, role, onSave, onDelete}) {
   return (
     <div className="pe">
       <div className="shd">
-        <div className="shd-l"><span style={{color:"var(--gold)"}}>G</span> Inventario</div>
+        <div className="shd-l">Inventario</div>
         {CAN.editData(role)&&(
           <button className="btn btn-sm btn-gold" style={{width:"auto"}} onClick={()=>{setEditProd(null);setShowForm(true);}}>
             <Ic n="plus" s={14} c="#100d02"/> Nuevo
@@ -2386,7 +2387,7 @@ function PromotersPage({promoters, sales, role, payments, onPay, onSave, user}) 
     const recentSales=sales.filter(s=>s.promoterId===me.id).slice(0,5);
     return (
       <div className="pe">
-        <div className="shd"><div className="shd-l"><span style={{color:"var(--gold)"}}>G</span> Mi perfil</div></div>
+        <div className="shd"><div className="shd-l">Mi perfil</div></div>
         <div className="prc">
           <div className="prc-h">
             <div className="prc-av" style={{width:52,height:52,fontSize:"1.4rem"}}>{me.name.charAt(0)}</div>
@@ -2423,7 +2424,7 @@ function PromotersPage({promoters, sales, role, payments, onPay, onSave, user}) 
   return (
     <div className="pe">
       <div className="shd">
-        <div className="shd-l"><span style={{color:"var(--gold)"}}>G</span> Promotoras</div>
+        <div className="shd-l">Promotoras</div>
         <div style={{display:"flex",gap:7}}>
           {CAN.seePayments(role)&&(
             <button className="wa-btn" style={{fontSize:".72rem",padding:"6px 11px"}}
@@ -2601,7 +2602,7 @@ function ExpensesPage({expenses, onAdd, onDelete}) {
   return (
     <div className="pe">
       <div className="shd">
-        <div className="shd-l"><span style={{color:"var(--gold)"}}>G</span> Gastos</div>
+        <div className="shd-l">Gastos</div>
         <button className="btn btn-sm btn-red" style={{width:"auto"}} onClick={()=>setShowForm(true)}>
           <Ic n="plus" s={14} c="#fff"/> Agregar
         </button>
@@ -2728,7 +2729,7 @@ function ReportsPage({sales, expenses, promoters, payments}) {
   return (
     <div className="pe">
       <div className="shd">
-        <div className="shd-l"><span style={{color:"var(--gold)"}}>G</span> Reportes</div>
+        <div className="shd-l">Reportes</div>
         <button className="wa-btn" style={{fontSize:".72rem",padding:"6px 11px"}}
           onClick={()=>generatePartnerReport(sales,expenses,promoters,period,periodLabel)}>
           <WaIcon/> Enviar a socio
@@ -2880,7 +2881,7 @@ function SettingsPage({users, products, promoters, onSaveUser, onDelUser, onSave
 
   return (
     <div className="pe">
-      <div className="shd"><div className="shd-l"><span style={{color:"var(--gold)"}}>G</span> Configuracion</div></div>
+      <div className="shd"><div className="shd-l">Configuracion</div></div>
       <div className="tabs">
         {["usuarios","precios"].map(t=>(
           <button key={t} className={"tab"+(tab===t?" act":"")} onClick={()=>setTab(t)}>
