@@ -7,19 +7,20 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png'],
       manifest: {
         name: 'Garabato POS',
         short_name: 'Garabato',
         description: 'Sistema de ventas Garabato',
-        theme_color: '#07080a',
-        background_color: '#07080a',
+        theme_color: '#0a0a08',
+        background_color: '#0a0a08',
         display: 'standalone',
         orientation: 'portrait',
         scope: '/',
         start_url: '/',
         icons: [
-          { src: 'favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
         ]
       }
     })
