@@ -659,8 +659,8 @@ const dbDel = async (store, key) => {
 // ============================================================
 const ORDER_STATES = [
   { id:"nuevo",          label:"Nuevo",      color:"var(--blu)", border:"#5b8be8" },
-  { id:"diseniar",       label:"Diseniar",   color:"var(--gold)",border:"#c8a84b" },
-  { id:"pago_pendiente", label:"Pago Pend.", color:"var(--red)", border:"#d95555" },
+  { id:"disenar",       label:"Disenar",   color:"var(--gold)",border:"#c8a84b" },
+  { id:"pago_pendiente", label:"Pago pendiente", color:"var(--red)", border:"#d95555" },
   { id:"pagado",         label:"Pagado",     color:"var(--teal)",border:"#29b8a8" },
   { id:"listo",          label:"Listo",      color:"var(--grn)", border:"#45b87c" },
 ];
@@ -715,14 +715,7 @@ function openWhatsApp(phone, message) {
   const full = clean.startsWith("591") ? clean : "591"+clean;
   const text = encodeURIComponent(message||"");
   const a = document.createElement("a");
-  // intent:// abre WhatsApp Business en Android si esta instalado como handler
-  // fallback a api.whatsapp.com que tambien prioriza Business
-  const isAndroid = /android/i.test(navigator.userAgent);
-  if (isAndroid) {
-    a.href = "intent://send/"+full+"?text="+text+"#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end";
-  } else {
-    a.href = "https://api.whatsapp.com/send?phone="+full+"&text="+text;
-  }
+  a.href = "https://wa.me/"+full+"?text="+text;
   a.target = "_blank"; a.rel = "noopener noreferrer";
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
@@ -810,7 +803,7 @@ async function seed() {
      clientPrice:122,promoterId:"pr1",promoterName:"Maria Gonzalez",
      delivery:"local",deliveryCity:"",deliveryAddress:"",
      status:"listo",statusHistory:[
-       {status:"nuevo",date:now-d(3)},{status:"diseniar",date:now-d(2)},
+       {status:"nuevo",date:now-d(3)},{status:"disenar",date:now-d(2)},
        {status:"pagado",date:now-d(1)},{status:"listo",date:now},
      ],notes:"Fotograbado con foto enviada por WhatsApp",
      date:now-d(3),synced:true,convertedToSale:false},
@@ -818,8 +811,8 @@ async function seed() {
      productId:"p4",productName:"Cadena con Dije",customization:"RV 2024",
      clientPrice:175,promoterId:"pr2",promoterName:"Laura Martinez",
      delivery:"envio",deliveryCity:"Santa Cruz",deliveryAddress:"Av. Canoto 234",
-     status:"diseniar",statusHistory:[
-       {status:"nuevo",date:now-d(1)},{status:"diseniar",date:now},
+     status:"disenar",statusHistory:[
+       {status:"nuevo",date:now-d(1)},{status:"disenar",date:now},
      ],notes:"Envio por transportadora",
      date:now-d(1),synced:true,convertedToSale:false},
     {id:"o3",clientName:"Carmen Lopez",   clientPhone:"70055666",
@@ -827,7 +820,7 @@ async function seed() {
      clientPrice:95,promoterId:"pr1",promoterName:"Maria Gonzalez",
      delivery:"local",deliveryCity:"",deliveryAddress:"",
      status:"pago_pendiente",statusHistory:[
-       {status:"nuevo",date:now-d(2)},{status:"diseniar",date:now-d(1)},
+       {status:"nuevo",date:now-d(2)},{status:"disenar",date:now-d(1)},
        {status:"pago_pendiente",date:now},
      ],notes:"",
      date:now-d(2),synced:false,convertedToSale:false},
@@ -1540,7 +1533,7 @@ function OrdersPage({orders, products, promoters, user, role, onSave, onAdvance,
   const [view,    setView]    = useState("list");
   const [showForm,setShowForm]= useState(false);
   const [editOrd, setEditOrd] = useState(null);
-  const [expanded,setExpanded]= useState({nuevo:true,diseniar:true,pago_pendiente:true,pagado:true,listo:true});
+  const [expanded,setExpanded]= useState({nuevo:true,disenar:true,pago_pendiente:true,pagado:true,listo:true});
 
   const myOrders = useMemo(()=>
     role==="promoter" ? orders.filter(o=>o.promoterId===user.promoterId) : orders
@@ -1801,7 +1794,7 @@ function OrderCard({order, promoters, role, isLast, stateColor, onAdvance, onEdi
                 onClick={()=>openWhatsApp(order.clientPhone,
                   order.status==="listo"
                     ?"Hola "+order.clientName+"! Tu pedido de "+order.productName+" ya esta listo"+(order.delivery==="local"?" para retirar en tienda":" para enviar a "+order.deliveryCity)+". Gracias! Garabato"
-                    :order.status==="diseniar"
+                    :order.status==="disenar"
                     ?"Hola "+order.clientName+"! En breve te enviamos el diseno de tu "+order.productName+" para que lo apruebes. Garabato"
                     :"Hola "+order.clientName+"! Te contactamos de Garabato sobre tu pedido de "+order.productName+"."
                 )}>
@@ -1902,7 +1895,7 @@ function OrderForm({order, products, promoters, user, role, onClose, onSave}) {
               <div className="lp-txt">{f.customization.toUpperCase()}</div>
             </div>
           )}
-          <input className="fi" value={f.customization} onChange={e=>set("customization",e.target.value)} placeholder="Texto, foto o logo a grabar"/>
+          <input className="fi" value={f.customization} onChange={e=>set("customization",e.target.value)} placeholder="Texto, foto o diseno a grabar"/>
         </div>
 
         <div className="fg">
@@ -2156,7 +2149,7 @@ function SaleEditModal({sale, role, onClose, onSave}) {
 }
 
 function SaleRow({sale, role, showActions, onMarkPaid, onEdit, onDelete}) {
-  const pm={efectivo:"Ef.",transferencia:"Tf.",qr:"QR"};
+  const pm={efectivo:"Efectivo",transferencia:"Transferencia",qr:"QR"};
   return (
     <div className="si">
       <div className="si-ico"><Ic n={sale.isHistoric?"history":"laser"} s={16}/></div>
