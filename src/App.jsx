@@ -713,8 +713,16 @@ function openWhatsApp(phone, message) {
   const clean = String(phone).replace(/\D/g,"");
   if (!clean) return;
   const full = clean.startsWith("591") ? clean : "591"+clean;
+  const text = encodeURIComponent(message||"");
   const a = document.createElement("a");
-  a.href = "https://wa.me/"+full+"?text="+encodeURIComponent(message||"");
+  // intent:// abre WhatsApp Business en Android si esta instalado como handler
+  // fallback a api.whatsapp.com que tambien prioriza Business
+  const isAndroid = /android/i.test(navigator.userAgent);
+  if (isAndroid) {
+    a.href = "intent://send/"+full+"?text="+text+"#Intent;package=com.whatsapp.w4b;scheme=whatsapp;end";
+  } else {
+    a.href = "https://api.whatsapp.com/send?phone="+full+"&text="+text;
+  }
   a.target = "_blank"; a.rel = "noopener noreferrer";
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
@@ -1405,7 +1413,7 @@ function TopBar({user, online, pendingSync, syncing, onSync, onLogout, onBackup}
   return (
     <div className="topbar">
       <div className="tb-l">
-        <span className="tb-brand" style={{fontSize:"1.35rem"}}>Garabato</span>
+        <img src={LOGO_B64} style={{height:"32px",borderRadius:"6px",objectFit:"cover"}} alt="Garabato"/>
       </div>
       <div className="tb-r">
         {pendingSync>0&&online&&(
@@ -1519,7 +1527,7 @@ function HomePage({sales, products, promoters, expenses, role, orders, user, myR
         </div>
       )}
 
-      <div className="shd mt12"><div className="shd-l"><span style={{color:"var(--gold)"}}>G</span> {role==="promoter"?"Mis ventas recientes":"Ventas recientes"}</div></div>
+      <div className="shd mt12"><div className="shd-l">{role==="promoter"?"Mis ventas recientes":"Ventas recientes"}</div></div>
       {mySales.slice(0,5).map(s=><SaleRow key={s.id} sale={s} role={role}/>)}
     </div>
   );
@@ -1552,7 +1560,7 @@ function OrdersPage({orders, products, promoters, user, role, onSave, onAdvance,
   return (
     <div className="pe">
       <div className="shd">
-        <div className="shd-l"><span style={{color:"var(--gold)"}}>G</span> Pedidos</div>
+        <div className="shd-l">Pedidos</div>
         <div style={{display:"flex",gap:7,alignItems:"center"}}>
           <div className="view-toggle">
             <button className={"vt-btn "+(view==="list"?"act":"off")} onClick={()=>setView("list")}>Lista</button>
@@ -1991,7 +1999,7 @@ function SalesPage({sales, role, user, promoters, onMarkPaid, onEdit, onDelete})
   return (
     <div className="pe">
       <div className="shd">
-        <div className="shd-l"><span style={{color:"var(--gold)"}}>G</span> Ventas</div>
+        <div className="shd-l">Ventas</div>
         <span style={{fontSize:".8rem",color:"var(--gold)",fontFamily:"Playfair Display,serif"}}>{fmt(total)}</span>
       </div>
       <div className="fg">
@@ -2213,7 +2221,7 @@ function InventoryPage({products, role, onSave, onDelete}) {
   return (
     <div className="pe">
       <div className="shd">
-        <div className="shd-l"><span style={{color:"var(--gold)"}}>G</span> Inventario</div>
+        <div className="shd-l">Inventario</div>
         {CAN.editData(role)&&(
           <button className="btn btn-sm btn-gold" style={{width:"auto"}} onClick={()=>{setEditProd(null);setShowForm(true);}}>
             <Ic n="plus" s={14} c="#100d02"/> Nuevo
@@ -2387,7 +2395,7 @@ function PromotersPage({promoters, sales, role, payments, onPay, onSave, user}) 
     const recentSales=sales.filter(s=>s.promoterId===me.id).slice(0,5);
     return (
       <div className="pe">
-        <div className="shd"><div className="shd-l"><span style={{color:"var(--gold)"}}>G</span> Mi perfil</div></div>
+        <div className="shd"><div className="shd-l">Mi perfil</div></div>
         <div className="prc">
           <div className="prc-h">
             <div className="prc-av" style={{width:52,height:52,fontSize:"1.4rem"}}>{me.name.charAt(0)}</div>
@@ -2424,7 +2432,7 @@ function PromotersPage({promoters, sales, role, payments, onPay, onSave, user}) 
   return (
     <div className="pe">
       <div className="shd">
-        <div className="shd-l"><span style={{color:"var(--gold)"}}>G</span> Promotoras</div>
+        <div className="shd-l">Promotoras</div>
         <div style={{display:"flex",gap:7}}>
           {CAN.seePayments(role)&&(
             <button className="wa-btn" style={{fontSize:".72rem",padding:"6px 11px"}}
@@ -2602,7 +2610,7 @@ function ExpensesPage({expenses, onAdd, onDelete}) {
   return (
     <div className="pe">
       <div className="shd">
-        <div className="shd-l"><span style={{color:"var(--gold)"}}>G</span> Gastos</div>
+        <div className="shd-l">Gastos</div>
         <button className="btn btn-sm btn-red" style={{width:"auto"}} onClick={()=>setShowForm(true)}>
           <Ic n="plus" s={14} c="#fff"/> Agregar
         </button>
@@ -2729,7 +2737,7 @@ function ReportsPage({sales, expenses, promoters, payments}) {
   return (
     <div className="pe">
       <div className="shd">
-        <div className="shd-l"><span style={{color:"var(--gold)"}}>G</span> Reportes</div>
+        <div className="shd-l">Reportes</div>
         <button className="wa-btn" style={{fontSize:".72rem",padding:"6px 11px"}}
           onClick={()=>generatePartnerReport(sales,expenses,promoters,period,periodLabel)}>
           <WaIcon/> Enviar a socio
@@ -2881,7 +2889,7 @@ function SettingsPage({users, products, promoters, onSaveUser, onDelUser, onSave
 
   return (
     <div className="pe">
-      <div className="shd"><div className="shd-l"><span style={{color:"var(--gold)"}}>G</span> Configuracion</div></div>
+      <div className="shd"><div className="shd-l">Configuracion</div></div>
       <div className="tabs">
         {["usuarios","precios"].map(t=>(
           <button key={t} className={"tab"+(tab===t?" act":"")} onClick={()=>setTab(t)}>
