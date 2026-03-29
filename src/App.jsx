@@ -39,16 +39,17 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 /* RESPONSIVE LAYOUT */
 @media(min-width:768px){
   .app{max-width:100%;flex-direction:row;align-items:stretch}
-  .topbar{display:none}
-  .bnav{display:none}
+  .topbar{display:none !important}
+  .bnav{display:none !important}
+  .fab{display:none !important}
+  .fab-sec{display:none !important}
   .content{flex:1;padding:28px 32px 28px;overflow-y:auto;height:100dvh}
-  .fab{bottom:32px;right:32px;width:56px;height:56px}
-  .fab-sec{bottom:32px;right:96px;width:42px;height:42px}
-  .toast-wrap{top:80px}
+  .toast-wrap{top:20px;left:260px;transform:none}
   .overlay{align-items:center;justify-content:center}
-  .sheet{border-radius:20px;max-width:520px;width:100%;max-height:90dvh;margin:auto}
+  .sheet{border-radius:20px;max-width:560px;width:100%;max-height:90dvh;margin:auto}
   .sh-hd{display:none}
   .kanban-wrap{margin-left:0;margin-right:0;padding-left:0;padding-right:0}
+  .g2{grid-template-columns:1fr 1fr 1fr 1fr}
 }
 
 /* SIDEBAR */
