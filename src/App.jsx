@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 
 // ============================================================
-//  GARABATO POS v9  -  Sistema de gestion comercial
+//  GARABATO POS v12  -  Sistema de gestion comercial
 //  Modelo financiero:
 //    clientPrice   = precio que paga el cliente final
 //    promoterPrice = monto neto que entrega la promotora a tienda
@@ -26,9 +26,15 @@ const CSS = `
   --blu:#4a9ee0;
   --txt:#f0edd8; --muted:#8a8660; --dim:#3a3820;
   --r:13px; --rsm:8px;
+  --sh-sm:0 1px 4px rgba(0,0,0,.35),0 2px 8px rgba(0,0,0,.2);
+  --sh-md:0 2px 10px rgba(0,0,0,.45),0 4px 20px rgba(0,0,0,.25);
+  --sh-lg:0 4px 24px rgba(0,0,0,.55),0 8px 40px rgba(0,0,0,.3);
+  --sh-gold:0 2px 16px rgba(224,198,17,.2),0 4px 24px rgba(0,0,0,.3);
   --lbg:#faf8f0; --ls1:#ffffff; --ls2:#f0ede4; --ls3:#e8e4d8;
   --lb1:#ede8d0; --lb2:#ddd8c0;
   --ltxt:#1a1a00; --lmuted:#8a8668; --ldim:#b8b4a0;
+  --lsh-sm:0 1px 4px rgba(0,0,0,.06),0 2px 8px rgba(0,0,0,.04);
+  --lsh-md:0 2px 10px rgba(0,0,0,.08),0 4px 20px rgba(0,0,0,.05);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html{-webkit-text-size-adjust:100%}
@@ -50,6 +56,7 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
   .sh-hd{display:none}
   .kanban-wrap{margin-left:0;margin-right:0;padding-left:0;padding-right:0}
   .g2{grid-template-columns:1fr 1fr 1fr 1fr}
+  .inv-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 }
 
 /* SIDEBAR */
@@ -61,60 +68,65 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
     background:var(--bg);border-right:1px solid var(--b1);
     padding:0;position:sticky;top:0;height:100dvh;overflow:hidden;flex-shrink:0;
   }
-  .app-light .sidebar{background:#0a0a08;border-right:1px solid #2a2a18}
+  .app-light .sidebar{background:var(--ls1);border-right:1px solid var(--lb1);box-shadow:var(--lsh-md)}
   .sb-header{padding:24px 20px 20px;border-bottom:1px solid var(--b1);display:flex;align-items:center;gap:10px}
-  .app-light .sb-header{border-bottom:1px solid #2a2a18}
+  .app-light .sb-header{border-bottom:1px solid var(--lb1)}
   .sb-logo{width:38px;height:38px;border-radius:10px;object-fit:cover;flex-shrink:0}
   .sb-brand{font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:800;color:#e0c611;letter-spacing:.5px}
   .sb-nav{flex:1;padding:12px 10px;display:flex;flex-direction:column;gap:3px;overflow-y:auto}
   .sb-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;
-    cursor:pointer;border:none;background:none;color:#888;font-size:.82rem;font-weight:700;
+    cursor:pointer;border:none;background:none;color:#888;font-size:.86rem;font-weight:700;
     width:100%;text-align:left;transition:.15s;letter-spacing:.2px;-webkit-appearance:none;outline:none;
     position:relative}
   .sb-item:hover{background:rgba(255,255,255,.04);color:#ccc}
   .sb-item.act{background:rgba(224,198,17,.12);color:#e0c611}
   .app-light .sb-item.act{background:rgba(224,198,17,.15);color:#8a7800}
-  .app-light .sb-item{color:#888}
-  .app-light .sb-item:hover{background:rgba(0,0,0,.04);color:#444}
+  .app-light .sb-item{color:var(--lmuted)}
+  .app-light .sb-item:hover{background:var(--ls2);color:var(--ltxt)}
   .sb-badge{position:absolute;right:12px;top:50%;transform:translateY(-50%);
-    background:#e05555;color:#fff;font-size:.55rem;font-weight:800;
+    background:#e05555;color:#fff;font-size:.68rem;font-weight:800;
     min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px}
   .sb-footer{padding:14px 10px;border-top:1px solid var(--b1);display:flex;flex-direction:column;gap:8px}
-  .app-light .sb-footer{border-top:1px solid #2a2a18}
+  .app-light .sb-footer{border-top:1px solid var(--lb1)}
   .sb-user{display:flex;align-items:center;gap:9px;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,.04)}
-  .app-light .sb-user{background:rgba(0,0,0,.04)}
-  .sb-uname{font-size:.78rem;font-weight:700;color:#e0c611;flex:1}
-  .app-light .sb-uname{color:#8a7800}
-  .sb-urole{font-size:.62rem;color:#666;margin-top:1px}
+  .app-light .sb-user{background:var(--ls2)}
+  .sb-uname{font-size:.86rem;font-weight:700;color:#e0c611;flex:1}
+  .app-light .sb-uname{color:var(--gd)}
+.app-light .sb-hist{border-color:var(--lb1);color:var(--lmuted)}
+.app-light .sb-hist:hover{border-color:var(--lb2);color:var(--ltxt)}
+.app-light .sb-btn{border-color:var(--lb1);color:var(--lmuted)}
+.app-light .sb-btn:hover{border-color:var(--lb2);color:var(--ltxt)}
+.app-light .sb-sync{background:rgba(138,120,0,.06);border-color:rgba(138,120,0,.2);color:var(--gd)}
+  .sb-urole{font-size:.68rem;color:#666;margin-top:1px}
   .sb-actions{display:flex;gap:6px}
   .sb-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;
     padding:7px;border-radius:8px;border:1px solid #2a2a18;background:none;
-    color:#666;font-size:.7rem;font-weight:700;cursor:pointer;-webkit-appearance:none;outline:none;transition:.15s}
+    color:#666;font-size:.76rem;font-weight:700;cursor:pointer;-webkit-appearance:none;outline:none;transition:.15s}
   .sb-btn:hover{border-color:#444;color:#aaa}
   .sb-new-sale{width:100%;padding:11px;border-radius:10px;background:#e0c611;border:none;
-    color:#0a0a00;font-size:.82rem;font-weight:800;cursor:pointer;
+    color:#0a0a00;font-size:.86rem;font-weight:800;cursor:pointer;
     display:flex;align-items:center;justify-content:center;gap:7px;
     -webkit-appearance:none;outline:none;transition:.15s;margin-bottom:4px}
   .sb-new-sale:hover{background:#c8b000}
   .sb-hist{width:100%;padding:8px;border-radius:8px;background:none;border:1px solid #2a2a18;
-    color:#666;font-size:.72rem;font-weight:700;cursor:pointer;
+    color:#666;font-size:.76rem;font-weight:700;cursor:pointer;
     display:flex;align-items:center;justify-content:center;gap:6px;
     -webkit-appearance:none;outline:none;transition:.15s}
   .sb-hist:hover{border-color:#444;color:#aaa}
   .sb-sync{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:8px;
     background:rgba(224,198,17,.08);border:1px solid rgba(224,198,17,.2);
-    font-size:.7rem;color:#8a7800;font-weight:700;cursor:pointer;-webkit-appearance:none;outline:none}
+    font-size:.76rem;color:#8a7800;font-weight:700;cursor:pointer;-webkit-appearance:none;outline:none}
   .sb-sync.spin svg{animation:spin .9s linear infinite}
 }
 
 /* MODO CLARO - dentro de la app una vez logueado */
 .app-light{background:var(--lbg);color:var(--ltxt)}
-.app-light .topbar{background:var(--ls1);border-bottom:1px solid var(--lb1)}
-.app-light .bnav{background:var(--ls1);border-top:1px solid var(--lb1)}
+.app-light .topbar{background:var(--ls1);border-bottom:1px solid var(--lb1);box-shadow:var(--lsh-sm)}
+.app-light .bnav{background:var(--ls1);border-top:1px solid var(--lb1);box-shadow:0 -2px 12px rgba(0,0,0,.06)}
 .app-light .content{background:var(--lbg)}
 .app-light .card{background:var(--ls1);border-color:var(--lb1)}
 .app-light .card-gold{background:linear-gradient(145deg,#fffde6,#fff8cc);border-color:var(--gold)}
-.app-light .sc{background:var(--ls1);border-color:var(--lb1)}
+.app-light .sc{background:var(--ls1);border-color:var(--lb1);box-shadow:var(--lsh-sm)}
 .app-light .sc.hg{background:linear-gradient(145deg,#fffde6,#fff8cc);border-color:var(--gold)}
 .app-light .sc.ht{background:linear-gradient(145deg,#e6faf8,#ccf5f0);border-color:var(--teal)}
 .app-light .sc.hr{background:linear-gradient(145deg,#fff0f0,#ffe8e8);border-color:var(--red)}
@@ -125,16 +137,16 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 .app-light .sv.red{color:var(--red)}
 .app-light .sv.grn{color:#1e5c3a}
 .app-light .ss{color:#aaa}
-.app-light .si{background:var(--ls1);border-color:var(--lb1)}
+.app-light .si{background:var(--ls1);border-color:var(--lb1);box-shadow:var(--lsh-sm)}
 .app-light .si-prod{color:#1a1a1a}
 .app-light .si-cust{color:#666}
 .app-light .si-meta{color:#999}
 .app-light .si-amt{color:var(--gd)}
 .app-light .si-sub{color:#aaa}
 .app-light .si-ico{background:var(--ls2);border-color:var(--lb1);color:var(--gold)}
-.app-light .pc{background:var(--ls1);border-color:var(--lb1)}
+.app-light .pc{background:var(--ls1);border-color:var(--lb1);box-shadow:var(--lsh-sm)}
 .app-light .pc-img-ph{background:#f5f0e8;border-color:#e8e0cc;color:#ccc}
-.app-light .prc{background:var(--ls1);border-color:var(--lb1)}
+.app-light .prc{background:var(--ls1);border-color:var(--lb1);box-shadow:var(--lsh-sm)}
 .app-light .prc-av{background:linear-gradient(145deg,var(--gold),var(--ls2));color:var(--gd)}
 .app-light .prs{background:var(--ls2)}
 .app-light .prs-v{color:var(--gd)}
@@ -222,6 +234,7 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 .app-light .s-line.sl-fut{background:#e8e0cc}
 .app-light .uname{color:#888}
 .app-light .rbadge.rb-admin{background:#fffde6;color:var(--gd)}
+.app-light .rbadge.rb-socio{background:#e6faf8;color:var(--td)}
 .app-light .rbadge.rb-employee{background:#e8eeff;color:#2a4a9a}
 .app-light .rbadge.rb-promoter{background:#d8f5e8;color:#1e5c3a}
 .app-light .tb-brand{color:var(--gd)}
@@ -237,27 +250,27 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
   display:flex;align-items:center;justify-content:center;margin-bottom:22px;
   box-shadow:0 0 60px rgba(212,160,23,.35),0 8px 32px rgba(0,0,0,.7)}
 .splash-title{font-family:'Playfair Display',serif;font-size:2.8rem;font-weight:900;color:#d4a017;letter-spacing:2px;margin-bottom:4px}
-.splash-sub{font-size:.72rem;color:var(--muted);letter-spacing:2px;margin-bottom:40px;text-transform:uppercase}
+.splash-sub{font-size:.76rem;color:var(--muted);letter-spacing:2px;margin-bottom:40px;text-transform:uppercase}
 .ugrid{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px}
 .ub{background:#e0c611;border:none;border-radius:var(--r);padding:16px 12px;
   cursor:pointer;text-align:center;transition:.2s;-webkit-appearance:none;outline:none}
 .ub.sel{background:#c8b000;box-shadow:0 0 0 3px #e0c61166}
 .ub-ico{display:none}
-.ub-name{font-size:.84rem;font-weight:700;color:#0a0a00}
+.ub-name{font-size:.86rem;font-weight:700;color:#0a0a00}
 .ub.sel .ub-name{color:#0a0a00}
-.ub-role{font-size:.65rem;margin-top:6px}
-.pin-hd{text-align:center;font-size:.82rem;color:var(--muted);margin-bottom:14px}
+.ub-role{font-size:.68rem;margin-top:6px}
+.pin-hd{text-align:center;font-size:.86rem;color:var(--muted);margin-bottom:14px}
 .pin-hd b{color:var(--gold)}
 .pin-dots{display:flex;justify-content:center;gap:12px;margin-bottom:20px}
 .pd{width:13px;height:13px;border-radius:50%;background:var(--b1);border:1px solid var(--b2);transition:.2s}
 .pd.on{background:var(--gold);border-color:var(--gold);box-shadow:0 0 10px rgba(200,168,75,.5)}
 .pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:280px;margin:0 auto}
 .pk{height:56px;background:var(--s2);border:1px solid var(--b1);border-radius:var(--rsm);
-  font-size:1.25rem;font-weight:700;color:var(--txt);cursor:pointer;transition:.15s;-webkit-appearance:none;outline:none}
+  font-size:1.2rem;font-weight:700;color:var(--txt);cursor:pointer;transition:.15s;-webkit-appearance:none;outline:none}
 .pk:active{background:var(--s3);transform:scale(.93)}
-.pk.del{font-size:.85rem;color:var(--muted)}
-.pin-err{text-align:center;font-size:.78rem;color:var(--red);margin-top:10px;min-height:18px}
-.demo-hint{font-size:.68rem;color:var(--dim);text-align:center;margin-top:16px;line-height:1.6}
+.pk.del{font-size:.86rem;color:var(--muted)}
+.pin-err{text-align:center;font-size:.86rem;color:var(--red);margin-top:10px;min-height:18px}
+
 
 /* TOP BAR */
 .topbar{display:flex;align-items:center;justify-content:space-between;padding:13px 16px 10px;
@@ -265,72 +278,73 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 .tb-l{display:flex;align-items:center;gap:9px}
 .tb-logo{width:30px;height:30px;background:#d4a017;
   border-radius:8px;display:flex;align-items:center;justify-content:center}
-.tb-brand{font-family:'Playfair Display',serif;font-size:1.25rem;font-weight:900;color:#d4a017;letter-spacing:1px}
+.tb-brand{font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:900;color:#d4a017;letter-spacing:1px}
 .tb-r{display:flex;align-items:center;gap:7px}
 .np{display:flex;align-items:center;gap:4px;font-size:.68rem;font-weight:700;
   padding:4px 9px;border-radius:20px;border:1px solid}
 .np-on{color:var(--teal);border-color:var(--td);background:rgba(41,184,168,.07)}
 .np-off{color:var(--muted);border-color:var(--b1);background:rgba(255,255,255,.03)}
 .tbtn{display:flex;align-items:center;gap:5px;padding:5px 9px;background:var(--s2);
-  border:1px solid var(--b2);border-radius:20px;font-size:.7rem;font-weight:700;
+  border:1px solid var(--b2);border-radius:20px;font-size:.76rem;font-weight:700;
   color:var(--muted);cursor:pointer;-webkit-appearance:none;outline:none}
 .tbtn.spin svg{animation:spin .9s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .ubtn{display:flex;align-items:center;gap:5px;padding:4px 9px;background:var(--s2);
   border:1px solid var(--b1);border-radius:20px;cursor:pointer;-webkit-appearance:none;outline:none}
-.rbadge{padding:2px 7px;border-radius:10px;font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.4px}
+.rbadge{padding:2px 7px;border-radius:10px;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.4px}
 .rb-admin{background:rgba(0,0,0,.15);color:#0a0a00}
+.rb-socio{background:rgba(17,200,184,.15);color:#0a6a60}
 .rb-employee{background:rgba(0,0,0,.15);color:#0a0a00}
 .rb-promoter{background:rgba(0,0,0,.15);color:#0a0a00}
-.uname{font-size:.72rem;color:var(--muted)}
+.uname{font-size:.76rem;color:var(--muted)}
 
 /* BOTTOM NAV */
 .bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;
   background:var(--s1);border-top:1px solid var(--b1);display:flex;
   padding:6px 0 max(16px,env(safe-area-inset-bottom));z-index:200}
 .ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 4px;
-  cursor:pointer;border:none;background:none;color:var(--dim);font-size:.6rem;font-weight:700;
+  cursor:pointer;border:none;background:none;color:var(--dim);font-size:.68rem;font-weight:700;
   letter-spacing:.3px;text-transform:uppercase;transition:.2s;outline:none;-webkit-appearance:none}
 .ni.act{color:var(--gold)}
 .ni-w{position:relative}
 .nbadge{position:absolute;top:-4px;right:-7px;background:var(--red);color:#fff;
-  font-size:.55rem;font-weight:800;min-width:15px;height:15px;border-radius:8px;
+  font-size:.68rem;font-weight:800;min-width:15px;height:15px;border-radius:8px;
   display:flex;align-items:center;justify-content:center;padding:0 3px}
 
 /* CONTENT */
-.content{flex:1;padding:16px 16px 90px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.content{flex:1;padding:18px 16px 90px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .pe{animation:pe .2s ease}
 @keyframes pe{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
 /* TYPOGRAPHY / SECTION HEADERS */
 .shd{font-family:'Playfair Display',serif;font-size:1.2rem;color:var(--txt);
-  margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
+  margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
 .shd-l{display:flex;align-items:center;gap:7px}
 
 /* STAT CARDS */
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:12px}
-.sc{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:13px}
+.sc{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:14px 15px;box-shadow:var(--sh-sm)}
 .sc.hg{background:linear-gradient(145deg,#111000,#1c1a00);border-color:#8a7800}
 .sc.ht{background:linear-gradient(145deg,#081312,#0e1e1c);border-color:var(--td)}
 .sc.hr{background:linear-gradient(145deg,#120909,#1a0e0e);border-color:var(--rd)}
-.sl{font-size:.65rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
-.sv{font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--txt);line-height:1}
-.sv.gold{color:var(--gold)}.sv.teal{color:var(--teal)}.sv.red{color:var(--red)}.sv.grn{color:var(--grn)}
+.sl{font-size:.68rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.sv{font-family:'Playfair Display',serif;font-size:1.5rem;color:var(--txt);line-height:1}
+.sv.gold{color:var(--gold)}.sv.teal{color:var(--teal)}.sv.sv.grn{color:var(--grn)}
 .ss{font-size:.68rem;color:var(--dim);margin-top:3px}
 
 /* BUTTONS */
-.btn{display:flex;align-items:center;justify-content:center;gap:7px;padding:13px 18px;
-  border-radius:var(--rsm);font-size:.88rem;font-weight:700;cursor:pointer;border:none;
+.btn{display:flex;align-items:center;justify-content:center;gap:7px;padding:14px 18px;
+  border-radius:var(--rsm);font-size:1rem;font-weight:700;cursor:pointer;border:none;
   transition:.2s;width:100%;letter-spacing:.2px;-webkit-appearance:none;outline:none}
 .btn:disabled{opacity:.4;pointer-events:none}
 .btn:active{transform:scale(.97)}
-.btn-gold{background:#e0c611;color:#0a0a00;font-weight:800}
+.btn-gold{background:#e0c611;color:#0a0a00;font-weight:800;box-shadow:var(--sh-gold)}
 .btn-teal{background:linear-gradient(145deg,var(--teal),var(--td));color:#020f0e}
 .btn-red{background:linear-gradient(145deg,var(--red),var(--rd));color:#fff}
 .btn-grn{background:linear-gradient(145deg,var(--grn),var(--grd));color:#fff}
 .btn-out{background:transparent;border:1px solid var(--b2);color:var(--muted)}
 .btn-out:active{background:var(--s2)}
-.btn-sm{padding:7px 12px;font-size:.75rem;width:auto}
+.btn-sm{padding:7px 12px;font-size:.76rem;width:auto}
 
 /* FAB */
 .fab{position:fixed;bottom:82px;right:calc(50% - 215px + 16px);width:50px;height:50px;
@@ -344,33 +358,33 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
   box-shadow:0 2px 10px rgba(0,0,0,.4);z-index:198;outline:none}
 
 /* FORM ELEMENTS */
-.fg{margin-bottom:13px}
+.fg{margin-bottom:14px}
 .fl{font-size:.68rem;font-weight:800;color:var(--muted);text-transform:uppercase;
   letter-spacing:.5px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between}
 .fi,.fs,.fta{width:100%;background:var(--s2);border:1px solid var(--b1);border-radius:var(--rsm);
-  color:var(--txt);font-size:.9rem;padding:11px 13px;outline:none;transition:border-color .2s;-webkit-appearance:none}
+  color:var(--txt);font-size:1rem;padding:11px 13px;outline:none;transition:border-color .2s;-webkit-appearance:none}
 .fi:focus,.fs:focus,.fta:focus{border-color:var(--gd)}
 .fta{resize:vertical;min-height:68px;font-family:'DM Sans',sans-serif}
 .fs option{background:var(--s2)}
-.fi-hint{font-size:.7rem;color:var(--dim);margin-top:5px}
+.fi-hint{font-size:.76rem;color:var(--dim);margin-top:5px}
 .fi2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 
 /* PILLS / TABS */
 .pills{display:flex;gap:7px;flex-wrap:wrap}
 .pill{padding:7px 14px;border-radius:20px;border:1px solid var(--b1);background:var(--s2);
-  color:var(--muted);font-size:.78rem;font-weight:700;cursor:pointer;transition:.2s;
+  color:var(--muted);font-size:.86rem;font-weight:700;cursor:pointer;transition:.2s;
   white-space:nowrap;-webkit-appearance:none;outline:none}
-.pill.act{background:#1a1800;border-color:#8a6500;color:#d4a017}
+.pill.act{background:#1e1b00;border-color:#a08200;color:#e0c611}
 .pill.act-red{background:linear-gradient(145deg,#180a0a,#200e0e);border-color:var(--rd);color:var(--red)}
 .tabs{display:flex;background:var(--s2);border-radius:var(--rsm);padding:3px;margin-bottom:13px}
-.tab{flex:1;padding:7px;text-align:center;font-size:.74rem;font-weight:800;border-radius:6px;
+.tab{flex:1;padding:7px;text-align:center;font-size:.76rem;font-weight:800;border-radius:6px;
   cursor:pointer;color:var(--dim);transition:.2s;border:none;background:none;
   letter-spacing:.3px;text-transform:uppercase;-webkit-appearance:none;outline:none}
-.tab.act{background:var(--s3);color:var(--gold)}
+.tab.act{background:rgba(224,198,17,.12);color:var(--gold)}
 
 /* CHIPS */
 .chip{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:10px;
-  font-size:.65rem;font-weight:800;letter-spacing:.3px;text-transform:uppercase}
+  font-size:.68rem;font-weight:800;letter-spacing:.3px;text-transform:uppercase}
 .ch-gold{background:rgba(200,168,75,.15);color:var(--gold)}
 .ch-grn{background:rgba(69,184,124,.15);color:var(--grn)}
 .ch-red{background:rgba(217,85,85,.15);color:var(--red)}
@@ -378,36 +392,37 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 .ch-blu{background:rgba(91,139,232,.12);color:var(--blu)}
 .ch-dim{background:rgba(255,255,255,.06);color:var(--muted)}
 .hist-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:8px;
-  font-size:.62rem;font-weight:800;background:rgba(91,139,232,.15);color:var(--blu)}
+  font-size:.68rem;font-weight:800;background:rgba(91,139,232,.15);color:var(--blu)}
 
 /* SALE ROW */
-.si{display:flex;align-items:flex-start;gap:10px;padding:12px 13px;background:var(--s1);
-  border:1px solid var(--b1);border-radius:var(--r);margin-bottom:8px;position:relative}
+.si{display:flex;align-items:flex-start;gap:10px;padding:13px 14px;background:var(--s1);
+  border:1px solid var(--b1);border-radius:var(--r);margin-bottom:8px;position:relative;
+  box-shadow:var(--sh-sm)}
 .si-ico{width:36px;height:36px;border-radius:9px;background:var(--s2);border:1px solid var(--b1);
   display:flex;align-items:center;justify-content:center;color:var(--gold);flex-shrink:0}
 .si-body{flex:1;min-width:0}
 .si-prod{font-weight:700;font-size:.86rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.si-cust{font-size:.74rem;color:var(--muted);font-style:italic;margin-top:1px;
+.si-cust{font-size:.76rem;color:var(--muted);font-style:italic;margin-top:1px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .si-meta{font-size:.68rem;color:var(--dim);margin-top:3px;display:flex;gap:7px;flex-wrap:wrap}
 .si-r{text-align:right;flex-shrink:0}
-.si-amt{font-family:'Playfair Display',serif;font-size:1.05rem;color:var(--gold)}
+.si-amt{font-family:'Playfair Display',serif;font-size:1rem;color:var(--gold)}
 .si-sub{font-size:.68rem;color:var(--muted);margin-top:1px}
 .sdot{position:absolute;top:9px;right:9px;width:6px;height:6px;border-radius:50%}
 .sd-ok{background:var(--grn)}.sd-no{background:var(--red)}
 
 /* PRODUCT CARDS */
-.pc{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:13px;margin-bottom:8px}
+.pc{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:13px;margin-bottom:8px;box-shadow:var(--sh-sm)}
 .pc-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .pc-img{width:56px;height:56px;border-radius:10px;object-fit:cover;flex-shrink:0;border:1px solid var(--b1)}
 .pc-img-ph{width:56px;height:56px;border-radius:10px;background:var(--s2);border:1px solid var(--b1);
   display:flex;align-items:center;justify-content:center;flex-shrink:0;
-  font-size:1.4rem;font-weight:800;color:var(--dim)}
-.pc-name{font-weight:700;font-size:.9rem}
+  font-size:1.5rem;font-weight:800;color:var(--dim)}
+.pc-name{font-weight:700;font-size:1rem}
 .pc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .pcs{background:var(--s2);border-radius:6px;padding:8px 6px;text-align:center}
 .pcs-v{font-family:'Playfair Display',serif;font-size:1rem}
-.pcs-l{font-size:.62rem;color:var(--dim);margin-top:2px}
+.pcs-l{font-size:.68rem;color:var(--dim);margin-top:2px}
 
 /* VISUAL PRODUCT GRID (selector) */
 .prod-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -419,16 +434,16 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
   display:flex;align-items:center;justify-content:center;
   font-size:2rem;font-weight:800;color:var(--b2)}
 .prod-card-info{padding:9px 10px}
-.prod-card-name{font-size:.8rem;font-weight:700;line-height:1.2;
+.prod-card-name{font-size:.86rem;font-weight:700;line-height:1.2;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.prod-card-price{font-family:'Playfair Display',serif;font-size:.95rem;color:var(--gold);margin-top:3px}
-.prod-card-sub{font-size:.66rem;color:var(--dim);margin-top:1px}
+.prod-card-price{font-family:'Playfair Display',serif;font-size:1rem;color:var(--gold);margin-top:3px}
+.prod-card-sub{font-size:.68rem;color:var(--dim);margin-top:1px}
 
 /* PHOTO UPLOAD */
 .photo-upload{width:100%;padding:14px;border:2px dashed var(--b2);
   border-radius:var(--r);background:var(--s2);cursor:pointer;
   display:flex;align-items:center;justify-content:center;gap:10px;
-  font-size:.82rem;color:var(--muted);font-weight:700;
+  font-size:.86rem;color:var(--muted);font-weight:700;
   -webkit-appearance:none;outline:none;transition:.2s}
 .photo-upload:active{border-color:var(--gd);color:var(--gold)}
 .photo-preview{position:relative;display:inline-block;width:100%}
@@ -436,29 +451,29 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 .photo-remove{position:absolute;top:6px;right:6px;width:26px;height:26px;
   border-radius:50%;background:rgba(0,0,0,.7);border:none;cursor:pointer;
   display:flex;align-items:center;justify-content:center;color:#fff;
-  font-size:.8rem;font-weight:800;-webkit-appearance:none;outline:none}
+  font-size:.86rem;font-weight:800;-webkit-appearance:none;outline:none}
 
 /* PROMOTER CARD */
-.prc{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:14px;margin-bottom:9px}
+.prc{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:14px;margin-bottom:9px;box-shadow:var(--sh-sm)}
 .prc-h{display:flex;align-items:center;gap:10px;margin-bottom:11px}
 .prc-av{width:40px;height:40px;border-radius:50%;background:linear-gradient(145deg,var(--gd),var(--s3));
   display:flex;align-items:center;justify-content:center;
-  font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--gold);flex-shrink:0}
-.prc-name{font-weight:700;font-size:.9rem}
-.prc-ph{font-size:.72rem;color:var(--muted);margin-top:2px}
+  font-family:'Playfair Display',serif;font-size:1rem;color:var(--gold);flex-shrink:0}
+.prc-name{font-weight:700;font-size:1rem}
+.prc-ph{font-size:.76rem;color:var(--muted);margin-top:2px}
 .prc-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
 .prs{background:var(--s2);border-radius:7px;padding:9px 7px;text-align:center}
-.prs-v{font-family:'Playfair Display',serif;font-size:.98rem;color:var(--gold)}
-.prs-l{font-size:.62rem;color:var(--dim);margin-top:2px}
+.prs-v{font-family:'Playfair Display',serif;font-size:1rem;color:var(--gold)}
+.prs-l{font-size:.68rem;color:var(--dim);margin-top:2px}
 
 /* EXPENSE ROW */
 .ei{display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--s1);
-  border:1px solid var(--b1);border-radius:var(--r);margin-bottom:7px;position:relative}
+  border:1px solid var(--b1);box-shadow:var(--sh-sm);border-radius:var(--r);margin-bottom:7px;position:relative}
 .ei-ico{width:34px;height:34px;background:var(--s2);border-radius:8px;
   display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0}
 .ei-body{flex:1}
-.ei-type{font-weight:700;font-size:.84rem}
-.ei-desc{font-size:.72rem;color:var(--muted);margin-top:1px}
+.ei-type{font-weight:700;font-size:.86rem}
+.ei-desc{font-size:.76rem;color:var(--muted);margin-top:1px}
 .ei-date{font-size:.68rem;color:var(--dim);margin-top:2px}
 .ei-amt{font-family:'Playfair Display',serif;font-size:1rem;color:var(--red);text-align:right;flex-shrink:0}
 
@@ -467,14 +482,14 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
   display:flex;flex-direction:column;justify-content:flex-end}
 .sheet{background:var(--s1);border-radius:20px 20px 0 0;
   padding:18px 18px max(18px,env(safe-area-inset-bottom));
-  max-height:94dvh;overflow-y:auto;border-top:1px solid var(--b2)}
+  max-height:94dvh;overflow-y:auto;border-top:1px solid var(--b2);box-shadow:var(--sh-lg)}
 .sh-hd{width:32px;height:3px;background:var(--b2);border-radius:2px;margin:0 auto 18px}
-.sh-title{font-family:'Playfair Display',serif;font-size:1.15rem;margin-bottom:16px}
+.sh-title{font-family:'Playfair Display',serif;font-size:1.2rem;margin-bottom:16px}
 
 /* SALE STEPS */
 .steps{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:18px}
 .step{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-  font-size:.72rem;font-weight:800;transition:.2s;border:1.5px solid}
+  font-size:.76rem;font-weight:800;transition:.2s;border:1.5px solid}
 .s-done{background:var(--gold);border-color:var(--gold);color:#100d02}
 .s-cur{background:var(--s3);border-color:var(--gd);color:var(--gold)}
 .s-fut{background:var(--s2);border-color:var(--b1);color:var(--dim)}
@@ -484,7 +499,7 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 /* PRICE BREAKDOWN */
 .pb{background:var(--s2);border-radius:var(--r);padding:13px}
 .pbr{display:flex;justify-content:space-between;align-items:center;
-  padding:5px 0;border-bottom:1px solid var(--b1);font-size:.82rem}
+  padding:5px 0;border-bottom:1px solid var(--b1);font-size:.86rem}
 .pbr:last-child{border-bottom:none}
 .pbr.sep{border-top:1px solid var(--b2);margin-top:5px;padding-top:10px}
 .pbk{color:var(--muted)}.pbv{font-weight:700}
@@ -493,9 +508,9 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 /* FINANCIAL TABLE */
 .fb{background:var(--s2);border-radius:var(--r);padding:14px}
 .fr{display:flex;justify-content:space-between;align-items:center;
-  padding:6px 0;border-bottom:1px solid var(--b1);font-size:.82rem}
+  padding:6px 0;border-bottom:1px solid var(--b1);font-size:.86rem}
 .fr:last-child{border-bottom:none}
-.fr.total{font-weight:800;font-size:.92rem;padding-top:9px;margin-top:4px}
+.fr.total{font-weight:800;font-size:1rem;padding-top:9px;margin-top:4px}
 .fk{color:var(--muted)}.fv{font-weight:700}
 
 /* BAR CHART */
@@ -503,7 +518,7 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 .rbar-l{font-size:.76rem;color:var(--muted);width:95px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
 .rbar-t{flex:1;background:var(--s2);border-radius:4px;height:6px;overflow:hidden}
 .rbar-f{height:100%;border-radius:4px;transition:width .9s ease}
-.rbar-v{font-size:.73rem;color:var(--muted);width:60px;text-align:right;flex-shrink:0}
+.rbar-v{font-size:.76rem;color:var(--muted);width:60px;text-align:right;flex-shrink:0}
 
 /* LASER PREVIEW */
 .lp{background:var(--s2);border:1px dashed #8a6500;border-radius:var(--r);
@@ -522,7 +537,7 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 
 /* ALERTS */
 .al{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:var(--rsm);
-  margin-bottom:11px;font-size:.78rem}
+  margin-bottom:11px;font-size:.86rem}
 .al-warn{background:rgba(217,85,85,.1);border:1px solid var(--rd);color:var(--red)}
 .al-info{background:rgba(200,168,75,.1);border:1px solid var(--gd);color:var(--gold)}
 .al-ok{background:rgba(69,184,124,.1);border:1px solid var(--grd);color:var(--grn)}
@@ -530,8 +545,8 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 /* TOAST */
 .toast-wrap{position:fixed;top:70px;left:50%;transform:translateX(-50%);
   z-index:999;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
-.toast{padding:10px 18px;border-radius:20px;font-size:.8rem;font-weight:700;
-  box-shadow:0 4px 20px rgba(0,0,0,.5);animation:tin .25s ease;pointer-events:none}
+.toast{padding:10px 18px;border-radius:20px;font-size:.86rem;font-weight:700;
+  box-shadow:0 4px 20px rgba(0,0,0,.5);animation:tin .25s ease;pointer-events:none;white-space:nowrap}
 @keyframes tin{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
 .t-ok{background:var(--grn);color:#fff}
 .t-err{background:var(--red);color:#fff}
@@ -547,7 +562,7 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 .order-bar{width:4px;align-self:stretch;border-radius:2px;flex-shrink:0;margin:2px 0}
 .order-body{flex:1;min-width:0}
 .order-name{font-weight:700;font-size:.86rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.order-prod{font-size:.74rem;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.order-prod{font-size:.76rem;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .order-meta{font-size:.68rem;color:var(--dim);margin-top:2px;display:flex;gap:7px;flex-wrap:wrap}
 .order-amt{font-family:'Playfair Display',serif;font-size:1rem;color:var(--gold);flex-shrink:0}
 .order-detail{padding:0 13px 12px 27px;border-top:1px solid var(--b1)}
@@ -559,10 +574,10 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 .kanban-col{flex-shrink:0;width:72vw;max-width:280px;scroll-snap-align:start}
 .kanban-head{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;
   margin-bottom:8px;background:var(--s2);border-radius:var(--r);border-left:3px solid}
-.kanban-card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);
+.kanban-card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);box-shadow:var(--sh-sm);
   padding:11px 12px;margin-bottom:8px;border-top:2px solid}
 .kanban-empty{border:1px dashed var(--b1);border-radius:var(--r);padding:20px 10px;
-  text-align:center;font-size:.72rem;color:var(--dim)}
+  text-align:center;font-size:.76rem;color:var(--dim)}
 
 /* NOTIFY */
 .notify-bar{background:linear-gradient(145deg,#0a1408,#101f0e);border:1px solid var(--grd);
@@ -580,21 +595,21 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 /* VIEW TOGGLE */
 .view-toggle{display:flex;background:var(--s2);border-radius:var(--rsm);padding:3px;gap:2px}
 .vt-btn{padding:5px 12px;border-radius:5px;border:none;cursor:pointer;
-  font-size:.72rem;font-weight:700;transition:.15s;-webkit-appearance:none;outline:none}
+  font-size:.76rem;font-weight:700;transition:.15s;-webkit-appearance:none;outline:none}
 .vt-btn.act{background:var(--s3);color:var(--gold)}
 .vt-btn.off{background:transparent;color:var(--dim)}
 
 /* PAY ROW */
 .pay-row{display:flex;align-items:center;gap:10px;padding:12px 13px;background:var(--s1);
-  border:1px solid var(--b1);border-radius:var(--r);margin-bottom:8px}
+  border:1px solid var(--b1);border-radius:var(--r);margin-bottom:8px;box-shadow:var(--sh-sm)}
 .pay-av{width:38px;height:38px;border-radius:50%;background:linear-gradient(145deg,var(--gd),var(--s3));
   display:flex;align-items:center;justify-content:center;
   font-family:'Playfair Display',serif;font-size:1rem;color:var(--gold);flex-shrink:0}
 
 /* MISC */
-.price-box{background:var(--s2);border-radius:var(--r);padding:13px;margin-bottom:13px}
+.price-box{background:var(--s2);border-radius:var(--r);padding:13px;margin-bottom:13px;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
 .dvd{height:1px;background:var(--b1);margin:12px 0}
-.id-tag{font-size:.66rem;font-family:monospace;background:var(--s3);color:var(--muted);
+.id-tag{font-size:.68rem;font-family:monospace;background:var(--s3);color:var(--muted);
   padding:2px 6px;border-radius:4px;letter-spacing:.5px}
 .empty{text-align:center;padding:40px 16px;color:var(--dim)}
 .empty p{font-size:.86rem;margin-top:9px}
@@ -613,9 +628,9 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 // ============================================================
 //  DATABASE  (IndexedDB)
 // ============================================================
-const DB_NAME   = "garabato_v11";
+const DB_NAME   = "garabato_v12";
 const DB_VER    = 1;
-const DB_STORES = ["users","products","promoters","sales","expenses","commissionPayments","orders"];
+const DB_STORES = ["users","products","promoters","sales","expenses","commissionPayments","orders","notifications"];
 let _db = null;
 
 function openDB() {
@@ -653,35 +668,65 @@ const dbDel = async (store, key) => {
     r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
   });
 };
+const dbGet = async (store, key) => {
+  const db = await openDB();
+  return new Promise((res,rej) => {
+    const r = db.transaction(store,"readonly").objectStore(store).get(key);
+    r.onsuccess = () => res(r.result||null); r.onerror = () => rej(r.error);
+  });
+};
 
 // ============================================================
 //  CONSTANTS
 // ============================================================
 const ORDER_STATES = [
-  { id:"nuevo",          label:"Nuevo",      color:"var(--blu)", border:"#5b8be8" },
-  { id:"disenar",       label:"Disenar",   color:"var(--gold)",border:"#c8a84b" },
-  { id:"pago_pendiente", label:"Pago pendiente", color:"var(--red)", border:"#d95555" },
-  { id:"pagado",         label:"Pagado",     color:"var(--teal)",border:"#29b8a8" },
-  { id:"listo",          label:"Listo",      color:"var(--grn)", border:"#45b87c" },
+  { id:"nuevo",                label:"Nuevo",               color:"var(--blu)", border:"#4a9ee0" },
+  { id:"esperando_foto",       label:"Esperando foto",      color:"#a855f7",    border:"#a855f7" },
+  { id:"disenando",            label:"Diseñando",           color:"var(--gold)",border:"#e0c611" },
+  { id:"esperando_aprobacion", label:"Esperando aprobación",color:"#f97316",    border:"#f97316" },
+  { id:"pago_pendiente",       label:"Pago pendiente",      color:"var(--red)", border:"#e05555" },
+  { id:"pago_confirmado",       label:"Pago confirmado",      color:"var(--teal)",border:"#11c8b8" },
+  { id:"grabando",             label:"Grabando",            color:"#e0c611",    border:"#e0c611" },
+  { id:"listo",                label:"Listo",               color:"var(--grn)", border:"#2ecc71" },
+  { id:"enviado",              label:"Enviado",             color:"var(--blu)", border:"#4a9ee0" },
 ];
 const STATE_IDS  = ORDER_STATES.map(s => s.id);
 const stateInfo  = id => ORDER_STATES.find(s => s.id === id) || ORDER_STATES[0];
 const stateIndex = id => { const i = STATE_IDS.indexOf(id); return i >= 0 ? i : 0; };
 const nextState  = id => { const i = STATE_IDS.indexOf(id); return i >= 0 && i < STATE_IDS.length-1 ? STATE_IDS[i+1] : null; };
 
-const ROLE_LABEL = { admin:"Admin", employee:"Tienda", promoter:"Promotora" };
-const ROLE_CLASS = { admin:"rb-admin", employee:"rb-employee", promoter:"rb-promoter" };
+const ROLE_LABEL = { admin:"Admin", socio:"Socio", employee:"Tienda", promoter:"Promotora" };
+const ROLE_CLASS = { admin:"rb-admin", socio:"rb-socio", employee:"rb-employee", promoter:"rb-promoter" };
 const EXP_TYPES  = ["Empaques","Electricidad","Internet","Materiales","Marketing","Transporte","Alquiler","Otro"];
 const PM_OPTS    = [["efectivo","Efectivo"],["transferencia","Transferencia"],["qr","QR"]];
 
+// ============================================================
+//  BUSINESS CONSTANTS
+// ============================================================
+const BUSINESS = {
+  name:     "Garabato",
+  tagline:  "Personalización Laser",
+  phone:    "591XXXXXXXX", // actualizar con número real
+  city:     "Santa Cruz de la Sierra, Bolivia",
+  mapsUrl:  "https://maps.app.goo.gl/garabato",
+  lat:      -17.7798126,
+  lng:      -63.1835587,
+  schedule: "Lunes a Sabado de 9:00 a 12:00 y de 14:00 a 18:00 hrs",
+  currency: "BOB",
+  locale:   "es-BO",
+  split:    0.5,  // 50/50
+  exchangeRate: 6.96, // BOB por USD - actualizar segun necesidad
+};
+
 // Permissions
 const CAN = {
-  seeReports:  r => r === "admin",
-  seeComms:    r => r === "admin",
-  seeInventory:r => r === "admin" || r === "employee",
-  editData:    r => r === "admin",
-  seeExpenses: r => r === "admin",
-  seePayments: r => r === "admin",
+  seeReports:  r => r === "admin" || r === "socio",
+  seeComms:    r => r === "admin" || r === "socio",
+  seeInventory:r => r === "admin" || r === "employee" || r === "socio",
+  editData:    r => r === "admin" || r === "employee", // employee puede registrar ventas y pedidos
+  editConfig:  r => r === "admin",                     // solo admin puede editar productos/usuarios
+  seeExpenses: r => r === "admin" || r === "socio",
+  seePayments: r => r === "admin" || r === "socio",
   manageConfig:r => r === "admin",
 };
 
@@ -714,10 +759,13 @@ function openWhatsApp(phone, message) {
   if (!clean) return;
   const full = clean.startsWith("591") ? clean : "591"+clean;
   const text = encodeURIComponent(message||"");
-  const a = document.createElement("a");
-  a.href = "https://wa.me/"+full+"?text="+text;
-  a.target = "_blank"; a.rel = "noopener noreferrer";
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  if (isAndroid) {
+    const fallback = encodeURIComponent("https://wa.me/"+full+"?text="+text);
+    window.location.href = "intent://send?phone="+full+"&text="+text+"#Intent;scheme=whatsapp;package=com.whatsapp.w4b;S.browser_fallback_url="+fallback+";end";
+  } else {
+    window.location.href = "https://wa.me/"+full+"?text="+text;
+  }
 }
 function compressImage(file) {
   return new Promise(resolve => {
@@ -754,85 +802,18 @@ const LOGO_B64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADICAIAAAAi
 //  SEED DATA
 // ============================================================
 async function seed() {
-  const ex = await dbAll("products");
+  const ex = await dbAll("users");
   if (ex.length > 0) return;
-  const now = Date.now(), d = n => n*86400000;
-  function mkSale(id,pid,pname,cust,cp,pp,cost,prid,prname,ago,pm,hist) {
-    const {commission,profit,profitOwner,profitPartner} = calcSale(cp,pp,cost);
-    return {id,productId:pid,productName:pname,customization:cust,
-      clientPrice:cp,promoterPrice:pp,cost,commission,profit,profitOwner,profitPartner,
-      paymentMethod:pm,promoterId:prid,promoterName:prname,
-      commissionStatus:ago>3?"pagado":"pendiente",
-      date:now-d(ago),synced:ago>1,isHistoric:!!hist,isDirectSale:false,
-      clientName:"",clientPhone:"",notes:""};
-  }
-  const users = [
-    {id:"u1",name:"Carlos (Admin)",role:"admin",   pin:"1234",promoterId:null},
-    {id:"u2",name:"Tienda",        role:"employee",pin:"5678",promoterId:null},
-    {id:"u3",name:"Maria Gonzalez",role:"promoter",pin:"1111",promoterId:"pr1"},
-    {id:"u4",name:"Laura Martinez",role:"promoter",pin:"2222",promoterId:"pr2"},
-  ];
-  const products = [
-    {id:"p1",name:"Dije Corazon Fotograbado",clientPrice:122,promoterPrice:94, cost:35,stock:24,lowStockAlert:5,photo:null},
-    {id:"p2",name:"Pulsera Acero Grabada",   clientPrice:95, promoterPrice:72, cost:28,stock:18,lowStockAlert:4,photo:null},
-    {id:"p3",name:"Llavero Oval",            clientPrice:65, promoterPrice:52, cost:18,stock:30,lowStockAlert:8,photo:null},
-    {id:"p4",name:"Cadena con Dije",         clientPrice:175,promoterPrice:138,cost:55,stock:12,lowStockAlert:3,photo:null},
-    {id:"p5",name:"Anillo Ajustable",        clientPrice:140,promoterPrice:108,cost:40,stock:15,lowStockAlert:4,photo:null},
-    {id:"p6",name:"Arete Colgante",          clientPrice:110,promoterPrice:85, cost:32,stock:3, lowStockAlert:4,photo:null},
-  ];
-  const promoters = [
-    {id:"pr1",name:"Maria Gonzalez",phone:"70012345",active:true,customPromoterPrice:null},
-    {id:"pr2",name:"Laura Martinez",phone:"70098765",active:true,customPromoterPrice:null},
-  ];
-  const sales = [
-    mkSale("s1","p1","Dije Corazon Fotograbado","Ana y Luis 2024",122,94, 35,"pr1","Maria Gonzalez",8,"efectivo"),
-    mkSale("s2","p3","Llavero Oval",            "FAMILIA TORRES",  65,52, 18,"pr2","Laura Martinez",6,"qr"),
-    mkSale("s3","p2","Pulsera Acero Grabada",   "Mi amor eterno",  95,72, 28,"pr1","Maria Gonzalez",3,"efectivo"),
-    mkSale("s4","p4","Cadena con Dije",         "JM",             175,138,55,"pr1","Maria Gonzalez",1,"qr",true),
-    mkSale("s5","p1","Dije Corazon Fotograbado","Mama te amo",    122,94, 35,"pr2","Laura Martinez",0,"efectivo"),
-  ];
-  const expenses = [
-    {id:"e1",type:"Electricidad",amount:120,date:now-d(7), description:"Factura mensual",    synced:true},
-    {id:"e2",type:"Internet",    amount:80, date:now-d(5), description:"Plan mensual",        synced:true},
-    {id:"e3",type:"Materiales",  amount:200,date:now-d(3), description:"Resina y acero inox", synced:true},
-    {id:"e4",type:"Empaques",    amount:45, date:now-d(1), description:"Sobres y cajas",      synced:false},
-  ];
-  const orders = [
-    {id:"o1",clientName:"Sofia Ramirez",  clientPhone:"70011222",
-     productId:"p1",productName:"Dije Corazon Fotograbado",customization:"Siempre juntos + foto",
-     clientPrice:122,promoterId:"pr1",promoterName:"Maria Gonzalez",
-     delivery:"local",deliveryCity:"",deliveryAddress:"",
-     status:"listo",statusHistory:[
-       {status:"nuevo",date:now-d(3)},{status:"disenar",date:now-d(2)},
-       {status:"pagado",date:now-d(1)},{status:"listo",date:now},
-     ],notes:"Fotograbado con foto enviada por WhatsApp",
-     date:now-d(3),synced:true,convertedToSale:false},
-    {id:"o2",clientName:"Rodrigo Vasquez",clientPhone:"70033444",
-     productId:"p4",productName:"Cadena con Dije",customization:"RV 2024",
-     clientPrice:175,promoterId:"pr2",promoterName:"Laura Martinez",
-     delivery:"envio",deliveryCity:"Santa Cruz",deliveryAddress:"Av. Canoto 234",
-     status:"disenar",statusHistory:[
-       {status:"nuevo",date:now-d(1)},{status:"disenar",date:now},
-     ],notes:"Envio por transportadora",
-     date:now-d(1),synced:true,convertedToSale:false},
-    {id:"o3",clientName:"Carmen Lopez",   clientPhone:"70055666",
-     productId:"p2",productName:"Pulsera Acero Grabada",customization:"Mama",
-     clientPrice:95,promoterId:"pr1",promoterName:"Maria Gonzalez",
-     delivery:"local",deliveryCity:"",deliveryAddress:"",
-     status:"pago_pendiente",statusHistory:[
-       {status:"nuevo",date:now-d(2)},{status:"disenar",date:now-d(1)},
-       {status:"pago_pendiente",date:now},
-     ],notes:"",
-     date:now-d(2),synced:false,convertedToSale:false},
-  ];
-  for (const u  of users)     await dbPut("users",    u);
-  for (const p  of products)  await dbPut("products", p);
-  for (const pr of promoters) await dbPut("promoters",pr);
-  for (const s  of sales)     await dbPut("sales",    s);
-  for (const e  of expenses)  await dbPut("expenses", e);
-  for (const o  of orders)    await dbPut("orders",   o);
+  // Primera vez — crear usuario Admin con PIN por defecto
+  await dbPut("users", {
+    id:"u1",
+    name:"Admin",
+    role:"admin",
+    pin:"1234",
+    promoterId:null,
+    createdAt:Date.now(),
+  });
 }
-
 // ============================================================
 //  REPORT GENERATORS
 // ============================================================
@@ -845,7 +826,12 @@ function generatePartnerReport(sales, expenses, promoters, period, periodLabel) 
   const totalComm   = fs.reduce((a,s)=>a+s.commission,0);
   const totalCost   = fs.reduce((a,s)=>a+s.cost,0);
   const totalProfit = fs.reduce((a,s)=>a+s.profit,0);
-  const totalExp    = expenses.reduce((a,e)=>a+e.amount,0);
+  const fe = period==="today" ? expenses.filter(e=>e.date>=todayMs())
+           : period==="week"  ? expenses.filter(e=>e.date>=now-7*86400000)
+           : period==="month" ? expenses.filter(e=>e.date>=now-30*86400000)
+           : expenses;
+  const totalExp    = fe.filter(e=>e.afectaSociedad!==false).reduce((a,e)=>a+e.amount,0);
+  const totalExpAll = fe.reduce((a,e)=>a+e.amount,0);
   const netFinal    = r2(totalProfit-totalExp);
   const socio       = r2(netFinal*.5);
   const dateStr     = new Date().toLocaleDateString("es-BO",{day:"2-digit",month:"long",year:"numeric"});
@@ -866,32 +852,32 @@ function generatePartnerReport(sales, expenses, promoters, period, periodLabel) 
 body{font-family:Georgia,serif;background:#f8f5f0;color:#2a2010;padding:20px;max-width:600px;margin:0 auto}
 .hdr{text-align:center;padding:28px 0 20px;border-bottom:2px solid #c8a84b;margin-bottom:24px}
 .logo{font-size:2rem;color:#c8a84b;letter-spacing:2px;font-weight:700}
-.sub{font-size:.85rem;color:#7a6020;margin-top:4px;text-transform:uppercase;letter-spacing:1px}
-.dt{font-size:.78rem;color:#9a8060;margin-top:8px}
+.sub{font-size:.86rem;color:#7a6020;margin-top:4px;text-transform:uppercase;letter-spacing:1px}
+.dt{font-size:.86rem;color:#9a8060;margin-top:8px}
 .hl{background:linear-gradient(135deg,#fffbf0,#fff8e8);border:2px solid #c8a84b;border-radius:12px;
   padding:20px;margin-bottom:20px;text-align:center}
-.hl-lbl{font-size:.72rem;text-transform:uppercase;letter-spacing:1px;color:#7a6020;font-family:sans-serif}
-.hl-val{font-size:2.4rem;color:#c8a84b;font-weight:700;margin-top:6px}
-.hl-sub{font-size:.8rem;color:#9a8060;margin-top:6px;font-family:sans-serif}
+.hl-lbl{font-size:.76rem;text-transform:uppercase;letter-spacing:1px;color:#7a6020;font-family:sans-serif}
+.hl-val{font-size:2rem;color:#c8a84b;font-weight:700;margin-top:6px}
+.hl-sub{font-size:.86rem;color:#9a8060;margin-top:6px;font-family:sans-serif}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
 .card{background:#fff;border:1px solid #e8d8b0;border-radius:10px;padding:14px;text-align:center}
-.cv{font-size:1.3rem;font-weight:700}.cv.g{color:#c8a84b}.cv.t{color:#29b8a8}.cv.r{color:#d95555}
+.cv{font-size:1.5rem;font-weight:700}.cv.g{color:#c8a84b}.cv.t{color:#29b8a8}.cv.r{color:#d95555}
 .cl{font-size:.68rem;color:#9a8060;margin-top:3px;text-transform:uppercase;letter-spacing:.5px;font-family:sans-serif}
 .sec{background:#fff;border:1px solid #e8d8b0;border-radius:12px;padding:18px;margin-bottom:16px}
-.sec-t{font-size:.72rem;text-transform:uppercase;letter-spacing:1px;color:#9a8060;margin-bottom:14px;
+.sec-t{font-size:.76rem;text-transform:uppercase;letter-spacing:1px;color:#9a8060;margin-bottom:14px;
   font-weight:700;font-family:sans-serif}
 .row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;
-  border-bottom:1px solid #f0e8d0;font-size:.88rem}
+  border-bottom:1px solid #f0e8d0;font-size:1rem}
 .row:last-child{border-bottom:none}
-.row.tot{font-weight:700;font-size:.95rem;padding-top:10px;margin-top:4px}
+.row.tot{font-weight:700;font-size:1rem;padding-top:10px;margin-top:4px}
 .rk{color:#7a6020}.rv{font-weight:700}
-.footer{text-align:center;font-size:.72rem;color:#9a8060;margin-top:24px;
+.footer{text-align:center;font-size:.76rem;color:#9a8060;margin-top:24px;
   padding-top:16px;border-top:1px solid #e8d8b0;font-family:sans-serif}
 </style></head><body>
 <div class="hdr"><div class="logo">Garabato</div>
-<div class="sub">Reporte para socio</div>
-<div class="dt">Periodo: ${periodLabel} - Generado el ${dateStr}</div></div>
-<div class="hl"><div class="hl-lbl">Participacion del socio</div>
+<div class="sub">Reporte para el Socio</div>
+<div class="dt">Período: ${periodLabel} - Generado el ${dateStr}</div></div>
+<div class="hl"><div class="hl-lbl">Participación del socio</div>
 <div class="hl-val">Bs ${socio.toFixed(2)}</div>
 <div class="hl-sub">${fs.length} ventas - Ganancia real: Bs ${netFinal.toFixed(2)}</div></div>
 <div class="g2">
@@ -907,16 +893,16 @@ body{font-family:Georgia,serif;background:#f8f5f0;color:#2a2010;padding:20px;max
 <div class="row tot"><span class="rk">= Ganancia bruta</span><span class="rv" style="color:#29b8a8">Bs ${totalProfit.toFixed(2)}</span></div>
 <div class="row"><span class="rk">(-) Gastos operativos</span><span class="rv" style="color:#d95555">Bs ${totalExp.toFixed(2)}</span></div>
 <div class="row tot"><span class="rk">= Ganancia real final</span><span class="rv" style="color:${netFinal>=0?"#45b87c":"#d95555"}">Bs ${netFinal.toFixed(2)}</span></div>
-<div class="row tot"><span class="rk">Socio 1 (50%)</span><span class="rv" style="color:#c8a84b">Bs ${socio.toFixed(2)}</span></div>
-<div class="row tot"><span class="rk">Socio 2 (50%)</span><span class="rv" style="color:#29b8a8">Bs ${socio.toFixed(2)}</span></div>
+<div class="row tot"><span class="rk">Socio administrador (50%)</span><span class="rv" style="color:#c8a84b">Bs ${socio.toFixed(2)}</span></div>
+<div class="row tot"><span class="rk">Socio (50%)</span><span class="rv" style="color:#29b8a8">Bs ${socio.toFixed(2)}</span></div>
 </div>
 ${promos.length>0?`<div class="sec"><div class="sec-t">Ventas por promotora</div>
 ${promos.map(r=>`<div class="row"><span class="rk">${r.name} (${r.count} ventas)</span><span class="rv">Bs ${r.total.toFixed(2)}</span></div>`).join("")}
 </div>`:""}
-${topP.length>0?`<div class="sec"><div class="sec-t">Productos mas vendidos</div>
+${topP.length>0?`<div class="sec"><div class="sec-t">Productos más vendidos</div>
 ${topP.map((p,i)=>`<div class="row"><span class="rk">${i+1}. ${p.name} (${p.count} u.)</span><span class="rv">Bs ${p.rev.toFixed(2)}</span></div>`).join("")}
 </div>`:""}
-<div class="footer">Garabato POS - Reporte generado automaticamente - ${dateStr}</div>
+<div class="footer">Garabato POS - Reporte generado automáticamente - ${dateStr}</div>
 </body></html>`;
   const url = URL.createObjectURL(new Blob([html],{type:"text/html"}));
   window.open(url,"_blank"); setTimeout(()=>URL.revokeObjectURL(url),60000);
@@ -937,24 +923,24 @@ function generateCommissionReport(promoters, sales) {
 body{font-family:Georgia,serif;background:#f8f5f0;color:#2a2010;padding:20px;max-width:600px;margin:0 auto}
 .hdr{text-align:center;padding:28px 0 20px;border-bottom:2px solid #c8a84b;margin-bottom:24px}
 .logo{font-size:2rem;color:#c8a84b;letter-spacing:2px;font-weight:700}
-.sub{font-size:.85rem;color:#7a6020;margin-top:4px;text-transform:uppercase;letter-spacing:1px;font-family:sans-serif}
-.dt{font-size:.78rem;color:#9a8060;margin-top:8px;font-family:sans-serif}
+.sub{font-size:.86rem;color:#7a6020;margin-top:4px;text-transform:uppercase;letter-spacing:1px;font-family:sans-serif}
+.dt{font-size:.86rem;color:#9a8060;margin-top:8px;font-family:sans-serif}
 .total-box{background:linear-gradient(135deg,#fffbf0,#fff8e8);border:2px solid #c8a84b;
   border-radius:12px;padding:20px;margin-bottom:20px;text-align:center}
-.tl{font-size:.72rem;text-transform:uppercase;letter-spacing:1px;color:#7a6020;font-family:sans-serif}
-.tv{font-size:2.2rem;color:#d95555;font-weight:700;margin-top:6px}
+.tl{font-size:.76rem;text-transform:uppercase;letter-spacing:1px;color:#7a6020;font-family:sans-serif}
+.tv{font-size:2rem;color:#d95555;font-weight:700;margin-top:6px}
 .pc{background:#fff;border:1px solid #e8d8b0;border-radius:12px;padding:18px;margin-bottom:14px}
 .ph{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;
   padding-bottom:12px;border-bottom:1px solid #f0e8d0}
-.pn{font-size:1rem;font-weight:700}.pp{font-size:.75rem;color:#9a8060;margin-top:3px;font-family:sans-serif}
-.pa{font-size:1.4rem;color:#d95555;font-weight:700;text-align:right}
-.pal{font-size:.65rem;color:#9a8060;text-align:right;font-family:sans-serif}
+.pn{font-size:1rem;font-weight:700}.pp{font-size:.76rem;color:#9a8060;margin-top:3px;font-family:sans-serif}
+.pa{font-size:1.5rem;color:#d95555;font-weight:700;text-align:right}
+.pal{font-size:.68rem;color:#9a8060;text-align:right;font-family:sans-serif}
 .sr{display:flex;justify-content:space-between;align-items:center;padding:6px 0;
-  border-bottom:1px solid #f8f4ee;font-size:.82rem}
+  border-bottom:1px solid #f8f4ee;font-size:.86rem}
 .sr:last-child{border-bottom:none}
-.sn{color:#7a6020}.sd{font-size:.7rem;color:#9a8060;margin-top:2px;font-family:sans-serif}
+.sn{color:#7a6020}.sd{font-size:.76rem;color:#9a8060;margin-top:2px;font-family:sans-serif}
 .sc{font-weight:700;color:#d95555}
-.footer{text-align:center;font-size:.72rem;color:#9a8060;margin-top:24px;
+.footer{text-align:center;font-size:.76rem;color:#9a8060;margin-top:24px;
   padding-top:16px;border-top:1px solid #e8d8b0;font-family:sans-serif}
 </style></head><body>
 <div class="hdr"><div class="logo">Garabato</div>
@@ -1004,6 +990,11 @@ const PATHS = {
   money:   <><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>,
   history: <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,
   settings:<><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></>,
+  send:    <><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></>,
+  phone:   <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.8 19.79 19.79 0 01.22 1.18 2 2 0 012.22 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6l.56-.56a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>,
+  truck:   <><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></>,
+  star:    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>,
+  filter:  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>,
 };
 const Ic = ({n,s=20,c="currentColor"}) => (
   <svg width={s} height={s} viewBox="0 0 24 24" fill="none"
@@ -1047,6 +1038,10 @@ export default function App() {
   const [syncing, setSyncing] = useState(false);
   const [showSale,setShowSale]= useState(false);
   const [historic,setHistoric]= useState(false);
+  const [convertOrder,setConvertOrder]= useState(null);
+  const [shipOrder,setShipOrder]= useState(null);
+  const [deleteSale,setDeleteSale]= useState(null);
+  const [showOnboarding,setShowOnboarding]= useState(false);
   const [products, setProducts]  = useState([]);
   const [promoters,setPromoters] = useState([]);
   const [sales,    setSales]     = useState([]);
@@ -1058,27 +1053,40 @@ export default function App() {
 
   useEffect(()=>{
     const st=document.createElement("style"); st.textContent=CSS; document.head.appendChild(st);
-    seed().then(()=>reload().then(()=>setReady(true)));
-    const on=()=>setOnline(true), off=()=>setOnline(false);
+    seed()
+      .then(()=>reload())
+      .then(()=>setReady(true))
+      .catch(err=>{
+        console.error("Error inicializando app:", err);
+        setReady(true); // mostrar app aunque haya error
+      });
+    const on=()=>{setOnline(true);};
+    const off=()=>{setOnline(false);};
     window.addEventListener("online",on); window.addEventListener("offline",off);
     return ()=>{ window.removeEventListener("online",on); window.removeEventListener("offline",off); };
   },[]);
 
   const reload = useCallback(async ()=>{
-    const [pr,prm,sl,ex,pay,usr,ord] = await Promise.all([
-      dbAll("products"),dbAll("promoters"),dbAll("sales"),
-      dbAll("expenses"),dbAll("commissionPayments"),dbAll("users"),dbAll("orders"),
-    ]);
-    setProducts(pr); setPromoters(prm);
-    setSales(sl.sort((a,b)=>b.date-a.date));
-    setExpenses(ex.sort((a,b)=>b.date-a.date));
-    setPayments(pay.sort((a,b)=>b.date-a.date));
-    setUsers(usr); setOrders(ord.sort((a,b)=>b.date-a.date));
+    try {
+      const [pr,prm,sl,ex,pay,usr,ord] = await Promise.all([
+        dbAll("products"),dbAll("promoters"),dbAll("sales"),
+        dbAll("expenses"),dbAll("commissionPayments"),dbAll("users"),dbAll("orders"),
+      ]);
+      setProducts(pr); setPromoters(prm);
+      setSales(sl.sort((a,b)=>b.date-a.date));
+      setExpenses(ex.sort((a,b)=>b.date-a.date));
+      setPayments(pay.sort((a,b)=>b.date-a.date));
+      setUsers(usr); setOrders(ord.sort((a,b)=>b.date-a.date));
+    } catch(err) {
+      console.error("Error cargando datos:", err);
+    }
   },[]);
 
   const pendingSync = useMemo(()=>
-    sales.filter(s=>!s.synced).length + expenses.filter(e=>!e.synced).length,
-  [sales,expenses]);
+    sales.filter(s=>!s.synced).length + 
+    expenses.filter(e=>!e.synced).length +
+    orders.filter(o=>!o.synced).length,
+  [sales,expenses,orders]);
 
   const role = user?.role;
 
@@ -1090,24 +1098,39 @@ export default function App() {
   },[readyOrders,user,role]);
 
   // HANDLERS
-  const handleSync = async ()=>{
+    const handleSync = async ()=>{
     if (!online||syncing) return;
     setSyncing(true);
-    await new Promise(r=>setTimeout(r,800));
-    const ps=sales.filter(s=>!s.synced), pe=expenses.filter(e=>!e.synced);
+    await new Promise(r=>setTimeout(r,600));
+    const ps=sales.filter(s=>!s.synced);
+    const pe=expenses.filter(e=>!e.synced);
+    const po=orders.filter(o=>!o.synced);
     for (const s of ps) await dbPut("sales",{...s,synced:true});
     for (const e of pe) await dbPut("expenses",{...e,synced:true});
+    for (const o of po) await dbPut("orders",{...o,synced:true});
     await reload();
-    toast((ps.length+pe.length)+" registro"+(ps.length+pe.length!==1?"s":"")+" sincronizado"+(ps.length+pe.length!==1?"s":""),"ok");
     setSyncing(false);
+    const total = ps.length+pe.length+po.length;
+    toast(total>0?total+" registro"+(total!==1?"s":"")+" sincronizados":"Todo al dia","ok");
   };
 
   const handleBackup = async ()=>{
-    const [pr,prm,sl,ex,pay]=await Promise.all([
-      dbAll("products"),dbAll("promoters"),dbAll("sales"),dbAll("expenses"),dbAll("commissionPayments"),
+    const [pr,prm,sl,ex,pay,ord,usr]=await Promise.all([
+      dbAll("products"),dbAll("promoters"),dbAll("sales"),dbAll("expenses"),
+      dbAll("commissionPayments"),dbAll("orders"),dbAll("users"),
     ]);
-    exportBackup({products:pr,promoters:prm,sales:sl,expenses:ex,commissionPayments:pay,exportedAt:new Date().toISOString()});
-    toast("Backup descargado","ok");
+    exportBackup({
+      version:"garabato-v12",
+      exportedAt:new Date().toISOString(),
+      products:pr,
+      promoters:prm,
+      sales:sl,
+      expenses:ex,
+      commissionPayments:pay,
+      orders:ord,
+      users:usr.map(u=>({...u,pin:"[OCULTO]"})), // no exportar PINs reales
+    });
+    toast("✓ Backup descargado","ok");
   };
 
   const handleNewSale = async data=>{
@@ -1117,22 +1140,25 @@ export default function App() {
       if (prod&&prod.stock>0) await dbPut("products",{...prod,stock:prod.stock-1});
     }
     await reload(); setShowSale(false); setPage("sales");
-    toast(data.isHistoric?"Venta historica cargada":"Venta registrada!","ok");
+    toast(data.isHistoric?"Venta histórica cargada":"Venta registrada!","ok");
   };
 
   const handleEditSale = async updated=>{
     await dbPut("sales",{...updated,synced:false});
-    await reload(); toast("Venta actualizada","ok");
+    await reload(); toast("✓ Venta actualizada","ok");
   };
 
-  const handleDeleteSale = async id=>{
-    await dbDel("sales",id); await reload(); toast("Venta eliminada","info");
+  const handleDeleteSale = async (id, motivo="")=>{
+    const s = await dbGet("sales", id);
+    if (s && motivo) await dbPut("sales",{...s,deleted:true,deletedAt:Date.now(),deletedReason:motivo});
+    else await dbDel("sales",id);
+    await reload(); toast("Venta eliminada","info");
   };
 
   const handleMarkPaid = async saleId=>{
     const s=await (async()=>{const db=await openDB();return new Promise((r)=>{const q=db.transaction("sales","readonly").objectStore("sales").get(saleId);q.onsuccess=()=>r(q.result);})})();
     if (s) await dbPut("sales",{...s,commissionStatus:"pagado"});
-    await reload(); toast("Comision marcada como pagada","ok");
+    await reload(); toast("✓ Comisión pagada","ok");
   };
 
   const handlePayPromoter = async (promoterId,saleIds,total)=>{
@@ -1145,57 +1171,112 @@ export default function App() {
   };
 
   const handleSaveOrder = async o=>{
-    await dbPut("orders",{...o,synced:online}); await reload(); toast("Pedido guardado","ok");
+    const isDirecto = o.promoterId==="DIRECTO" || !o.promoterId;
+    const orderData = {
+      ...o,
+      isDirectSale: isDirecto,
+      promoterId:   isDirecto ? null : o.promoterId,
+      promoterName: isDirecto ? "Tienda directa" : o.promoterName,
+      synced: online,
+    };
+    await dbPut("orders", orderData);
+    await reload();
+    toast("✓ Pedido guardado","ok");
   };
 
   const handleAdvanceOrder = async (orderId,newStatus)=>{
-    const db=await openDB();
-    const o=await new Promise(r=>{const q=db.transaction("orders","readonly").objectStore("orders").get(orderId);q.onsuccess=()=>r(q.result);});
+    const o=await dbGet("orders",orderId);
     if (!o) return;
     await dbPut("orders",{...o,status:newStatus,synced:false,
       statusHistory:[...(o.statusHistory||[]),{status:newStatus,date:Date.now()}]});
-    await reload(); toast("Pedido: "+stateInfo(newStatus).label,"ok");
+    await reload(); toast("→ "+stateInfo(newStatus).label,"ok");
   };
 
   const handleDeleteOrder = async id=>{
     await dbDel("orders",id); await reload(); toast("Pedido eliminado","info");
   };
 
+  const handleShipOrder = async (order, empresa, tracking) => {
+    const o = await dbGet("orders", order.id);
+    if (!o) return;
+    await dbPut("orders",{...o,status:"enviado",synced:false,
+      deliveryCompany:empresa,trackingNumber:tracking,
+      statusHistory:[...(o.statusHistory||[]),{status:"enviado",date:Date.now()}]});
+    await reload();
+    toast("📦 Pedido enviado","ok");
+  };
+
   const handleConvertToSale = async order=>{
-    const product  = products.find(p=>p.id===order.productId);
-    const promoter = promoters.find(p=>p.id===order.promoterId);
-    if (!product){toast("Producto no encontrado","err");return;}
-    const pp = promoter?.customPromoterPrice!=null ? promoter.customPromoterPrice : product.promoterPrice;
-    const {commission,profit,profitOwner,profitPartner} = calcSale(order.clientPrice,pp,product.cost);
+    const isDirecto = order.promoterId==="DIRECTO" || !order.promoterId;
+    const product   = products.find(p=>p.id===order.productId);
+    const promoter  = isDirecto ? null : promoters.find(p=>p.id===order.promoterId);
+    
+    // Guardia: si no hay precio no se puede convertir
+    if (!order.clientPrice) { toast("El pedido no tiene precio definido","err"); return; }
+    
+    // Calcular precios
+    const cp  = order.clientPrice;
+    const pp  = isDirecto
+      ? cp  // venta directa: promoterPrice = clientPrice (sin comision)
+      : (promoter?.customPromoterPrice!=null ? promoter.customPromoterPrice : (product?.promoterPrice||cp));
+    const cost = product?.cost || 0;
+    const {commission,profit,profitOwner,profitPartner} = calcSale(cp, pp, cost);
+    
     const sale = {
-      id:uid("V"),productId:order.productId,productName:order.productName,
-      customization:order.customization,clientPrice:order.clientPrice,
-      promoterPrice:pp,cost:product.cost,commission,profit,profitOwner,profitPartner,
-      paymentMethod:"qr",promoterId:order.promoterId,promoterName:order.promoterName,
-      isDirectSale:false,clientName:order.clientName||"",clientPhone:order.clientPhone||"",notes:"",
-      commissionStatus:"pendiente",date:Date.now(),isHistoric:false,synced:online,orderId:order.id,
+      id:uid("V"),
+      productId:order.productId,
+      productName:order.productName,
+      customization:order.customization,
+      clientPrice:cp,
+      promoterPrice:pp,
+      cost,commission,profit,profitOwner,profitPartner,
+      paymentMethod:order._paymentMethod||"efectivo",
+      promoterId:isDirecto?null:order.promoterId,
+      promoterName:isDirecto?"Tienda directa":order.promoterName,
+      isDirectSale:isDirecto,
+      clientName:order.clientName||"",
+      clientPhone:order.clientPhone||"",
+      notes:order.notes||"",
+      commissionStatus:isDirecto?"pagado":"pendiente",
+      date:Date.now(),
+      isHistoric:false,
+      synced:online,
+      orderId:order.id,
     };
     await dbPut("sales",sale);
-    await dbPut("orders",{...order,convertedToSale:true,saleId:sale.id});
-    if (product.stock>0) await dbPut("products",{...product,stock:product.stock-1});
-    await reload(); setPage("sales"); toast("Pedido convertido en venta!","ok");
+    await dbPut("orders",{...order,convertedToSale:true,saleId:sale.id,synced:false});
+    if (product&&product.stock>0) await dbPut("products",{...product,stock:product.stock-1});
+    await reload();
+    setPage("sales");
+    toast("🎉 Pedido convertido en venta!","ok");
   };
 
   if (!ready) return (
-    <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100dvh",
-      background:"#07080a",color:"#c8a84b",fontFamily:"Playfair Display,serif",fontSize:"1.8rem",letterSpacing:"2px"}}>
-      Garabato
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+      height:"100dvh",background:"#0a0a08",gap:20}}>
+      <img src={LOGO_B64} style={{width:80,height:80,borderRadius:16,
+        animation:"pulse 1.5s ease-in-out infinite",objectFit:"cover"}}/>
+      <div style={{fontFamily:"Playfair Display,serif",fontSize:"1.5rem",
+        color:"#e0c611",letterSpacing:"3px"}}>GARABATO</div>
+      <div style={{fontSize:".76rem",color:"#555",letterSpacing:"1px",
+        textTransform:"uppercase"}}>Cargando...</div>
+      <style>{`@keyframes pulse{0%,100%{opacity:.6;transform:scale(.95)}50%{opacity:1;transform:scale(1)}}`}</style>
     </div>
   );
 
-  if (!user) return <LoginScreen users={users} onLogin={u=>{setUser(u);setPage("home");}}/>;
+  if (!user) return <LoginScreen users={users} onLogin={u=>{
+    setUser(u);
+    setPage("home");
+    // Mostrar onboarding si es admin y no hay productos cargados
+    if (u.role==="admin" && products.length===0) setShowOnboarding(true);
+  }}/>;
 
   const navItems = [
     {id:"home",     icon:"home",    label:"Inicio"},
     {id:"orders",   icon:"tag",     label:"Pedidos",  badge:myReadyOrders.length},
     {id:"sales",    icon:"cart",    label:"Ventas",   badge:pendingSync},
     CAN.seeInventory(role) && {id:"inventory",icon:"box",   label:"Stock"},
-    {id:"promoters",icon:"users",   label:role==="promoter"?"Perfil":"Promotoras"},
+    (role!=="socio") && {id:"promoters",icon:"users",label:role==="promoter"?"Perfil":"Promotoras"},
     CAN.seeExpenses(role)  && {id:"expenses", icon:"receipt",label:"Gastos"},
     CAN.seeReports(role)   && {id:"reports",  icon:"chart",  label:"Reportes"},
     CAN.manageConfig(role) && {id:"settings", icon:"settings",label:"Config"},
@@ -1208,21 +1289,22 @@ export default function App() {
         myReadyOrders={myReadyOrders} onGoOrders={()=>setPage("orders")}/>}
       {page==="orders"   && <OrdersPage orders={orders} products={products} promoters={promoters}
         user={user} role={role} onSave={handleSaveOrder} onAdvance={handleAdvanceOrder}
-        onDelete={handleDeleteOrder} onConvert={handleConvertToSale}/>}
+        onDelete={handleDeleteOrder} onConvert={order=>setConvertOrder(order)}
+          onEnviar={order=>setShipOrder(order)}/>}
       {page==="sales"    && <SalesPage sales={sales} role={role} user={user} promoters={promoters}
         onMarkPaid={handleMarkPaid} onEdit={handleEditSale}
-        onDelete={role==="admin"?handleDeleteSale:null}/>}
+        onDelete={role==="admin"?sale=>setDeleteSale(sale):null}/>}
       {page==="inventory"&& (CAN.seeInventory(role)
         ? <InventoryPage products={products} role={role}
-            onSave={async p=>{await dbPut("products",p);await reload();toast("Producto guardado","ok");}}
-            onDelete={CAN.editData(role)?async id=>{await dbDel("products",id);await reload();toast("Eliminado","info");}:null}/>
+            onSave={async p=>{await dbPut("products",p);await reload();toast("✓ Producto guardado","ok");}}
+            onDelete={CAN.editData(role)?async id=>{await dbDel("products",id);await reload();toast("Producto eliminado","info");}:null}/>
         : <Locked/>)}
       {page==="promoters"&& <PromotersPage promoters={promoters} sales={sales} role={role}
         payments={payments} user={user} onPay={handlePayPromoter}
-        onSave={CAN.editData(role)?async p=>{await dbPut("promoters",p);await reload();toast("Promotora guardada","ok");}:null}/>}
+        onSave={CAN.editData(role)?async p=>{await dbPut("promoters",p);await reload();toast("✓ Promotora guardada","ok");}:null}/>}
       {page==="expenses" && (CAN.seeExpenses(role)
         ? <ExpensesPage expenses={expenses}
-            onAdd={async e=>{await dbPut("expenses",{...e,synced:online});await reload();toast("Gasto registrado","ok");}}
+            onAdd={async e=>{await dbPut("expenses",{...e,synced:online});await reload();toast("✓ Gasto registrado","ok");}}
             onDelete={async id=>{await dbDel("expenses",id);await reload();toast("Gasto eliminado","info");}}/>
         : <Locked/>)}
       {page==="reports"  && (CAN.seeReports(role)
@@ -1230,9 +1312,9 @@ export default function App() {
         : <Locked/>)}
       {page==="settings" && (CAN.manageConfig(role)
         ? <SettingsPage users={users} products={products} promoters={promoters}
-            onSaveUser={async u=>{await dbPut("users",u);await reload();toast("Usuario guardado","ok");}}
+            onSaveUser={async u=>{await dbPut("users",u);await reload();toast("✓ Usuario guardado","ok");}}
             onDelUser={async id=>{await dbDel("users",id);await reload();toast("Usuario eliminado","info");}}
-            onSaveProduct={async p=>{await dbPut("products",p);await reload();toast("Producto actualizado","ok");}}/>
+            onSaveProduct={async p=>{if(p._delete){await dbDel("products",p.id);await reload();toast("Producto eliminado","info");}else{await dbPut("products",p);await reload();toast("✓ Producto guardado","ok");}}}/>
         : <Locked/>)}
     </>
   );
@@ -1257,6 +1339,32 @@ export default function App() {
               </button>
             ))}
           </div>
+          <div style={{padding:"8px 10px",borderTop:"1px solid var(--b1)"}}>
+            <div style={{fontSize:".68rem",color:"#555",fontWeight:700,textTransform:"uppercase",letterSpacing:.5,marginBottom:6}}>Resumen de hoy</div>
+            {(()=>{
+              const todaySales = sales.filter(s=>s.date>=todayMs());
+              const activeOrd  = orders.filter(o=>!o.convertedToSale).length;
+              const readyOrd   = orders.filter(o=>o.status==="listo"&&!o.convertedToSale).length;
+              return (
+                <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:".76rem"}}>
+                    <span style={{color:"#666"}}>Ventas hoy</span>
+                    <span style={{color:"#e0c611",fontWeight:800}}>{todaySales.length}</span>
+                  </div>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:".76rem"}}>
+                    <span style={{color:"#666"}}>Pedidos activos</span>
+                    <span style={{color:"#e0c611",fontWeight:800}}>{activeOrd}</span>
+                  </div>
+                  {readyOrd>0&&(
+                    <div style={{display:"flex",justifyContent:"space-between",fontSize:".76rem"}}>
+                      <span style={{color:"#2ecc71"}}>Listos p/ entregar</span>
+                      <span style={{color:"#2ecc71",fontWeight:800}}>{readyOrd}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
           <div className="sb-footer">
             {pendingSync>0&&online&&(
               <button className={"sb-sync"+(syncing?" spin":"")} onClick={handleSync} style={{width:"100%"}}>
@@ -1266,7 +1374,7 @@ export default function App() {
             )}
             {CAN.seeReports(role)&&(
               <button className="sb-hist" onClick={()=>{setHistoric(true);setShowSale(true);}}>
-                <Ic n="history" s={14}/> Venta historica
+                <Ic n="history" s={14}/> Venta histórica
               </button>
             )}
             <button className="sb-new-sale" onClick={()=>{setHistoric(false);setShowSale(true);}}>
@@ -1279,7 +1387,7 @@ export default function App() {
               </div>
               <div className="sb-actions">
                 {CAN.manageConfig(role)&&(
-                  <button className="sb-btn" onClick={handleBackup} title="Backup">
+                  <button className="sb-btn" onClick={handleBackup} title="Descargar backup">
                     <Ic n="download" s={13}/>
                   </button>
                 )}
@@ -1288,8 +1396,9 @@ export default function App() {
                 </button>
               </div>
             </div>
-            <div style={{textAlign:"center",fontSize:".58rem",color:"#333",paddingBottom:2}}>
-              {online?"Online":"Offline"}
+            <div style={{textAlign:"center",fontSize:".68rem",
+              color:online?"#2ecc71":"#e05555",paddingBottom:2,fontWeight:700}}>
+              {online?"● Online":"● Sin conexión"}
             </div>
           </div>
         </aside>
@@ -1315,7 +1424,7 @@ export default function App() {
             <Ic n="plus" s={24} c="#0a0a00"/>
           </button>
           {CAN.seeReports(role) && (
-            <button className="fab-sec" onClick={()=>{setHistoric(true);setShowSale(true);}} title="Venta historica">
+            <button className="fab-sec" onClick={()=>{setHistoric(true);setShowSale(true);}} title="Venta histórica">
               <Ic n="history" s={16} c="var(--muted)"/>
             </button>
           )}
@@ -1341,6 +1450,64 @@ export default function App() {
         <NewSaleModal products={products} promoters={promoters} user={user} isHistoric={historic}
           onClose={()=>setShowSale(false)} onSubmit={handleNewSale}/>
       )}
+
+      {convertOrder && (
+        <ConvertToSaleModal order={convertOrder}
+          onClose={()=>setConvertOrder(null)}
+          onConfirm={async(pm)=>{await handleConvertToSale({...convertOrder,_paymentMethod:pm});setConvertOrder(null);}}/>
+      )}
+
+      {shipOrder && (
+        <ShipOrderModal order={shipOrder}
+          onClose={()=>setShipOrder(null)}
+          onConfirm={async(empresa,tracking)=>{await handleShipOrder(shipOrder,empresa,tracking);setShipOrder(null);}}/>
+      )}
+      {deleteSale && (
+        <DeleteSaleModal sale={deleteSale}
+          onClose={()=>setDeleteSale(null)}
+          onConfirm={async(id,motivo)=>{await handleDeleteSale(id,motivo);setDeleteSale(null);}}/>
+      )}
+
+      {showOnboarding&&(
+        <div className="overlay" style={{background:"rgba(0,0,0,.96)"}}>
+          <div className="sheet" style={{borderRadius:"20px 20px 0 0"}}>
+            <div className="sh-hd"/>
+            <div style={{textAlign:"center",marginBottom:20}}>
+              <div style={{fontSize:"2rem",marginBottom:8}}>🎉</div>
+              <div style={{fontFamily:"Playfair Display,serif",fontSize:"1.5rem",color:"var(--gold)",marginBottom:6}}>
+                Bienvenido a Garabato POS
+              </div>
+              <div style={{fontSize:".86rem",color:"var(--muted)",lineHeight:1.6}}>
+                Para comenzar, seguí estos pasos rápidos
+              </div>
+            </div>
+            {[
+              {n:1, icon:"🔑", title:"Cambia tu PIN", desc:"Ve a Config → Usuarios → edita Admin y pon tu PIN personal"},
+              {n:2, icon:"📦", title:"Carga tus productos", desc:"Ve a Config → Productos → Agregar producto con fotos y precios"},
+              {n:3, icon:"👤", title:"Agrega tu equipo", desc:"Ve a Config → Usuarios para agregar al socio, empleada y promotoras"},
+              {n:4, icon:"🚀", title:"Empieza a vender", desc:"Registra tu primera venta o pedido desde el boton amarillo"},
+            ].map(step=>(
+              <div key={step.n} style={{display:"flex",gap:12,padding:"10px 0",borderBottom:"1px solid var(--b1)"}}>
+                <div style={{width:32,height:32,borderRadius:"50%",background:"rgba(224,198,17,.15)",
+                  border:"1px solid rgba(224,198,17,.3)",display:"flex",alignItems:"center",
+                  justifyContent:"center",fontSize:"1rem",flexShrink:0}}>
+                  {step.icon}
+                </div>
+                <div>
+                  <div style={{fontWeight:800,fontSize:".86rem",color:"var(--txt)"}}>{step.title}</div>
+                  <div style={{fontSize:".76rem",color:"var(--muted)",marginTop:2,lineHeight:1.4}}>{step.desc}</div>
+                </div>
+              </div>
+            ))}
+            <button className="btn btn-gold" style={{marginTop:18}} onClick={()=>{setShowOnboarding(false);setPage("settings");}}>
+              <Ic n="settings" s={16} c="#100d02"/> Ir a Configuración
+            </button>
+            <button className="btn btn-out" style={{marginTop:8}} onClick={()=>setShowOnboarding(false)}>
+              Lo hago después
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1361,7 +1528,7 @@ function LoginScreen({users, onLogin}) {
     setPin(next);
     if (next.length===4){
       if (next===sel.pin) onLogin(sel);
-      else {setErr("PIN incorrecto. Intente nuevamente.");setPin("");}
+      else {setErr("PIN incorrecto, intenta de nuevo.");setPin("");}
     }
   };
   return (
@@ -1392,9 +1559,13 @@ function LoginScreen({users, onLogin}) {
             ))}
           </div>
           <div className="pin-err">{err}</div>
+          {!err&&!pin&&(
+            <div style={{textAlign:"center",fontSize:".76rem",color:"var(--dim)",marginTop:10,lineHeight:1.5}}>
+              Primera vez? El PIN por defecto es <b style={{color:"var(--gold)"}}>1234</b>
+            </div>
+          )}
         </>
       )}
-      <div className="demo-hint" style={{opacity:0,userSelect:'none',pointerEvents:'none'}}>.</div>
     </div>
   );
 }
@@ -1416,7 +1587,7 @@ function TopBar({user, online, pendingSync, syncing, onSync, onLogout, onBackup}
           </button>
         )}
         {onBackup&&(
-          <button className="tbtn" onClick={onBackup} title="Backup"><Ic n="download" s={13}/></button>
+          <button className="tbtn" onClick={onBackup} title="Descargar backup"><Ic n="download" s={13}/></button>
         )}
         <div className={"np "+(online?"np-on":"np-off")}>
           <Ic n={online?"wifi":"noWifi"} s={11}/>
@@ -1455,16 +1626,21 @@ function HomePage({sales, products, promoters, expenses, role, orders, user, myR
     <div className="pe">
       <div className="card card-gold" style={{marginBottom:14}}>
         <div style={{fontSize:".68rem",color:"var(--gd)",fontWeight:800,textTransform:"uppercase",letterSpacing:.6,marginBottom:4}}>
-          {"HOY - "+new Date().toLocaleDateString("es-BO",{weekday:"long",day:"numeric",month:"long"})}
+          {new Date().toLocaleDateString("es-BO",{weekday:"long",day:"numeric",month:"long"})}
         </div>
-        <div style={{fontFamily:"Playfair Display,serif",fontSize:"2.2rem",color:"var(--gold)",lineHeight:1}}>
-          {fmt(totalToday)}
+        <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between"}}>
+          <div style={{fontFamily:"Playfair Display,serif",fontSize:"2rem",color:"var(--gold)",lineHeight:1}}>
+            {fmt(totalToday)}
+          </div>
+          <div style={{fontSize:".76rem",color:"var(--gd)",fontWeight:700}}>
+            Hola, {user.name.split(" ")[0]}!
+          </div>
         </div>
         <div style={{fontSize:".76rem",color:"var(--muted)",marginTop:4}}>
-          {todaySales.length} {todaySales.length===1?"venta":"ventas"}
+          {todaySales.length} {todaySales.length===1?"venta":"ventas"} hoy
           {role==="promoter"
-            ? " - Tu comision: "+fmt(commToday)
-            : " - Ganancia: "+fmt(todaySales.reduce((a,s)=>a+s.profit,0))}
+            ? " · Tu comisión: "+fmt(commToday)
+            : " · Ganancia: "+fmt(todaySales.reduce((a,s)=>a+s.profit,0))}
         </div>
       </div>
 
@@ -1473,7 +1649,7 @@ function HomePage({sales, products, promoters, expenses, role, orders, user, myR
           <Ic n="warn" s={14}/>
           <span>
             <b>{lowStock.slice(0,2).map(p=>p.name).join(", ")}</b>
-            {lowStock.length>2?" y "+(lowStock.length-2)+" mas":""} - stock bajo
+            {lowStock.length>2?" y "+(lowStock.length-2)+" más":""} - stock bajo
           </span>
         </div>
       )}
@@ -1485,9 +1661,55 @@ function HomePage({sales, products, promoters, expenses, role, orders, user, myR
             <div style={{fontWeight:700,fontSize:".86rem",color:"var(--grn)"}}>
               {myReadyOrders.length} pedido{myReadyOrders.length>1?"s":""} listo{myReadyOrders.length>1?"s":""} para entregar
             </div>
-            <div style={{fontSize:".72rem",color:"var(--muted)",marginTop:2}}>Ver pedidos listos</div>
+            <div style={{fontSize:".76rem",color:"var(--muted)",marginTop:2}}>Ver pedidos listos</div>
           </div>
           <Ic n="check" s={18} c="var(--grn)"/>
+        </div>
+      )}
+
+      {(()=>{
+        const dormidos = myOrders.filter(o=>
+          !o.convertedToSale &&
+          o.status!=="listo" && o.status!=="enviado" &&
+          (Date.now()-o.date) > 2*86400000
+        );
+        return dormidos.length>0 ? (
+          <div className="al al-warn" style={{cursor:"pointer"}} onClick={onGoOrders}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:800}}>
+                {dormidos.length} pedido{dormidos.length>1?"s":""} sin avanzar hace más de 2 días
+              </div>
+              <div style={{fontSize:".76rem",marginTop:2,opacity:.85}}>
+                {dormidos.slice(0,2).map(o=>o.clientName).join(", ")}{dormidos.length>2?" y "+(dormidos.length-2)+" más":""}
+              </div>
+            </div>
+          </div>
+        ) : null;
+      })()}
+
+      {role!=="promoter"&&activeOrders>0&&(
+        <div className="card" style={{marginBottom:12,padding:"12px 14px"}}>
+          <div style={{fontSize:".68rem",fontWeight:800,color:"var(--muted)",textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>
+            Pedidos activos — {activeOrders} en total
+          </div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            {ORDER_STATES.filter(s=>s.id!=="listo"&&s.id!=="enviado").map(st=>{
+              const count = myOrders.filter(o=>o.status===st.id&&!o.convertedToSale).length;
+              if (!count) return null;
+              return (
+                <div key={st.id} onClick={onGoOrders} style={{
+                  display:"flex",alignItems:"center",gap:5,padding:"5px 10px",
+                  borderRadius:20,border:"1px solid "+st.border+"44",
+                  background:st.border+"11",cursor:"pointer"
+                }}>
+                  <div style={{width:6,height:6,borderRadius:"50%",background:st.color,flexShrink:0}}/>
+                  <span style={{fontSize:".68rem",fontWeight:800,color:st.color}}>{st.label}</span>
+                  <span style={{fontSize:".76rem",fontWeight:800,color:"var(--txt)"}}>{count}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -1498,7 +1720,7 @@ function HomePage({sales, products, promoters, expenses, role, orders, user, myR
             <div className="sc ht"><div className="sl">Ganancia tienda</div><div className="sv teal">{fmt(netAll)}</div><div className="ss">Antes de gastos fijos</div></div>
           </div>
           <div className="g2">
-            <div className="sc hg"><div className="sl">Socio 1 (50%)</div><div className="sv gold">{fmt(ownerAll)}</div><div className="ss">Distribucion societaria</div></div>
+            <div className="sc hg"><div className="sl">Socio administrador (50%)</div><div className="sv gold">{fmt(ownerAll)}</div><div className="ss">Distribución societaria</div></div>
             <div className="sc hr"><div className="sl">Com. pendientes</div><div className="sv red">{fmt(pendComm)}</div><div className="ss">Por liquidar</div></div>
           </div>
           <div className="g2">
@@ -1507,16 +1729,30 @@ function HomePage({sales, products, promoters, expenses, role, orders, user, myR
           </div>
         </>
       )}
+      {role==="socio"&&(
+        <>
+          <div className="g2">
+            <div className="sc hg"><div className="sl">Total vendido</div><div className="sv gold">{fmt(totalAll)}</div><div className="ss">{sales.length} ventas</div></div>
+            <div className="sc ht"><div className="sl">Ganancia neta</div><div className="sv teal">{fmt(netAll)}</div><div className="ss">Antes de gastos</div></div>
+          </div>
+          <div className="g2">
+            <div className="sc hg"><div className="sl">Tu parte (50%)</div><div className="sv gold">{fmt(ownerAll*.5)}</div><div className="ss">Distribución societaria</div></div>
+            <div className="sc hr"><div className="sl">Com. pendientes</div><div className="sv red">{fmt(pendComm)}</div><div className="ss">Por liquidar a promotoras</div></div>
+          </div>
+          <div className="shd mt12"><div className="shd-l">Ventas recientes</div></div>
+          {sales.slice(0,5).map(s=><SaleRow key={s.id} sale={s} role={role}/>)}
+        </>
+      )}
       {role==="promoter"&&(
         <div className="g2">
           <div className="sc hg"><div className="sl">Mis ventas</div><div className="sv gold">{mySales.length}</div><div className="ss">Total registradas</div></div>
-          <div className="sc hr"><div className="sl">Comision pendiente</div><div className="sv red">{fmt(myPendComm)}</div><div className="ss">Por cobrar</div></div>
+          <div className="sc hr"><div className="sl">Comisión pendiente</div><div className="sv red">{fmt(myPendComm)}</div><div className="ss">Por cobrar</div></div>
         </div>
       )}
       {role==="employee"&&(
         <div className="g2">
-          <div className="sc"><div className="sl">Ventas hoy</div><div className="sv gold">{todaySales.length}</div><div className="ss">Registradas</div></div>
-          <div className="sc"><div className="sl">Monto hoy</div><div className="sv">{fmt(totalToday)}</div><div className="ss">Al cliente</div></div>
+          <div className="sc hg"><div className="sl">Ventas hoy</div><div className="sv gold">{todaySales.length}</div><div className="ss">Registradas hoy</div></div>
+          <div className="sc"><div className="sl">Pedidos activos</div><div className="sv">{activeOrders}</div><div className="ss">En proceso</div></div>
         </div>
       )}
 
@@ -1529,11 +1765,11 @@ function HomePage({sales, products, promoters, expenses, role, orders, user, myR
 // ============================================================
 //  ORDERS PAGE
 // ============================================================
-function OrdersPage({orders, products, promoters, user, role, onSave, onAdvance, onDelete, onConvert}) {
+function OrdersPage({orders, products, promoters, user, role, onSave, onAdvance, onDelete, onConvert, onEnviar}) {
   const [view,    setView]    = useState("list");
   const [showForm,setShowForm]= useState(false);
   const [editOrd, setEditOrd] = useState(null);
-  const [expanded,setExpanded]= useState({nuevo:true,disenar:true,pago_pendiente:true,pagado:true,listo:true});
+  const [expanded,setExpanded]= useState({nuevo:true,esperando_foto:true,disenando:true,esperando_aprobacion:true,pago_pendiente:true,pago_confirmado:true,grabando:true,listo:true,enviado:true});
 
   const myOrders = useMemo(()=>
     role==="promoter" ? orders.filter(o=>o.promoterId===user.promoterId) : orders
@@ -1567,7 +1803,7 @@ function OrdersPage({orders, products, promoters, user, role, onSave, onAdvance,
       </div>
 
       {/* Estado chips */}
-      <div className="flt">
+      <div className="flt" style={{alignItems:"center"}}>
         {ORDER_STATES.map(st=>{
           const count=grouped[st.id]?.length||0;
           return (
@@ -1576,8 +1812,8 @@ function OrdersPage({orders, products, promoters, user, role, onSave, onAdvance,
               border:"1px solid "+(count>0?st.border:"var(--b1)"),
               display:"flex",alignItems:"center",gap:5}}>
               <div style={{width:6,height:6,borderRadius:"50%",background:st.color,flexShrink:0}}/>
-              <span style={{fontSize:".7rem",color:"var(--muted)",fontWeight:700}}>{st.label}</span>
-              {count>0&&<span style={{fontSize:".7rem",color:st.color,fontWeight:800}}>{count}</span>}
+              <span style={{fontSize:".76rem",color:"var(--muted)",fontWeight:700}}>{st.label}</span>
+              {count>0&&<span style={{fontSize:".76rem",color:st.color,fontWeight:800}}>{count}</span>}
             </div>
           );
         })}
@@ -1595,13 +1831,13 @@ function OrdersPage({orders, products, promoters, user, role, onSave, onAdvance,
                   style={{background:group.length>0?"var(--s2)":"var(--s1)",
                     borderColor:group.length>0?st.border+"66":"var(--b1)"}}>
                   <div style={{width:8,height:8,borderRadius:"50%",background:st.color,flexShrink:0}}/>
-                  <span style={{fontWeight:800,fontSize:".82rem",color:group.length>0?st.color:"var(--dim)",flex:1,textAlign:"left"}}>
+                  <span style={{fontWeight:800,fontSize:".86rem",color:group.length>0?st.color:"var(--dim)",flex:1,textAlign:"left"}}>
                     {st.label.toUpperCase()}
                   </span>
-                  <span style={{fontSize:".72rem",color:"var(--muted)",fontWeight:700}}>
+                  <span style={{fontSize:".76rem",color:"var(--muted)",fontWeight:700}}>
                     {group.length} pedido{group.length!==1?"s":""}
                   </span>
-                  <span style={{color:"var(--dim)",fontSize:".8rem",marginLeft:4}}>
+                  <span style={{color:"var(--dim)",fontSize:".86rem",marginLeft:4}}>
                     {isOpen?"v":">"}
                   </span>
                 </button>
@@ -1614,6 +1850,7 @@ function OrdersPage({orders, products, promoters, user, role, onSave, onAdvance,
                         onEdit={()=>{setEditOrd(order);setShowForm(true);}}
                         onDelete={()=>onDelete(order.id)}
                         onConvert={()=>onConvert(order)}
+                        onEnviar={()=>onEnviar(order)}
                         nextLabel={nextState(order.status)?stateInfo(nextState(order.status)).label:null}
                       />
                     ))}
@@ -1636,10 +1873,10 @@ function OrdersPage({orders, products, promoters, user, role, onSave, onAdvance,
                 <div key={order.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 13px",
                   background:"var(--s1)",border:"1px solid var(--b1)",borderRadius:"var(--r)",marginBottom:6,opacity:.7}}>
                   <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontWeight:700,fontSize:".84rem",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                    <div style={{fontWeight:700,fontSize:".86rem",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
                       {order.clientName} - {order.productName}
                     </div>
-                    <div style={{fontSize:".7rem",color:"var(--dim)",marginTop:2}}>
+                    <div style={{fontSize:".76rem",color:"var(--dim)",marginTop:2}}>
                       {order.customization?'"'+order.customization+'" - ':""}{fmtDate(order.date)}
                     </div>
                   </div>
@@ -1663,9 +1900,9 @@ function OrdersPage({orders, products, promoters, user, role, onSave, onAdvance,
                 <div className="kanban-head" style={{borderLeftColor:st.color}}>
                   <div style={{display:"flex",alignItems:"center",gap:6}}>
                     <div style={{width:6,height:6,borderRadius:"50%",background:st.color}}/>
-                    <span style={{fontWeight:800,fontSize:".78rem",color:st.color}}>{st.label.toUpperCase()}</span>
+                    <span style={{fontWeight:800,fontSize:".86rem",color:st.color}}>{st.label.toUpperCase()}</span>
                   </div>
-                  <span style={{background:st.color+"22",color:st.color,borderRadius:10,padding:"2px 8px",fontSize:".7rem",fontWeight:800}}>
+                  <span style={{background:st.color+"22",color:st.color,borderRadius:10,padding:"2px 8px",fontSize:".76rem",fontWeight:800}}>
                     {group.length}
                   </span>
                 </div>
@@ -1674,33 +1911,41 @@ function OrdersPage({orders, products, promoters, user, role, onSave, onAdvance,
                   const ns=nextState(order.status);
                   return (
                     <div key={order.id} className="kanban-card" style={{borderTopColor:st.color}}>
-                      <div style={{fontWeight:700,fontSize:".84rem",marginBottom:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                        {order.clientName}
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:2}}>
+                        <div style={{fontWeight:700,fontSize:".86rem",flex:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                          {order.clientName}
+                        </div>
+                        <span style={{fontSize:".68rem",color:Math.floor((Date.now()-order.date)/86400000)>=2?"var(--red)":"var(--dim)",flexShrink:0,marginLeft:4,fontWeight:700}}>
+                          {Math.floor((Date.now()-order.date)/86400000)===0?"hoy":Math.floor((Date.now()-order.date)/86400000)+"d"}
+                        </span>
                       </div>
-                      <div style={{fontSize:".72rem",color:"var(--muted)",marginBottom:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                        {order.productName}
+                      <div style={{fontSize:".76rem",color:"var(--muted)",marginBottom:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                        {order.grabadoType==="foto"?"📷 ":order.grabadoType==="texto"?"✏️ ":order.grabadoType==="vector"?"🎨 ":""}{order.productName}
                       </div>
                       {order.customization&&(
-                        <div style={{fontSize:".7rem",color:"var(--gold)",fontStyle:"italic",marginBottom:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                        <div style={{fontSize:".76rem",color:"var(--gold)",fontStyle:"italic",marginBottom:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
                           {'"'+order.customization+'"'}
                         </div>
                       )}
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-                        <span style={{fontSize:".7rem",color:"var(--dim)"}}>{order.promoterName?.split(" ")[0]}</span>
-                        <span style={{fontFamily:"Playfair Display,serif",fontSize:".95rem",color:"var(--gold)"}}>{fmt(order.clientPrice)}</span>
+                      {order.fotoViaWhatsapp&&order.status==="esperando_foto"&&(
+                        <div style={{fontSize:".68rem",color:"var(--red)",fontWeight:800,marginBottom:4}}>⏳ Esperando foto WA</div>
+                      )}
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                        <span style={{fontSize:".68rem",color:"var(--dim)"}}>{order.promoterName?.split(" ")[0]||"Tienda"}</span>
+                        <span style={{fontFamily:"Playfair Display,serif",fontSize:"1rem",color:"var(--gold)"}}>{fmt(order.clientPrice)}</span>
                       </div>
                       {order.delivery==="envio"&&order.deliveryCity&&(
-                        <div style={{fontSize:".66rem",color:"var(--blu)",marginBottom:6}}>Envio: {order.deliveryCity}</div>
+                        <div style={{fontSize:".68rem",color:"var(--blu)",marginBottom:6}}>Envío: {order.deliveryCity}</div>
                       )}
                       <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
                         {ns&&CAN.editData(role)&&(
-                          <button className="btn btn-sm btn-teal" style={{flex:1,padding:"5px 8px",fontSize:".7rem"}}
+                          <button className="btn btn-sm btn-teal" style={{flex:1,padding:"5px 8px",fontSize:".76rem"}}
                             onClick={()=>onAdvance(order.id,ns)}>
                             {stateInfo(ns).label}
                           </button>
                         )}
-                        {(order.status==="pagado"||order.status==="listo")&&CAN.editData(role)&&(
-                          <button className="btn btn-sm btn-gold" style={{flex:1,padding:"5px 8px",fontSize:".7rem"}}
+                        {(order.status==="pago_confirmado"||order.status==="grabando"||order.status==="listo"||order.status==="enviado")&&CAN.editData(role)&&(
+                          <button className="btn btn-sm btn-gold" style={{flex:1,padding:"5px 8px",fontSize:".76rem"}}
                             onClick={()=>onConvert(order)}>
                             Venta
                           </button>
@@ -1708,9 +1953,30 @@ function OrdersPage({orders, products, promoters, user, role, onSave, onAdvance,
                         {order.clientPhone&&(
                           <button className="wa-btn" style={{padding:"5px 9px"}}
                             onClick={()=>openWhatsApp(order.clientPhone,
-                              order.status==="listo"
-                                ?"Hola "+order.clientName+"! Tu pedido de "+order.productName+" ya esta listo. Gracias! Garabato"
-                                :"Hola "+order.clientName+"! Te contactamos de Garabato sobre tu pedido de "+order.productName+"."
+                              order.status==="nuevo"
+                                ?"¡Hola "+order.clientName+"! Recibimos tu pedido de *"+order.productName+"*. Ya está registrado y pronto comenzamos. Gracias por elegirnos! Garabato"
+                                :order.status==="esperando_foto"
+                                ?"¡Hola "+order.clientName+"! Para continuar con tu pedido de *"+order.productName+"* necesitamos que nos enviés la foto que querés grabar respondiendo este mensaje. Garabato"
+                                :order.status==="disenando"
+                                ?"¡Hola "+order.clientName+"! Estamos trabajando en el diseño de tu *"+order.productName+"*. En breve te enviamos una vista previa para que la apruebes. Garabato"
+                                :order.status==="esperando_aprobacion"
+                                ?"¡Hola "+order.clientName+"! Te enviamos el diseño de tu pedido:
+
+*Producto:* "+order.productName+(order.customization?"
+*Grabado:* "+order.customization:"")+"
+
+Revisa el diseño adjunto y confirmanos si está todo bien. Si querés algún cambio, avisanos!. Garabato"
+                                :order.status==="pago_pendiente"
+                                ?"¡Hola "+order.clientName+"! El diseño de tu *"+order.productName+"* fue aprobado! El total a pagar es *Bs. "+order.clientPrice+"*. Podrás pagar en efectivo, QR o transferencia. Esperamos tu confirmación! Garabato"
+                                :order.status==="pago_confirmado"
+                                ?"¡Hola "+order.clientName+"! Confirmamos que recibimos el pago. Ya comenzamos el grabado de tu *"+order.productName+"*. Te avisamos cuando esté listo. Garabato"
+                                :order.status==="grabando"
+                                ?"¡Hola "+order.clientName+"! Excelentes noticias, ya estamos grabando tu *"+order.productName+"*. En breve estará listo para vos! Garabato"
+                                :order.status==="listo"
+                                ?"¡Hola "+order.clientName+"! Tu *"+order.productName+"* ya está listo"+(order.delivery==="local"?" para retirar en nuestra tienda. Horario: "+BUSINESS.schedule:" para enviar a "+order.deliveryCity)+". Gracias por confiar en nosotros! Garabato"
+                                :order.status==="enviado"
+                                ?"¡Hola "+order.clientName+"! Tu *"+order.productName+"* ya fue enviado por "+order.deliveryCompany+(order.trackingNumber?" con número de seguimiento *"+order.trackingNumber+"*":"")+". Cualquier consulta, estamos disponibles. Garabato"
+                                :"¡Hola "+order.clientName+"! Te contactamos de Garabato sobre tu pedido de *"+order.productName+"*. Garabato"
                             )}>
                             <WaIcon/>
                           </button>
@@ -1722,6 +1988,12 @@ function OrdersPage({orders, products, promoters, user, role, onSave, onAdvance,
               </div>
             );
           })}
+        </div>
+      )}
+
+      {delivered.length>0&&(
+        <div style={{textAlign:"center",padding:"12px",fontSize:".76rem",color:"var(--dim)",marginTop:8}}>
+          {delivered.length} pedido{delivered.length!==1?"s":""} convertido{delivered.length!==1?"s":""} a venta
         </div>
       )}
 
@@ -1737,7 +2009,7 @@ function OrdersPage({orders, products, promoters, user, role, onSave, onAdvance,
 // ============================================================
 //  ORDER CARD  (lista expandible)
 // ============================================================
-function OrderCard({order, promoters, role, isLast, stateColor, onAdvance, onEdit, onDelete, onConvert, nextLabel}) {
+function OrderCard({order, promoters, role, isLast, stateColor, onAdvance, onEdit, onDelete, onConvert, onEnviar, nextLabel}) {
   const [open,setOpen] = useState(false);
   const promoter = promoters.find(p=>p.id===order.promoterId);
   return (
@@ -1747,44 +2019,163 @@ function OrderCard({order, promoters, role, isLast, stateColor, onAdvance, onEdi
         <div className="order-body">
           <div className="order-name">{order.clientName}</div>
           <div className="order-prod">
-            {order.productName}{order.customization?' - "'+order.customization+'"':""}
+            {order.productName}{order.customization?' — "'+order.customization+'"':""}
+          </div>
+          <div style={{marginTop:3,display:"flex",flexWrap:"wrap",gap:3}}>
+            {order.grabadoType&&(
+              <span style={{fontSize:".68rem",fontWeight:800,padding:"1px 6px",borderRadius:6,
+                background:order.grabadoType==="foto"?"rgba(168,85,247,.15)":order.grabadoType==="texto"?"rgba(224,198,17,.15)":"rgba(74,158,224,.15)",
+                color:order.grabadoType==="foto"?"#a855f7":order.grabadoType==="texto"?"#8a7800":"#4a9ee0"}}>
+                {order.grabadoType==="foto"?"📷 Foto":order.grabadoType==="texto"?"✏️ Texto":order.grabadoType==="vector"?"🎨 Vector":"🔧 Combinado"}
+              </span>
+            )}
+            {order.fotoViaWhatsapp&&order.status==="esperando_foto"&&(
+              <span style={{fontSize:".68rem",fontWeight:800,padding:"1px 6px",borderRadius:6,
+                background:"rgba(217,85,85,.15)",color:"var(--red)"}}>
+                ⏳ Foto pendiente
+              </span>
+            )}
+            {order.deliveryCountry&&order.deliveryCountry!=="Bolivia"&&(
+              <span style={{fontSize:".68rem",fontWeight:800,padding:"1px 6px",borderRadius:6,
+                background:"rgba(74,158,224,.15)",color:"#4a9ee0"}}>
+                🌎 Internacional
+              </span>
+            )}
           </div>
           <div className="order-meta">
             <span>{order.promoterName?.split(" ")[0]}</span>
-            {order.delivery==="envio"&&<span style={{color:"var(--blu)"}}>Envio: {order.deliveryCity||"a definir"}</span>}
+            {order.delivery==="envio"&&<span style={{color:"var(--blu)"}}>{order.deliveryCountry&&order.deliveryCountry!=="Bolivia"?"🌎 ":""}Envío: {order.deliveryCity||"a definir"}</span>}
             <span>{fmtDate(order.date)}</span>
           </div>
         </div>
         <div style={{textAlign:"right",flexShrink:0}}>
-          <div className="order-amt">{fmt(order.clientPrice)}</div>
-          <div style={{fontSize:".62rem",color:"var(--dim)",marginTop:2}}>{open?"cerrar":"ver"}</div>
+          <div className="order-amt">{order.deliveryCountry&&order.deliveryCountry!=="Bolivia"&&order.clientPriceUSD?"USD "+order.clientPriceUSD:fmt(order.clientPrice)}</div>
+          <div style={{fontSize:".68rem",color:"var(--dim)",marginTop:2}}>{open?"cerrar":"ver"}</div>
         </div>
       </div>
       {open&&(
         <div className="order-detail">
-          {order.customization&&(
-            <div style={{fontSize:".76rem",color:"var(--gold)",fontStyle:"italic",padding:"8px 0 4px"}}>
-              Grabado: "{order.customization}"
+
+          {/* Header info: días + origen */}
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
+            <span style={{fontSize:".68rem",fontWeight:800,padding:"2px 8px",borderRadius:10,
+              background:Math.floor((Date.now()-order.date)/86400000)>=2?"rgba(224,85,85,.15)":"var(--s2)",
+              color:Math.floor((Date.now()-order.date)/86400000)>=2?"var(--red)":"var(--muted)"}}>
+              {Math.floor((Date.now()-order.date)/86400000)===0?"Ingresado hoy":Math.floor((Date.now()-order.date)/86400000)+" dia"+(Math.floor((Date.now()-order.date)/86400000)!==1?"s":"")+" desde que ingreso"}
+            </span>
+            {order.isDirectSale&&(
+              <span style={{fontSize:".68rem",fontWeight:800,padding:"2px 8px",borderRadius:10,
+                background:"rgba(74,158,224,.15)",color:"#4a9ee0"}}>
+                🏪 Tienda directa
+              </span>
+            )}
+            {order.convertedToSale&&(
+              <span style={{fontSize:".68rem",fontWeight:800,padding:"2px 8px",borderRadius:10,
+                background:"rgba(46,204,113,.15)",color:"var(--grn)"}}>
+                ✓ Convertido a venta
+              </span>
+            )}
+          </div>
+
+          {/* Tipo de grabado */}
+          {order.grabadoType&&(
+            <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",
+              background:"var(--s2)",borderRadius:"var(--rsm)",marginBottom:8}}>
+              <div style={{fontSize:"1rem"}}>
+                {order.grabadoType==="foto"?"📷":order.grabadoType==="texto"?"✏️":order.grabadoType==="vector"?"🎨":"🔧"}
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:".76rem",fontWeight:800,color:"var(--txt)"}}>
+                  {order.grabadoType==="foto"?"Fotograbado":order.grabadoType==="texto"?"Texto / Nombre":order.grabadoType==="vector"?"Logo / Dibujo":"Combinado"}
+                </div>
+                {order.customization&&(
+                  <div style={{fontSize:".68rem",color:"var(--gold)",fontStyle:"italic",marginTop:2}}>
+                    "{order.customization}"
+                  </div>
+                )}
+              </div>
             </div>
           )}
+
+          {/* Alerta foto por WhatsApp */}
+          {order.fotoViaWhatsapp&&order.status==="esperando_foto"&&(
+            <div className="al al-warn" style={{marginBottom:8}}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <span>Cliente envía la foto por WhatsApp — pendiente de recibir</span>
+            </div>
+          )}
+          {order.fotoViaWhatsapp&&order.status!=="esperando_foto"&&(
+            <div style={{fontSize:".68rem",color:"var(--muted)",marginBottom:8,display:"flex",alignItems:"center",gap:5}}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
+              Foto recibida por WhatsApp
+            </div>
+          )}
+
+          {/* Notas del grabado */}
+          {order.grabadoNotes&&(
+            <div style={{fontSize:".76rem",color:"var(--dim)",padding:"5px 8px",
+              background:"var(--s2)",borderRadius:"var(--rsm)",marginBottom:8}}>
+              Instrucciones: {order.grabadoNotes}
+            </div>
+          )}
+
+          {/* Notas generales */}
           {order.notes&&(
-            <div style={{fontSize:".72rem",color:"var(--dim)",padding:"5px 8px",
+            <div style={{fontSize:".76rem",color:"var(--dim)",padding:"5px 8px",
               background:"var(--s2)",borderRadius:"var(--rsm)",marginBottom:8}}>
               Nota: {order.notes}
             </div>
           )}
+
+          {/* Envío */}
           {order.delivery==="envio"&&order.deliveryCity&&(
-            <div style={{fontSize:".74rem",color:"var(--blu)",marginBottom:8}}>
-              Envio a: {order.deliveryCity}{order.deliveryAddress?" - "+order.deliveryAddress:""}
+            <div style={{fontSize:".76rem",color:"var(--blu)",marginBottom:8,display:"flex",alignItems:"center",gap:5}}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h11a2 2 0 012 2v3"/><rect x="9" y="11" width="14" height="10" rx="2"/><circle cx="12" cy="20" r="1"/><circle cx="20" cy="20" r="1"/></svg>
+              Envío a: {order.deliveryCity}{order.deliveryAddress?" — "+order.deliveryAddress:""}
+            </div>
+          )}
+
+          {/* Historial de estados */}
+          {order.statusHistory&&order.statusHistory.length>1&&(
+            <div style={{marginBottom:8}}>
+              <div style={{fontSize:".68rem",color:"var(--dim)",fontWeight:700,textTransform:"uppercase",letterSpacing:.4,marginBottom:4}}>Historial</div>
+              <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                {[...order.statusHistory].reverse().slice(0,4).map((h,i)=>{
+                  const st = ORDER_STATES.find(s=>s.id===h.status);
+                  return (
+                    <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:".68rem"}}>
+                      <span style={{color:st?.color||"var(--muted)",fontWeight:700}}>{st?.label||h.status}</span>
+                      <span style={{color:"var(--dim)"}}>{fmtDate(h.date)} {fmtHora(h.date)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Tracking si fue enviado */}
+          {order.status==="enviado"&&order.deliveryCompany&&(
+            <div style={{fontSize:".76rem",color:"var(--teal)",marginBottom:8,padding:"6px 10px",
+              background:"rgba(17,200,184,.08)",borderRadius:"var(--rsm)",display:"flex",alignItems:"center",gap:6}}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
+              <div>
+                <div style={{fontWeight:700}}>Enviado por {order.deliveryCompany}</div>
+                {order.trackingNumber&&<div style={{marginTop:2}}>Tracking: {order.trackingNumber}</div>}
+              </div>
             </div>
           )}
           <div className="order-actions">
-            {nextLabel&&CAN.editData(role)&&(
+            {nextLabel&&CAN.editData(role)&&order.status!=="listo"&&(
               <button className="btn btn-sm btn-teal" style={{fontSize:".76rem"}} onClick={onAdvance}>
                 Avanzar: {nextLabel}
               </button>
             )}
-            {(order.status==="pagado"||order.status==="listo")&&!order.convertedToSale&&CAN.editData(role)&&(
+            {order.status==="listo"&&CAN.editData(role)&&!order.convertedToSale&&(
+              <button className="btn btn-sm btn-teal" style={{fontSize:".76rem"}} onClick={onEnviar}>
+                Marcar como enviado
+              </button>
+            )}
+            {(order.status==="pago_confirmado"||order.status==="grabando"||order.status==="listo"||order.status==="enviado")&&!order.convertedToSale&&CAN.editData(role)&&(
               <button className="btn btn-sm btn-gold" style={{fontSize:".76rem"}} onClick={onConvert}>
                 <Ic n="cart" s={12} c="#100d02"/> Convertir en venta
               </button>
@@ -1792,59 +2183,75 @@ function OrderCard({order, promoters, role, isLast, stateColor, onAdvance, onEdi
             {order.clientPhone&&(
               <button className="wa-btn"
                 onClick={()=>openWhatsApp(order.clientPhone,
-                  order.status==="listo"
-                    ?"Hola "+order.clientName+"! Tu pedido de "+order.productName+" ya esta listo"+(order.delivery==="local"?" para retirar en tienda":" para enviar a "+order.deliveryCity)+". Gracias! Garabato"
-                    :order.status==="disenar"
-                    ?"Hola "+order.clientName+"! En breve te enviamos el diseno de tu "+order.productName+" para que lo apruebes. Garabato"
-                    :"Hola "+order.clientName+"! Te contactamos de Garabato sobre tu pedido de "+order.productName+"."
-                )}>
-                <WaIcon/> Cliente
-              </button>
-            )}
-            {order.status==="listo"&&promoter?.phone&&(
-              <button className="wa-btn" style={{background:"#128c7e"}}
-                onClick={()=>openWhatsApp(promoter.phone,
-                  "Hola "+promoter.name?.split(" ")[0]+"! El pedido de "+order.clientName+" ("+order.productName+") ya esta listo para entregar. Coordina con el cliente. Garabato"
-                )}>
-                <WaIcon/> Promotora
-              </button>
-            )}
-            {!order.convertedToSale&&CAN.editData(role)&&(
-              <>
-                <button className="btn btn-sm btn-out" style={{padding:"5px 8px"}} onClick={onEdit}>
-                  <Ic n="edit" s={12}/>
-                </button>
-                <button className="btn btn-sm btn-red" style={{padding:"5px 8px"}} onClick={onDelete}>
-                  <Ic n="trash" s={12}/>
-                </button>
-              </>
-            )}
-          </div>
-          {order.convertedToSale&&(
-            <div style={{marginTop:8,fontSize:".72rem",color:"var(--grn)",fontWeight:700}}>Convertido en venta</div>
-          )}
-        </div>
-      )}
+                  order.status==="nuevo"
+                    ?"¡Hola "+order.clientName+"! Recibimos tu pedido de *"+order.productName+"*. Ya está registrado y pronto comenzamos. Gracias por elegirnos! Garabato"
+                    :order.status==="esperando_foto"
+                    ?"¡Hola "+order.clientName+"! Para continuar con tu pedido de *"+order.productName+"* necesitamos que nos enviés la foto que querés grabar respondiendo este mensaje. Garabato"
+                    :order.status==="disenando"
+                    ?"¡Hola "+order.clientName+"! Estamos trabajando en el diseño de tu *"+order.productName+"*. En breve te enviamos una vista previa para que la apruebes. Garabato"
+                    :order.status==="esperando_aprobacion"
+                    ?"¡Hola "+order.clientName+"! Te enviamos el diseño de tu pedido:
+
+*Producto:* "+order.productName+(order.customization?"
+*Grabado:* "+order.customization:"")+"
+
+Revisa el diseño adjunto y confirmanos si está todo bien para proceder con el grabado. Si querés algún cambio, avisanos!. Garabato"
+                    :order.status==="pago_pendiente"
+                    ?"¡Hola "+order.clientName+"! El diseño de tu *"+order.productName+"* fue aprobado! El total a pagar es *Bs. "+order.clientPrice+"*. Podrás pagar en efectivo, QR o transferencia. Esperamos tu confirmación! Garabato"
+                    :order.status==="pago_confirmado"
+                    ?"¡Hola "+order.clientName+"! Confirmamos el pago recibido. Ya comenzamos el grabado de tu *"+order.productName+"*. Te avisamos cuando esté listo. Garabato"
+                    :order.status==="grabando"
+                    ?"¡Hola "+order.clientName+"! Excelentes noticias, ya estamos grabando tu *"+order.productName+"*. En breve estará listo para vos! Garabato"
+                    :order.status==="listo"
+                    ?"¡Hola "+order.clientName+"! Tu *"+order.productName+"* ya está listo"+(order.delivery==="local"?" para retirar en nuestra tienda. Horario: "+BUSINESS.schedule:" para enviar a "+order.deliveryCity)+". Gracias por confiar en nosotros! Garabato"
+                    :order.status==="enviado"
+                    ?"¡Hola "+order.clientName+"! Tu *"+order.productName+"* ya fue enviado por "+order.deliveryCompany+(order.trackingNumber?" con número de seguimiento *"+order.trackingNumber+"*":"")+". Cualquier consulta, estamos disponibles. Garabato"
+                    :"¡Hola "+order.clientName+"! Te contactamos de Garabato sobre tu pedido de *"+order.productName+"*. Garabato"
+                )}
+              </div>
+              <div className="pc-grid">
+                <div className="pcs"><div className="pcs-v" style={{color:"var(--txt)"}}>{fmt(p.clientPrice)}</div><div className="pcs-l">Precio venta</div></div>
+                <div className="pcs"><div className="pcs-v" style={{color:"var(--gold)"}}>{fmt(p.promoterPrice)}</div><div className="pcs-l">Precio neto</div></div>
+                <div className="pcs"><div className="pcs-v" style={{color:"var(--red)"}}>{fmt(p.cost)}</div><div className="pcs-l">Costo material</div></div>
+              </div>
+              {p.grabadoTypesAllowed&&p.grabadoTypesAllowed.length>0&&(
+                <div style={{display:"flex",gap:4,flexWrap:"wrap",marginTop:6}}>
+                  {p.grabadoTypesAllowed.map(t=>(
+                    <span key={t} style={{fontSize:".68rem",fontWeight:800,padding:"2px 7px",borderRadius:10,
+                      background:"rgba(224,198,17,.1)",color:"var(--gd)",border:"1px solid rgba(224,198,17,.2)"}}>
+                      {t==="foto"?"📷 Foto":t==="texto"?"✏️ Texto":t==="vector"?"🎨 Vector":"🔧 Combinado"}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div style={{display:"flex",justifyContent:"space-between",marginTop:8,padding:"7px 10px",background:"var(--s2)",borderRadius:"var(--rsm)",fontSize:".76rem"}}>
+                <span style={{color:"var(--muted)"}}>Comisión: <b style={{color:"var(--gold)"}}>{fmt(commission)}</b></span>
+                <span style={{color:"var(--muted)"}}>Ganancia: <b style={{color:"var(--teal)"}}>{fmt(profit)}</b></span>
+                <span style={{color:p.stock<=p.lowStockAlert?"var(--red)":"var(--grn)"}}>Stock: <b>{p.stock}</b>{p.stock<=p.lowStockAlert?" !":""}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {showForm&&<ProductForm product={editProd} onClose={()=>setShowForm(false)} onSave={async p=>{await onSave(p);setShowForm(false);}}/>}
     </div>
   );
 }
 
-// ============================================================
-//  ORDER FORM
-// ============================================================
 function OrderForm({order, products, promoters, user, role, onClose, onSave}) {
   const blank = {
     id:uid("O"),clientName:"",clientPhone:"",
     productId:"",productName:"",customization:"",clientPrice:"",
     promoterId:  user.role==="promoter"?user.promoterId:"",
     promoterName:user.role==="promoter"?(promoters.find(p=>p.id===user.promoterId)?.name||""):"",
+    grabadoType:"foto",grabadoText:"",grabadoNotes:"",fotoViaWhatsapp:false,deliveryCountry:"Bolivia",
     delivery:"local",deliveryCity:"",deliveryAddress:"",notes:"",
     status:"nuevo",statusHistory:[{status:"nuevo",date:Date.now()}],
     date:Date.now(),convertedToSale:false,
   };
   const [f,setF] = useState(order||blank);
   const set = (k,v)=>setF(x=>({...x,[k]:v}));
-  const valid = f.clientName&&f.productId&&f.promoterId&&f.clientPrice;
+  const valid = f.clientName&&f.productId&&(f.promoterId||f.promoterId==="DIRECTO")&&f.clientPrice;
 
   return (
     <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
@@ -1853,15 +2260,15 @@ function OrderForm({order, products, promoters, user, role, onClose, onSave}) {
         <div className="sh-title">{order?"Editar pedido":"Nuevo pedido"}</div>
 
         <div className="price-box">
-          <div style={{fontSize:".7rem",color:"var(--muted)",fontWeight:800,textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>Datos del cliente</div>
+          <div style={{fontSize:".76rem",color:"var(--muted)",fontWeight:800,textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>Datos del cliente</div>
           <div className="fi2">
             <div className="fg">
               <label className="fl">Nombre</label>
-              <input className="fi" value={f.clientName} onChange={e=>set("clientName",e.target.value)} placeholder="Nombre del cliente"/>
+              <input className="fi" value={f.clientName} onChange={e=>set("clientName",e.target.value)} autoComplete="name" placeholder="Nombre del cliente"/>
             </div>
             <div className="fg">
-              <label className="fl">Telefono</label>
-              <input className="fi" type="tel" value={f.clientPhone} onChange={e=>set("clientPhone",e.target.value)} placeholder="7XXXXXXX"/>
+              <label className="fl">Teléfono</label>
+              <input className="fi" type="tel" autoComplete="tel" value={f.clientPhone} onChange={e=>set("clientPhone",e.target.value)} placeholder="7XXXXXXX"/>
               <div className="fi-hint">Para WhatsApp directo</div>
             </div>
           </div>
@@ -1884,23 +2291,62 @@ function OrderForm({order, products, promoters, user, role, onClose, onSave}) {
 
         <div className="fg">
           <label className="fl">Precio acordado (Bs.)</label>
-          <input className="fi" type="number" value={f.clientPrice} onChange={e=>set("clientPrice",e.target.value)} placeholder="0"/>
+          <input className="fi" type="number" inputMode="decimal" value={f.clientPrice} onChange={e=>set("clientPrice",e.target.value)} placeholder="0"/>
         </div>
 
         <div className="fg">
-          <label className="fl">Personalizacion / Grabado</label>
-          {f.customization&&(
+          <label className="fl">Tipo de grabado</label>
+          <div className="pills" style={{marginBottom:10}}>
+            {[["foto","Fotograbado"],["texto","Texto/Nombre"],["vector","Logo/Dibujo"],["combinado","Combinado"]].map(([v,l])=>(
+              <button key={v} className={"pill"+(f.grabadoType===v?" act":"")} onClick={()=>set("grabadoType",v)}>{l}</button>
+            ))}
+          </div>
+          {f.grabadoType==="foto"&&(
+            <div className="al al-info" style={{marginBottom:10}}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:700,marginBottom:3}}>Foto del cliente</div>
+                <div className="pills">
+                  <button className={"pill"+(f.fotoViaWhatsapp?" act":"")} onClick={()=>set("fotoViaWhatsapp",true)}>Envia por WhatsApp</button>
+                  <button className={"pill"+(!f.fotoViaWhatsapp?" act":"")} onClick={()=>set("fotoViaWhatsapp",false)}>Sube en formulario</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="fg">
+          <label className="fl">
+            {f.grabadoType==="foto"?"Referencia / descripción de la foto":f.grabadoType==="texto"?"Texto a grabar":"Descripción del diseño"}
+          </label>
+          {(f.grabadoType==="texto"||f.grabadoType==="combinado")&&f.customization&&(
             <div className="lp">
-              <div style={{fontSize:".62rem",color:"var(--dim)",textTransform:"uppercase",letterSpacing:1,marginBottom:7}}>Vista previa laser</div>
+              <div style={{fontSize:".68rem",color:"var(--dim)",textTransform:"uppercase",letterSpacing:1,marginBottom:7}}>Vista previa laser</div>
               <div className="lp-txt">{f.customization.toUpperCase()}</div>
             </div>
           )}
-          <input className="fi" value={f.customization} onChange={e=>set("customization",e.target.value)} placeholder="Texto, foto o diseno a grabar"/>
+          <input className="fi" value={f.customization} onChange={e=>set("customization",e.target.value)}
+            placeholder={f.grabadoType==="foto"?"Ej: foto de mascota, retrato, paisaje...":f.grabadoType==="texto"?"Ej: Ana y Luis 2024":"Ej: logo empresa, escudo, ilustracion..."}/>
+        </div>
+        <div className="fg">
+          <label className="fl">Notas del grabado (opcional)</label>
+          <textarea className="fta" value={f.grabadoNotes||""} onChange={e=>set("grabadoNotes",e.target.value)}
+            placeholder="Instrucciones especiales, tamaño, posición, referencias..."/>
         </div>
 
         <div className="fg">
-          <label className="fl">Promotora</label>
-          {promoters.filter(p=>p.active).map(pr=>{
+          <label className="fl">Origen del pedido</label>
+          <div style={{display:"flex",gap:7,marginBottom:10,flexWrap:"wrap"}}>
+            <button className={"pill"+(f.promoterId==="DIRECTO"?" act":"")}
+              onClick={()=>{set("promoterId","DIRECTO");set("promoterName","Tienda directa");}}>
+              🏪 Tienda directa
+            </button>
+            <button className={"pill"+(f.promoterId!=="DIRECTO"&&f.promoterId?"":" act-dimmed")}
+              style={{opacity:promoters.filter(p=>p.active).length===0?.4:1}}
+              onClick={()=>{if(f.promoterId==="DIRECTO"){set("promoterId","");set("promoterName","");}}}>
+              👤 Via promotora
+            </button>
+          </div>
+          {f.promoterId!=="DIRECTO"&&promoters.filter(p=>p.active).map(pr=>{
             const isSelf=user.role==="promoter"&&user.promoterId===pr.id;
             return (
               <div key={pr.id} onClick={()=>{set("promoterId",pr.id);set("promoterName",pr.name);}} style={{
@@ -1914,7 +2360,7 @@ function OrderForm({order, products, promoters, user, role, onClose, onSave}) {
                 <div style={{width:30,height:30,borderRadius:"50%",
                   background:f.promoterId===pr.id?"var(--gd)":"var(--b1)",
                   display:"flex",alignItems:"center",justifyContent:"center",
-                  fontFamily:"Playfair Display,serif",color:f.promoterId===pr.id?"#100d02":"var(--muted)",flexShrink:0}}>
+                  fontFamily:"Cormorant Garamond,serif",color:f.promoterId===pr.id?"#100d02":"var(--muted)",flexShrink:0}}>
                   {pr.name.charAt(0)}
                 </div>
                 <span style={{fontWeight:700,fontSize:".86rem",color:f.promoterId===pr.id?"var(--gold)":"var(--txt)"}}>{pr.name}</span>
@@ -1922,28 +2368,44 @@ function OrderForm({order, products, promoters, user, role, onClose, onSave}) {
               </div>
             );
           })}
+        }
         </div>
 
         <div className="fg">
           <label className="fl">Entrega</label>
           <div className="pills" style={{marginBottom:10}}>
             <button className={"pill"+(f.delivery==="local"?" act":"")} onClick={()=>set("delivery","local")}>Retiro en tienda</button>
-            <button className={"pill"+(f.delivery==="envio"?" act":"")} onClick={()=>set("delivery","envio")}>Envio a domicilio</button>
+            <button className={"pill"+(f.delivery==="envio"?" act":"")} onClick={()=>set("delivery","envio")}>Envío a domicilio</button>
           </div>
           {f.delivery==="envio"&&(
+            <>
+            <div className="fg" style={{marginBottom:8}}>
+              <label className="fl">País de destino</label>
+              <div className="pills" style={{flexWrap:"wrap"}}>
+                {["Bolivia","Argentina","Brasil","Peru","Chile","Otro"].map(c=>(
+                  <button key={c} className={"pill"+((f.deliveryCountry||"Bolivia")===c?" act":"")} onClick={()=>set("deliveryCountry",c)}>{c}</button>
+                ))}
+              </div>
+              {(f.deliveryCountry&&f.deliveryCountry!=="Bolivia")&&(
+                <div className="al al-info" style={{marginTop:8}}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <span>Envío internacional — recordar usar DHL o FedEx</span>
+                </div>
+              )}
+            </div>
             <div className="fi2">
               <div className="fg">
                 <label className="fl">Ciudad</label>
                 <input className="fi" value={f.deliveryCity} onChange={e=>set("deliveryCity",e.target.value)} placeholder="Ej: Santa Cruz"/>
               </div>
               <div className="fg">
-                <label className="fl">Direccion</label>
-                <input className="fi" value={f.deliveryAddress} onChange={e=>set("deliveryAddress",e.target.value)} placeholder="Referencia"/>
+                <label className="fl">Dirección</label>
+                <input className="fi" value={f.deliveryAddress} onChange={e=>set("deliveryAddress",e.target.value)} placeholder="Referencia o dirección"/>
               </div>
             </div>
+            </>
           )}
         </div>
-
         <div className="fg">
           <label className="fl">Notas internas</label>
           <textarea className="fta" value={f.notes} onChange={e=>set("notes",e.target.value)} placeholder="Detalles, instrucciones especiales..."/>
@@ -1951,7 +2413,12 @@ function OrderForm({order, products, promoters, user, role, onClose, onSave}) {
 
         <div className="row mt12">
           <button className="btn btn-out" onClick={onClose}>Cancelar</button>
-          <button className="btn btn-gold" disabled={!valid} onClick={()=>onSave({...f,clientPrice:parseFloat(f.clientPrice)||0})}>
+          <button className="btn btn-gold" disabled={!valid} onClick={()=>onSave({
+              ...f,
+              clientPrice:parseFloat(f.clientPrice)||0,
+              status:f.fotoViaWhatsapp&&f.grabadoType==="foto"?"esperando_foto":"nuevo",
+              statusHistory:[{status:f.fotoViaWhatsapp&&f.grabadoType==="foto"?"esperando_foto":"nuevo",date:Date.now()}],
+            })}>
             <Ic n="check" s={16} c="#100d02"/> Guardar pedido
           </button>
         </div>
@@ -1961,19 +2428,23 @@ function OrderForm({order, products, promoters, user, role, onClose, onSave}) {
 }
 
 // ============================================================
-//  SALES PAGE
+//  SALESPAGE
 // ============================================================
 function SalesPage({sales, role, user, promoters, onMarkPaid, onEdit, onDelete}) {
   const [filter,  setFilter]   = useState("all");
+  const [period,  setPeriod]   = useState("all");
   const [search,  setSearch]   = useState("");
   const [hideHist,setHideHist] = useState(false);
   const [editSale,setEditSale] = useState(null);
-  const [confirmDel,setConfirmDel] = useState(null);
 
   const visible = useMemo(()=>{
+    const now = Date.now();
     let list = role==="promoter"
       ? sales.filter(s=>s.promoterId===user.promoterId)
       : filter==="all" ? sales : sales.filter(s=>s.promoterId===filter);
+    if (period==="today")  list=list.filter(s=>s.date>=todayMs());
+    if (period==="week")   list=list.filter(s=>s.date>=now-7*86400000);
+    if (period==="month")  list=list.filter(s=>s.date>=now-30*86400000);
     if (hideHist) list=list.filter(s=>!s.isHistoric);
     if (search.trim()){
       const q=search.toLowerCase();
@@ -1987,17 +2458,27 @@ function SalesPage({sales, role, user, promoters, onMarkPaid, onEdit, onDelete})
     return list;
   },[sales,role,user,filter,search,hideHist]);
 
-  const total = visible.reduce((a,s)=>a+s.clientPrice,0);
+  const total   = visible.reduce((a,s)=>a+s.clientPrice,0);
+  const profit  = visible.reduce((a,s)=>a+s.profit,0);
+  const todayCount = visible.filter(s=>s.date>=todayMs()).length;
 
   return (
     <div className="pe">
       <div className="shd">
         <div className="shd-l">Ventas</div>
-        <span style={{fontSize:".8rem",color:"var(--gold)",fontFamily:"Playfair Display,serif"}}>{fmt(total)}</span>
+        <div style={{textAlign:"right"}}>
+          <div style={{fontSize:"1rem",color:"var(--gold)",fontWeight:800}}>{fmt(total)}</div>
+          {CAN.seeReports(role)&&<div style={{fontSize:".68rem",color:"var(--teal)"}}>Ganancia: {fmt(profit)}</div>}
+        </div>
       </div>
       <div className="fg">
-        <input className="fi" placeholder="Buscar producto, grabado, promotora, cliente..."
+        <input className="fi" placeholder="Buscar producto, cliente, promotora..."
           value={search} onChange={e=>setSearch(e.target.value)}/>
+      </div>
+      <div className="flt">
+        {[["all","Todas"],["today","Hoy"],["week","7 días"],["month","30 días"]].map(([k,v])=>(
+          <button key={k} className={"pill"+(period===k?" act":"")} onClick={()=>setPeriod(k)}>{v}</button>
+        ))}
       </div>
       {role!=="promoter"&&(
         <div className="flt">
@@ -2008,18 +2489,18 @@ function SalesPage({sales, role, user, promoters, onMarkPaid, onEdit, onDelete})
             </button>
           ))}
           <button className={"pill"+(hideHist?" act-red":"")} onClick={()=>setHideHist(v=>!v)}>
-            {hideHist?"Mostrar historicas":"Ocultar historicas"}
+            {hideHist?"Ocultar históricas":"Ver históricas"}
           </button>
         </div>
       )}
       {visible.length===0
-        ?<div className="empty"><Ic n="cart" s={38}/><p>Sin ventas.</p></div>
+        ?<div className="empty"><Ic n="cart" s={38}/><p>Aún no hay ventas registradas.</p></div>
         :visible.map(s=>(
           <SaleRow key={s.id} sale={s} role={role}
             showActions={CAN.seeComms(role)}
             onMarkPaid={s.commissionStatus==="pendiente"?()=>onMarkPaid(s.id):null}
             onEdit={()=>setEditSale(s)}
-            onDelete={role==="admin"&&onDelete?()=>setConfirmDel(s):null}
+            onDelete={role==="admin"&&onDelete?()=>onDelete(s):null}
           />
         ))
       }
@@ -2030,34 +2511,14 @@ function SalesPage({sales, role, user, promoters, onMarkPaid, onEdit, onDelete})
           onSave={async u=>{await onEdit(u);setEditSale(null);}}/>
       )}
 
-      {confirmDel&&(
-        <div className="overlay" onClick={e=>e.target===e.currentTarget&&setConfirmDel(null)}>
-          <div className="sheet">
-            <div className="sh-hd"/>
-            <div className="sh-title">Eliminar venta</div>
-            <div className="al al-warn" style={{marginBottom:16}}>
-              <Ic n="warn" s={14}/>
-              <span>Esta accion no se puede deshacer.</span>
-            </div>
-            <div className="pb" style={{marginBottom:16}}>
-              <div className="pbr"><span className="pbk">Producto</span><span className="pbv">{confirmDel.productName}</span></div>
-              {confirmDel.customization&&<div className="pbr"><span className="pbk">Grabado</span><span className="pbv pbv-gold">"{confirmDel.customization}"</span></div>}
-              <div className="pbr"><span className="pbk">Fecha</span><span className="pbv">{fmtDate(confirmDel.date)}</span></div>
-              <div className="pbr"><span className="pbk">Monto</span><span className="pbv pbv-gold">{fmt(confirmDel.clientPrice)}</span></div>
-            </div>
-            <div className="row">
-              <button className="btn btn-out" onClick={()=>setConfirmDel(null)}>Cancelar</button>
-              <button className="btn btn-red" onClick={async()=>{await onDelete(confirmDel.id);setConfirmDel(null);}}>
-                <Ic n="trash" s={16} c="#fff"/> Eliminar definitivamente
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }
 
+// ============================================================
+//  SALEEDITMODAL
+// ============================================================
 function SaleEditModal({sale, role, onClose, onSave}) {
   const [f,setF] = useState({
     customization: sale.customization||"",
@@ -2086,16 +2547,16 @@ function SaleEditModal({sale, role, onClose, onSave}) {
       <div className="sheet">
         <div className="sh-hd"/>
         <div className="sh-title">Editar venta</div>
-        <div style={{background:"var(--s2)",borderRadius:"var(--rsm)",padding:"10px 13px",marginBottom:16,fontSize:".8rem"}}>
+        <div style={{background:"var(--s2)",borderRadius:"var(--rsm)",padding:"10px 13px",marginBottom:16,fontSize:".86rem"}}>
           <div style={{fontWeight:700,color:"var(--gold)"}}>{sale.productName}</div>
-          <div style={{color:"var(--dim)",fontSize:".72rem",marginTop:2}}>{fmtDate(sale.date)} - {sale.promoterName}</div>
+          <div style={{color:"var(--dim)",fontSize:".76rem",marginTop:2}}>{fmtDate(sale.date)} - {sale.promoterName}</div>
         </div>
         <div className="fg">
           <label className="fl">Texto del grabado</label>
-          <input className="fi" value={f.customization} onChange={e=>set("customization",e.target.value)} placeholder="Texto, foto o diseno a grabar"/>
+          <input className="fi" value={f.customization} onChange={e=>set("customization",e.target.value)} placeholder="Texto, foto o diseño a grabar"/>
         </div>
         <div className="fg">
-          <label className="fl">Metodo de pago</label>
+          <label className="fl">Método de pago</label>
           <div className="pills">
             {PM_OPTS.map(([v,l])=>(
               <button key={v} className={"pill"+(f.paymentMethod===v?" act":"")} onClick={()=>set("paymentMethod",v)}>{l}</button>
@@ -2108,8 +2569,8 @@ function SaleEditModal({sale, role, onClose, onSave}) {
             <input className="fi" value={f.clientName} onChange={e=>set("clientName",e.target.value)} placeholder="Nombre"/>
           </div>
           <div className="fg">
-            <label className="fl">Telefono del cliente</label>
-            <input className="fi" type="tel" value={f.clientPhone} onChange={e=>set("clientPhone",e.target.value)} placeholder="7XXXXXXX"/>
+            <label className="fl">Teléfono del cliente</label>
+            <input className="fi" type="tel" autoComplete="tel" value={f.clientPhone} onChange={e=>set("clientPhone",e.target.value)} placeholder="7XXXXXXX"/>
           </div>
         </div>
         <div className="fg">
@@ -2118,22 +2579,22 @@ function SaleEditModal({sale, role, onClose, onSave}) {
         </div>
         {role==="admin"&&(
           <div className="price-box">
-            <div style={{fontSize:".7rem",color:"var(--muted)",fontWeight:800,textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>
+            <div style={{fontSize:".76rem",color:"var(--muted)",fontWeight:800,textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>
               Precios (solo admin)
             </div>
             <div className="fi2">
               <div className="fg">
                 <label className="fl">Precio al cliente</label>
-                <input className="fi" type="number" value={f.clientPrice} onChange={e=>set("clientPrice",e.target.value)}/>
+                <input className="fi" type="number" inputMode="decimal" value={f.clientPrice} onChange={e=>set("clientPrice",e.target.value)}/>
               </div>
               <div className="fg">
                 <label className="fl">Precio neto recibido</label>
-                <input className="fi" type="number" value={f.promoterPrice} onChange={e=>set("promoterPrice",e.target.value)}/>
+                <input className="fi" type="number" inputMode="decimal" value={f.promoterPrice} onChange={e=>set("promoterPrice",e.target.value)}/>
               </div>
             </div>
             <div className="fg">
               <label className="fl">Costo material</label>
-              <input className="fi" type="number" value={f.cost} onChange={e=>set("cost",e.target.value)}/>
+              <input className="fi" type="number" inputMode="decimal" value={f.cost} onChange={e=>set("cost",e.target.value)}/>
             </div>
           </div>
         )}
@@ -2148,6 +2609,9 @@ function SaleEditModal({sale, role, onClose, onSave}) {
   );
 }
 
+// ============================================================
+//  SALEROW
+// ============================================================
 function SaleRow({sale, role, showActions, onMarkPaid, onEdit, onDelete}) {
   const pm={efectivo:"Efectivo",transferencia:"Transferencia",qr:"QR"};
   return (
@@ -2161,19 +2625,19 @@ function SaleRow({sale, role, showActions, onMarkPaid, onEdit, onDelete}) {
           <span>{pm[sale.paymentMethod]||sale.paymentMethod}</span>
           <span>{sale.promoterName?.split(" ")[0]}</span>
           {sale.clientName&&<span style={{color:"var(--muted)"}}>{sale.clientName}</span>}
-          {sale.isHistoric&&<span className="hist-tag">Historica</span>}
+          {sale.isHistoric&&<span className="hist-tag">Histórica</span>}
           {sale.isDirectSale&&<span className="chip ch-blu">Tienda directa</span>}
         </div>
-        {sale.notes&&<div style={{fontSize:".7rem",color:"var(--dim)",marginTop:4,fontStyle:"italic"}}>{sale.notes}</div>}
+        {sale.notes&&<div style={{fontSize:".76rem",color:"var(--dim)",marginTop:4,fontStyle:"italic"}}>{sale.notes}</div>}
         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8}}>
           {showActions&&onMarkPaid&&(
-            <button onClick={onMarkPaid} className="btn btn-sm btn-out" style={{padding:"5px 10px",fontSize:".72rem"}}>
+            <button onClick={onMarkPaid} className="btn btn-sm btn-out" style={{padding:"5px 10px",fontSize:".76rem"}}>
               <Ic n="check" s={12}/> Marcar pagada
             </button>
           )}
           {sale.clientPhone&&(
-            <button className="wa-btn" style={{fontSize:".72rem",padding:"5px 10px"}}
-              onClick={()=>openWhatsApp(sale.clientPhone,"Hola "+(sale.clientName||"cliente")+"! Gracias por tu compra en Garabato.")}>
+            <button className="wa-btn" style={{fontSize:".76rem",padding:"5px 10px"}}
+              onClick={()=>openWhatsApp(sale.clientPhone,"¡Hola "+(sale.clientName||"cliente")+"! Gracias por tu compra en Garabato.")}>
               <WaIcon/> Contactar
             </button>
           )}
@@ -2191,12 +2655,17 @@ function SaleRow({sale, role, showActions, onMarkPaid, onEdit, onDelete}) {
       </div>
       <div className="si-r">
         <div className="si-amt">{fmt(sale.clientPrice)}</div>
-        {CAN.seeComms(role)&&<div className="si-sub">Com: {fmt(sale.commission)}</div>}
-        {CAN.seeReports(role)&&<div className="si-sub" style={{color:"var(--teal)"}}>Gan: {fmt(sale.profit)}</div>}
+        {CAN.seeComms(role)&&<div className="si-sub">Comisión: {fmt(sale.commission)}</div>}
+        {CAN.seeReports(role)&&<div className="si-sub" style={{color:"var(--teal)"}}>Ganancia: {fmt(sale.profit)}</div>}
         <div className="mt8">
-          <span className={"chip "+(sale.commissionStatus==="pagado"?"ch-grn":"ch-gold")}>
-            {sale.commissionStatus==="pagado"?"Pagado":"Pendiente"}
-          </span>
+          {!sale.isDirectSale&&(
+            <span className={"chip "+(sale.commissionStatus==="pagado"?"ch-grn":"ch-gold")}>
+              {sale.commissionStatus==="pagado"?"Com. pagada":"Com. pendiente"}
+            </span>
+          )}
+          {sale.isDirectSale&&(
+            <span className="chip ch-blu">Tienda directa</span>
+          )}
         </div>
       </div>
       <div className={"sdot "+(sale.synced?"sd-ok":"sd-no")}/>
@@ -2205,28 +2674,40 @@ function SaleRow({sale, role, showActions, onMarkPaid, onEdit, onDelete}) {
 }
 
 // ============================================================
-//  INVENTORY PAGE
+//  INVENTORYPAGE
 // ============================================================
 function InventoryPage({products, role, onSave, onDelete}) {
   const [editProd,setEditProd] = useState(null);
   const [showForm,setShowForm] = useState(false);
+  const [search, setSearch]   = useState("");
   const low = products.filter(p=>p.stock<=p.lowStockAlert);
+  const visible = search.trim()
+    ? products.filter(p=>p.name.toLowerCase().includes(search.toLowerCase()))
+    : products;
   return (
     <div className="pe">
       <div className="shd">
-        <div className="shd-l">Inventario</div>
-        {CAN.editData(role)&&(
+        <div className="shd-l">Catálogo</div>
+        {CAN.editConfig(role)&&(
           <button className="btn btn-sm btn-gold" style={{width:"auto"}} onClick={()=>{setEditProd(null);setShowForm(true);}}>
             <Ic n="plus" s={14} c="#100d02"/> Nuevo
           </button>
         )}
       </div>
-      {low.length>0&&(
-        <div className="al al-warn"><Ic n="warn" s={14}/><b>{low.length} producto{low.length>1?"s":""} con stock bajo</b></div>
+      {products.length>3&&(
+        <div className="fg" style={{marginBottom:8}}>
+          <input className="fi" placeholder="Buscar producto..." value={search} onChange={e=>setSearch(e.target.value)}/>
+        </div>
       )}
-      {products.length===0
-        ?<div className="empty"><Ic n="box" s={38}/><p>Sin productos.</p></div>
-        :products.map(p=>{
+      {low.length>0&&(
+        <div className="al al-warn" style={{marginBottom:10}}>
+          <Ic n="warn" s={14}/>
+          <span><b>{low.length} producto{low.length>1?"s":""} con stock bajo</b> — revisar antes de vender</span>
+        </div>
+      )}
+      {visible.length===0
+        ?<div className="empty"><Ic n="box" s={38}/><p>Todavía no hay productos cargados.</p></div>
+        :<div className="inv-grid">{visible.map(p=>{
           const commission=r2(p.clientPrice-p.promoterPrice), profit=r2(p.promoterPrice-p.cost);
           return (
             <div key={p.id} className="pc">
@@ -2235,38 +2716,51 @@ function InventoryPage({products, role, onSave, onDelete}) {
                   :<div className="pc-img-ph">{p.name.charAt(0)}</div>}
                 <div style={{flex:1}}>
                   <div className="pc-name">{p.name}</div>
-                  <div style={{fontSize:".7rem",color:"var(--muted)",marginTop:2}}>{fmt(p.clientPrice)} al cliente</div>
+                  <div style={{fontSize:".76rem",color:"var(--muted)",marginTop:2}}>
+                  {fmt(p.clientPrice)} al cliente
+                  {p.clientPriceUSD&&<span style={{marginLeft:6,color:"var(--blu)",fontSize:".68rem"}}>USD {p.clientPriceUSD}</span>}
                 </div>
-                {CAN.editData(role)&&(
+                </div>
+                {CAN.editConfig(role)&&(
                   <div style={{display:"flex",gap:6}}>
                     <button className="btn btn-sm btn-out" style={{padding:"5px 8px"}} onClick={()=>{setEditProd(p);setShowForm(true);}}>
                       <Ic n="edit" s={13}/>
                     </button>
-                    {onDelete&&<button className="btn btn-sm btn-red" style={{padding:"5px 8px"}} onClick={()=>onDelete(p.id)}><Ic n="trash" s={13}/></button>}
+                    {onDelete&&<button className="btn btn-sm btn-red" style={{padding:"5px 8px"}} onClick={()=>{if(window.confirm("Eliminar "+p.name+"? Esta acción no se puede deshacer.")) onDelete(p.id);}}><Ic n="trash" s={13}/></button>}
                   </div>
                 )}
               </div>
               <div className="pc-grid">
                 <div className="pcs"><div className="pcs-v" style={{color:"var(--txt)"}}>{fmt(p.clientPrice)}</div><div className="pcs-l">Precio venta</div></div>
                 <div className="pcs"><div className="pcs-v" style={{color:"var(--gold)"}}>{fmt(p.promoterPrice)}</div><div className="pcs-l">Precio neto</div></div>
-                <div className="pcs"><div className="pcs-v" style={{color:"var(--red)"}}>{fmt(p.cost)}</div><div className="pcs-l">Costo</div></div>
+                <div className="pcs"><div className="pcs-v" style={{color:"var(--red)"}}>{fmt(p.cost)}</div><div className="pcs-l">Costo material</div></div>
               </div>
-              <div style={{display:"flex",justifyContent:"space-between",marginTop:8,padding:"7px 10px",background:"var(--s2)",borderRadius:"var(--rsm)",fontSize:".72rem"}}>
-                <span style={{color:"var(--muted)"}}>Com: <b style={{color:"var(--gold)"}}>{fmt(commission)}</b></span>
+              {p.grabadoTypesAllowed&&p.grabadoTypesAllowed.length>0&&(
+                <div style={{display:"flex",gap:4,flexWrap:"wrap",marginTop:6}}>
+                  {p.grabadoTypesAllowed.map(t=>(
+                    <span key={t} style={{fontSize:".68rem",fontWeight:800,padding:"2px 7px",borderRadius:10,
+                      background:"rgba(224,198,17,.1)",color:"var(--gd)",border:"1px solid rgba(224,198,17,.2)"}}>
+                      {t==="foto"?"📷 Foto":t==="texto"?"✏️ Texto":t==="vector"?"🎨 Vector":"🔧 Combinado"}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div style={{display:"flex",justifyContent:"space-between",marginTop:8,padding:"7px 10px",background:"var(--s2)",borderRadius:"var(--rsm)",fontSize:".76rem"}}>
+                <span style={{color:"var(--muted)"}}>Comisión: <b style={{color:"var(--gold)"}}>{fmt(commission)}</b></span>
                 <span style={{color:"var(--muted)"}}>Ganancia: <b style={{color:"var(--teal)"}}>{fmt(profit)}</b></span>
                 <span style={{color:p.stock<=p.lowStockAlert?"var(--red)":"var(--grn)"}}>Stock: <b>{p.stock}</b>{p.stock<=p.lowStockAlert?" !":""}</span>
               </div>
             </div>
           );
-        })
-      }
+        })}
+      </div>
       {showForm&&<ProductForm product={editProd} onClose={()=>setShowForm(false)} onSave={async p=>{await onSave(p);setShowForm(false);}}/>}
     </div>
   );
 }
 
 function ProductForm({product, onClose, onSave}) {
-  const blank={id:uid("p"),name:"",photo:null,clientPrice:"",promoterPrice:"",cost:"",stock:"",lowStockAlert:"5"};
+  const blank={id:uid("p"),name:"",photo:null,clientPrice:"",promoterPrice:"",cost:"",stock:"",lowStockAlert:"5",clientPriceUSD:null,grabadoTypesAllowed:["foto","texto"]};
   const [f,setF]         = useState(product||blank);
   const [uploading,setUploading] = useState(false);
   const fileRef = useRef(null);
@@ -2301,34 +2795,39 @@ function ProductForm({product, onClose, onSave}) {
           )}
           <input ref={fileRef} type="file" accept="image/*" capture="environment"
             style={{display:"none"}} onChange={handlePhoto}/>
-          <div className="fi-hint">La imagen se comprime automaticamente para no ocupar memoria</div>
+          <div className="fi-hint">La imagen se comprime automáticamente para no ocupar memoria</div>
         </div>
         <div className="fg">
           <label className="fl">Nombre del producto</label>
           <input className="fi" value={f.name} onChange={e=>set("name",e.target.value)} placeholder="Nombre del producto o servicio"/>
         </div>
         <div className="price-box">
-          <div style={{fontSize:".7rem",color:"var(--muted)",fontWeight:800,textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>Precios</div>
+          <div style={{fontSize:".76rem",color:"var(--muted)",fontWeight:800,textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>Precios</div>
           <div className="fi2">
             <div className="fg">
-              <label className="fl">Precio al cliente</label>
-              <input className="fi" type="number" value={f.clientPrice} onChange={e=>set("clientPrice",e.target.value)} placeholder="122"/>
-              <div className="fi-hint">Precio de venta al publico (PVP)</div>
+              <label className="fl">Precio al cliente (Bs.)</label>
+              <input className="fi" type="number" inputMode="decimal" value={f.clientPrice} onChange={e=>set("clientPrice",e.target.value)} placeholder="Ej: 122"/>
+              <div className="fi-hint">Precio de venta al público (PVP)</div>
             </div>
             <div className="fg">
               <label className="fl">Precio neto recibido</label>
-              <input className="fi" type="number" value={f.promoterPrice} onChange={e=>set("promoterPrice",e.target.value)} placeholder="94"/>
+              <input className="fi" type="number" inputMode="decimal" value={f.promoterPrice} onChange={e=>set("promoterPrice",e.target.value)} placeholder="Ej: 94"/>
               <div className="fi-hint">Monto que ingresa a la tienda</div>
             </div>
           </div>
           <div className="fg">
+            <label className="fl">Precio internacional (USD) — opcional</label>
+            <input className="fi" type="number" inputMode="decimal" value={f.clientPriceUSD||""} onChange={e=>set("clientPriceUSD",e.target.value?parseFloat(e.target.value):null)} placeholder="Ej: 18"/>
+            <div className="fi-hint">Para pedidos con envío al exterior (DHL/FedEx)</div>
+          </div>
+          <div className="fg">
             <label className="fl">Costo material (Bs.)</label>
-            <input className="fi" type="number" value={f.cost} onChange={e=>set("cost",e.target.value)} placeholder="35"/>
+            <input className="fi" type="number" inputMode="decimal" value={f.cost} onChange={e=>set("cost",e.target.value)} placeholder="Ej: 35"/>
           </div>
           {cp>0&&pp>0&&c>0&&(
             <div style={{background:"var(--s1)",borderRadius:"var(--rsm)",padding:"10px 12px",fontSize:".76rem"}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                <span style={{color:"var(--muted)"}}>Comision promotora</span>
+                <span style={{color:"var(--muted)"}}>Comisión promotora</span>
                 <b style={{color:"var(--gold)"}}>{fmt(r2(cp-pp))}</b>
               </div>
               <div style={{display:"flex",justifyContent:"space-between"}}>
@@ -2341,12 +2840,27 @@ function ProductForm({product, onClose, onSave}) {
         <div className="fi2">
           <div className="fg">
             <label className="fl">Stock</label>
-            <input className="fi" type="number" value={f.stock} onChange={e=>set("stock",e.target.value)} placeholder="0"/>
+            <input className="fi" type="number" inputMode="numeric" value={f.stock} onChange={e=>set("stock",e.target.value)} placeholder="0.00"/>
           </div>
           <div className="fg">
             <label className="fl">Alerta stock bajo</label>
-            <input className="fi" type="number" value={f.lowStockAlert} onChange={e=>set("lowStockAlert",e.target.value)} placeholder="5"/>
+            <input className="fi" type="number" inputMode="numeric" value={f.lowStockAlert} onChange={e=>set("lowStockAlert",e.target.value)} placeholder="5"/>
           </div>
+        </div>
+        <div className="fg">
+          <label className="fl">Tipos de grabado que acepta</label>
+          <div className="pills" style={{flexWrap:"wrap"}}>
+            {[["foto","📷 Fotograbado"],["texto","✏️ Texto/Nombre"],["vector","🎨 Logo/Dibujo"],["combinado","🔧 Combinado"]].map(([v,l])=>{
+              const sel=(f.grabadoTypesAllowed||[]).includes(v);
+              return (
+                <button key={v} className={"pill"+(sel?" act":"")} onClick={()=>{
+                  const curr=f.grabadoTypesAllowed||[];
+                  set("grabadoTypesAllowed",sel?curr.filter(x=>x!==v):[...curr,v]);
+                }}>{l}</button>
+              );
+            })}
+          </div>
+          <div className="fi-hint">Define que tipo de grabado se puede pedir para este producto</div>
         </div>
         <div className="row mt12">
           <button className="btn btn-out" onClick={onClose}>Cancelar</button>
@@ -2391,7 +2905,7 @@ function PromotersPage({promoters, sales, role, payments, onPay, onSave, user}) 
         <div className="shd"><div className="shd-l">Mi perfil</div></div>
         <div className="prc">
           <div className="prc-h">
-            <div className="prc-av" style={{width:52,height:52,fontSize:"1.4rem"}}>{me.name.charAt(0)}</div>
+            <div className="prc-av" style={{width:52,height:52,fontSize:"1.5rem"}}>{me.name.charAt(0)}</div>
             <div style={{flex:1}}>
               <div className="prc-name" style={{fontSize:"1rem"}}>{me.name}</div>
               <div className="prc-ph">Tel: {me.phone}</div>
@@ -2402,19 +2916,31 @@ function PromotersPage({promoters, sales, role, payments, onPay, onSave, user}) 
           </div>
           <div className="prc-stats">
             <div className="prs"><div className="prs-v">{st.count}</div><div className="prs-l">Ventas totales</div></div>
-            <div className="prs"><div className="prs-v" style={{fontSize:".85rem",color:"var(--gold)"}}>{fmt(st.earned)}</div><div className="prs-l">Comision ganada</div></div>
+            <div className="prs"><div className="prs-v" style={{fontSize:".86rem",color:"var(--gold)"}}>{fmt(st.earned)}</div><div className="prs-l">Comision ganada</div></div>
             <div className="prs">
-              <div className="prs-v" style={{fontSize:".85rem",color:st.pending>0?"var(--red)":"var(--grn)"}}>{fmt(st.pending)}</div>
+              <div className="prs-v" style={{fontSize:".86rem",color:st.pending>0?"var(--red)":"var(--grn)"}}>{fmt(st.pending)}</div>
               <div className="prs-l">Por cobrar</div>
             </div>
           </div>
         </div>
         {st.pending>0&&(
-          <div className="al al-info"><Ic n="money" s={14}/><span>Tenes <b>{fmt(st.pending)}</b> en comisiones pendientes de cobro.</span></div>
+          <div className="al al-info">
+            <Ic n="money" s={14}/>
+            <span>Tenes <b style={{color:"var(--gold)"}}>{fmt(st.pending)}</b> en comisiones pendientes de cobro.</span>
+          </div>
         )}
-        <div className="shd mt12"><div className="shd-l">Mis ventas recientes</div></div>
+        {st.pending===0&&st.count>0&&(
+          <div className="al al-ok">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Todas tus comisiones están al día!</span>
+          </div>
+        )}
+        <div className="shd mt12">
+          <div className="shd-l">Mis ventas recientes</div>
+          <span style={{fontSize:".76rem",color:"var(--muted)"}}>{st.count} total</span>
+        </div>
         {recentSales.length===0
-          ?<div className="empty"><Ic n="cart" s={36}/><p>Sin ventas registradas.</p></div>
+          ?<div className="empty"><Ic n="cart" s={36}/><p>Todavía no hay ventas registradas.</p></div>
           :recentSales.map(s=><SaleRow key={s.id} sale={s} role={role}/>)
         }
       </div>
@@ -2428,9 +2954,9 @@ function PromotersPage({promoters, sales, role, payments, onPay, onSave, user}) 
         <div className="shd-l">Promotoras</div>
         <div style={{display:"flex",gap:7}}>
           {CAN.seePayments(role)&&(
-            <button className="wa-btn" style={{fontSize:".72rem",padding:"6px 11px"}}
+            <button className="wa-btn" style={{fontSize:".76rem",padding:"6px 11px"}}
               onClick={()=>generateCommissionReport(promoters,sales)}>
-              <WaIcon/> Comisiones
+              <WaIcon/> Reporte comisiones
             </button>
           )}
           {CAN.editData(role)&&(
@@ -2459,7 +2985,7 @@ function PromotersPage({promoters, sales, role, payments, onPay, onSave, user}) 
               <div className="prc-av">{pr.name.charAt(0)}</div>
               <div style={{flex:1}}>
                 <div className="prc-name">{pr.name}</div>
-                <div className="prc-ph">Tel: {pr.phone}</div>
+                <div className="prc-ph"><Ic n="phone" s={11}/> {pr.phone}</div>
               </div>
               <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
                 <span className="chip ch-teal">
@@ -2470,9 +2996,9 @@ function PromotersPage({promoters, sales, role, payments, onPay, onSave, user}) 
             </div>
             <div className="prc-stats">
               <div className="prs"><div className="prs-v">{st.count}</div><div className="prs-l">Ventas</div></div>
-              <div className="prs"><div className="prs-v" style={{fontSize:".85rem"}}>{fmt(st.total)}</div><div className="prs-l">Vendido</div></div>
+              <div className="prs"><div className="prs-v" style={{fontSize:".86rem",color:"var(--gold)"}}>{fmt(st.earned)}</div><div className="prs-l">Comision total</div></div>
               <div className="prs">
-                <div className="prs-v" style={{fontSize:".85rem",color:st.pending>0?"var(--red)":"var(--grn)"}}>{fmt(st.pending)}</div>
+                <div className="prs-v" style={{fontSize:".86rem",color:st.pending>0?"var(--red)":"var(--grn)"}}>{fmt(st.pending)}</div>
                 <div className="prs-l">Pendiente</div>
               </div>
             </div>
@@ -2481,18 +3007,26 @@ function PromotersPage({promoters, sales, role, payments, onPay, onSave, user}) 
                 <Ic n="money" s={16} c="#fff"/> Pagar {fmt(st.pending)} a {pr.name.split(" ")[0]}
               </button>
             )}
-            {CAN.editData(role)&&(
-              <button className="btn btn-out mt8" style={{fontSize:".75rem",padding:"7px"}} onClick={()=>{setEditPr(pr);setShowForm(true);}}>
-                <Ic n="edit" s={13}/> Editar
-              </button>
-            )}
+            <div style={{display:"flex",gap:6,marginTop:8}}>
+              {pr.phone&&(
+                <button className="wa-btn" style={{fontSize:".76rem",padding:"6px 10px",flex:1}}
+                  onClick={()=>openWhatsApp(pr.phone,"¡Hola "+pr.name.split(" ")[0]+"! Te contactamos de Garabato.")}>
+                  <WaIcon/> Contactar
+                </button>
+              )}
+              {CAN.editData(role)&&(
+                <button className="btn btn-sm btn-out" style={{padding:"7px 10px"}} onClick={()=>{setEditPr(pr);setShowForm(true);}}>
+                  <Ic n="edit" s={13}/> Editar
+                </button>
+              )}
+            </div>
           </div>
         );
       })}
 
       {tab==="pagos"&&CAN.seePayments(role)&&(
         payments.length===0
-          ?<div className="empty"><Ic n="money" s={38}/><p>Sin pagos registrados.</p></div>
+          ?<div className="empty"><Ic n="money" s={38}/><p>Aún no hay pagos registrados.</p></div>
           :payments.map(pay=>{
             const pr=promoters.find(p=>p.id===pay.promoterId);
             return (
@@ -2500,11 +3034,11 @@ function PromotersPage({promoters, sales, role, payments, onPay, onSave, user}) 
                 <div className="pay-av">{pr?.name.charAt(0)||"?"}</div>
                 <div style={{flex:1}}>
                   <div style={{fontWeight:700,fontSize:".86rem"}}>{pr?.name||"Promotora"}</div>
-                  <div style={{fontSize:".7rem",color:"var(--muted)",marginTop:2}}>
+                  <div style={{fontSize:".76rem",color:"var(--muted)",marginTop:2}}>
                     {fmtDate(pay.date)} - {pay.salesIds.length} venta{pay.salesIds.length>1?"s":""}
                   </div>
                 </div>
-                <div style={{fontFamily:"Playfair Display,serif",fontSize:"1.1rem",color:"var(--grn)"}}>{fmt(pay.amount)}</div>
+                <div style={{fontFamily:"Playfair Display,serif",fontSize:"1.2rem",color:"var(--grn)"}}>{fmt(pay.amount)}</div>
               </div>
             );
           })
@@ -2522,7 +3056,7 @@ function PromotersPage({promoters, sales, role, payments, onPay, onSave, user}) 
               <div className="pbr"><span className="pbk">Total a pagar</span><span className="pbv" style={{color:"var(--grn)"}}>{fmt(statsFor(payingPr.id).pending)}</span></div>
               <div className="pbr"><span className="pbk">Ventas a liquidar</span><span className="pbv">{statsFor(payingPr.id).ids.length}</span></div>
             </div>
-            <div className="al al-info mt12"><Ic n="warn" s={14}/> Todas las comisiones pendientes quedaran como pagadas.</div>
+            <div className="al al-info mt12"><Ic n="warn" s={14}/> Todas las comisiones pendientes quedarán como pagadas.</div>
             <div className="row mt12">
               <button className="btn btn-out" onClick={()=>setPayingPr(null)}>Cancelar</button>
               <button className="btn btn-grn" onClick={async()=>{
@@ -2555,19 +3089,19 @@ function PromoterForm({promoter, onClose, onSave}) {
           <input className="fi" value={f.name} onChange={e=>set("name",e.target.value)} placeholder="Nombre y apellido"/>
         </div>
         <div className="fg">
-          <label className="fl">Telefono</label>
-          <input className="fi" type="tel" value={f.phone} onChange={e=>set("phone",e.target.value)} placeholder="7XXXXXXX"/>
+          <label className="fl">Teléfono</label>
+          <input className="fi" type="tel" autoComplete="tel" value={f.phone} onChange={e=>set("phone",e.target.value)} placeholder="Ej: 70012345 (sin prefijo 591)"/>
         </div>
         <div className="fg">
           <label className="fl">Precio personalizado</label>
           <div style={{display:"flex",gap:8,marginBottom:8}}>
-            <button className={"pill"+(!hasCustom?" act":"")} onClick={()=>set("customPromoterPrice",null)}>Precio estandar del producto</button>
+            <button className={"pill"+(!hasCustom?" act":"")} onClick={()=>set("customPromoterPrice",null)}>Precio estándar del producto</button>
             <button className={"pill"+(hasCustom?" act-red":"")} onClick={()=>set("customPromoterPrice",f.customPromoterPrice||0)}>Precio personalizado</button>
           </div>
           {hasCustom&&(
             <>
-              <input className="fi" type="number" value={f.customPromoterPrice} onChange={e=>set("customPromoterPrice",parseFloat(e.target.value)||0)} placeholder="Monto neto recibido (Bs.)"/>
-              <div className="fi-hint">Reemplaza el precio estandar del producto para esta promotora en particular</div>
+              <input className="fi" type="number" inputMode="decimal" value={f.customPromoterPrice} onChange={e=>set("customPromoterPrice",parseFloat(e.target.value)||0)} placeholder="Monto neto recibido (Bs.)"/>
+              <div className="fi-hint">Reemplaza el precio estándar del producto para esta promotora en particular</div>
             </>
           )}
         </div>
@@ -2593,11 +3127,11 @@ function PromoterForm({promoter, onClose, onSave}) {
 // ============================================================
 function ExpensesPage({expenses, onAdd, onDelete}) {
   const [showForm,setShowForm]=useState(false);
-  const [form,setForm]=useState({type:"Empaques",amount:"",description:"",date:todayISO()});
+  const [form,setForm]=useState({type:"Empaques",amount:"",description:"",date:todayISO(),afectaSociedad:true});
   const set=(k,v)=>setForm(f=>({...f,[k]:v}));
   const total=expenses.reduce((a,e)=>a+e.amount,0);
   const monthly=expenses.filter(e=>e.date>=Date.now()-30*86400000).reduce((a,e)=>a+e.amount,0);
-  const byType=expenses.reduce((m,e)=>{m[e.type]=(m[e.type]||0)+e.amount;return m;},{});
+  const byType=fe.reduce((m,e)=>{m[e.type]=(m[e.type]||0)+e.amount;return m;},{});
   const sorted=Object.entries(byType).sort((a,b)=>b[1]-a[1]);
   const maxE=sorted[0]?.[1]||1;
   return (
@@ -2609,12 +3143,12 @@ function ExpensesPage({expenses, onAdd, onDelete}) {
         </button>
       </div>
       <div className="g2">
-        <div className="sc hr"><div className="sl">Total acumulado</div><div className="sv red">{fmt(total)}</div><div className="ss">{expenses.length} registros</div></div>
-        <div className="sc"><div className="sl">Este mes</div><div className="sv">{fmt(monthly)}</div><div className="ss">30 dias</div></div>
+        <div className="sc hr"><div className="sl">Total acumulado</div><div className="sv red">{fmt(total)}</div><div className="ss">{fe.length} registros</div></div>
+        <div className="sc"><div className="sl">Este mes</div><div className="sv">{fmt(monthly)}</div><div className="ss">30 días</div></div>
       </div>
       {sorted.length>0&&(
         <div className="card" style={{marginBottom:14}}>
-          <div style={{fontSize:".7rem",color:"var(--muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:.4,marginBottom:10}}>Por categoria</div>
+          <div style={{fontSize:".76rem",color:"var(--muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:.4,marginBottom:10}}>Por categoría</div>
           {sorted.map(([type,amt])=>(
             <div key={type} className="rbar">
               <div className="rbar-l">{type}</div>
@@ -2625,17 +3159,22 @@ function ExpensesPage({expenses, onAdd, onDelete}) {
         </div>
       )}
       {expenses.length===0
-        ?<div className="empty"><Ic n="receipt" s={38}/><p>Sin gastos registrados.</p></div>
+        ?<div className="empty"><Ic n="receipt" s={38}/><p>Aún no hay gastos registrados.</p></div>
         :expenses.map(e=>(
           <div key={e.id} className="ei">
-            <div className="ei-ico">{e.type.charAt(0)}</div>
+            <div className="ei-ico" style={{fontSize:"1.2rem"}}>
+              {{"Empaques":"📦","Electricidad":"⚡","Internet":"🌐","Materiales":"🔩","Marketing":"📢","Transporte":"🚗","Alquiler":"🏠"}[e.type]||"📋"}
+            </div>
             <div className="ei-body">
               <div className="ei-type">{e.type}</div>
               {e.description&&<div className="ei-desc">{e.description}</div>}
-              <div className="ei-date">{fmtDate(e.date)}</div>
+              <div className="ei-date">
+                {fmtDate(e.date)}
+                {e.afectaSociedad===false&&<span style={{marginLeft:6,fontSize:".68rem",fontWeight:800,color:"var(--muted)",background:"var(--s2)",padding:"1px 5px",borderRadius:4}}>Solo tienda</span>}
+              </div>
             </div>
             <div className="ei-amt">{fmt(e.amount)}</div>
-            <button onClick={()=>onDelete(e.id)} className="btn btn-sm btn-out" style={{marginLeft:8,padding:"4px 8px",fontSize:".68rem",flexShrink:0}}>
+            <button onClick={()=>{if(window.confirm("Eliminar este gasto de "+fmt(e.amount)+"?")) onDelete(e.id);}} className="btn btn-sm btn-out" style={{marginLeft:8,padding:"4px 8px",fontSize:".68rem",flexShrink:0}}>
               <Ic n="trash" s={11}/>
             </button>
             <div className={"sdot "+(e.synced?"sd-ok":"sd-no")}/>
@@ -2648,7 +3187,7 @@ function ExpensesPage({expenses, onAdd, onDelete}) {
             <div className="sh-hd"/>
             <div className="sh-title">Nuevo gasto</div>
             <div className="fg">
-              <label className="fl">Categoria</label>
+              <label className="fl">Categoría</label>
               <select className="fs" value={form.type} onChange={e=>set("type",e.target.value)}>
                 {EXP_TYPES.map(t=><option key={t}>{t}</option>)}
               </select>
@@ -2656,26 +3195,40 @@ function ExpensesPage({expenses, onAdd, onDelete}) {
             <div className="fi2">
               <div className="fg">
                 <label className="fl">Monto (Bs.)</label>
-                <input className="fi" type="number" value={form.amount} onChange={e=>set("amount",e.target.value)} placeholder="0.00"/>
+                <input className="fi" type="number" inputMode="decimal" value={form.amount} onChange={e=>set("amount",e.target.value)} placeholder="0.00"/>
               </div>
               <div className="fg">
                 <label className="fl">Fecha</label>
-                <input className="fi" type="date" value={form.date} onChange={e=>set("date",e.target.value)}/>
+                <input className="fi" type="date" autoComplete="off" value={form.date} onChange={e=>set("date",e.target.value)}/>
               </div>
             </div>
             <div className="fg">
-              <label className="fl">Descripcion</label>
+              <label className="fl">Descripción</label>
               <textarea className="fta" value={form.description} onChange={e=>set("description",e.target.value)} placeholder="Detalle opcional..."/>
+            </div>
+            <div className="fg">
+              <label className="fl">Afecta distribución societaria</label>
+              <div className="pills">
+                <button className={"pill"+(form.afectaSociedad!==false?" act":"")} onClick={()=>set("afectaSociedad",true)}>
+                  Si — gasto compartido 50/50
+                </button>
+                <button className={"pill"+(form.afectaSociedad===false?" act":"")} onClick={()=>set("afectaSociedad",false)}>
+                  No — gasto solo tienda
+                </button>
+              </div>
+              <div className="fi-hint">Los gastos compartidos se descuentan de la ganancia antes de dividir</div>
             </div>
             <div className="row">
               <button className="btn btn-out" onClick={()=>setShowForm(false)}>Cancelar</button>
               <button className="btn btn-red" disabled={!form.amount} onClick={async()=>{
                 if (!form.amount||isNaN(form.amount)) return;
-                await onAdd({id:uid("e"),type:form.type,amount:parseFloat(form.amount),description:form.description,date:new Date(form.date).getTime()});
-                setForm({type:"Empaques",amount:"",description:"",date:todayISO()});
+                await onAdd({id:uid("e"),type:form.type,amount:parseFloat(form.amount),
+                  description:form.description,date:new Date(form.date).getTime(),
+                  afectaSociedad:form.afectaSociedad!==false});
+                setForm({type:"Empaques",amount:"",description:"",date:todayISO(),afectaSociedad:true});
                 setShowForm(false);
               }}>
-                <Ic n="plus" s={16} c="#fff"/> Registrar
+                <Ic n="plus" s={16} c="#fff"/> Registrar gasto
               </button>
             </div>
           </div>
@@ -2690,16 +3243,21 @@ function ExpensesPage({expenses, onAdd, onDelete}) {
 // ============================================================
 function ReportsPage({sales, expenses, promoters, payments}) {
   const [tab,   setTab]   = useState("financiero");
-  const [period,setPeriod]= useState("week");
-  const periodLabel = period==="today"?"Hoy":period==="week"?"Ultimos 7 dias":period==="month"?"Ultimos 30 dias":"Todo el periodo";
+  const [period,setPeriod]= useState("month");
+  const periodLabel = period==="today"?"Hoy":period==="week"?"Últimos 7 días":period==="month"?"Últimos 30 días":"Todo el período";
 
+  const now = Date.now();
   const fs = useMemo(()=>{
-    const now=Date.now();
     if (period==="today") return sales.filter(s=>s.date>=todayMs());
     if (period==="week")  return sales.filter(s=>s.date>=now-7*86400000);
     if (period==="month") return sales.filter(s=>s.date>=now-30*86400000);
     return sales;
   },[sales,period]);
+
+  // Mes anterior para comparacion
+  const prevMonth = useMemo(()=>
+    sales.filter(s=>s.date>=now-60*86400000&&s.date<now-30*86400000)
+  ,[sales]);
 
   const totalSales  = fs.reduce((a,s)=>a+s.clientPrice,0);
   const totalComm   = fs.reduce((a,s)=>a+s.commission,0);
@@ -2707,18 +3265,47 @@ function ReportsPage({sales, expenses, promoters, payments}) {
   const totalProfit = fs.reduce((a,s)=>a+s.profit,0);
   const ownerProfit = fs.reduce((a,s)=>a+s.profitOwner,0);
   const partProfit  = fs.reduce((a,s)=>a+s.profitPartner,0);
-  const totalExp    = expenses.reduce((a,e)=>a+e.amount,0);
+  const fe = period==="today" ? expenses.filter(e=>e.date>=todayMs())
+           : period==="week"  ? expenses.filter(e=>e.date>=now-7*86400000)
+           : period==="month" ? expenses.filter(e=>e.date>=now-30*86400000)
+           : expenses;
+  const totalExp    = fe.filter(e=>e.afectaSociedad!==false).reduce((a,e)=>a+e.amount,0);
+  const totalExpAll = fe.reduce((a,e)=>a+e.amount,0);
   const netFinal    = r2(totalProfit-totalExp);
   const ownerFinal  = r2(netFinal*.5);
   const partFinal   = r2(netFinal*.5);
   const histSales   = fs.filter(s=>s.isHistoric);
 
+  // Comparacion vs mes anterior
+  const prevSales   = prevMonth.reduce((a,s)=>a+s.clientPrice,0);
+  const prevProfit  = prevMonth.reduce((a,s)=>a+s.profit,0);
+  const salesChange = prevSales>0 ? r2((totalSales-prevSales)/prevSales*100) : null;
+  const profitChange= prevProfit>0 ? r2((totalProfit-prevProfit)/prevProfit*100) : null;
+
+  // Ventas por dia de semana
+  const diasSemana = ["Dom","Lun","Mar","Mie","Jue","Vie","Sab"];
+  const ventasPorDia = diasSemana.map((d,i)=>{
+    const daySales = fs.filter(s=>new Date(s.date).getDay()===i);
+    return {dia:d, count:daySales.length, total:daySales.reduce((a,s)=>a+s.clientPrice,0)};
+  });
+  const maxDia = Math.max(...ventasPorDia.map(d=>d.total),1);
+
+  // Ranking promotoras
   const ranking = promoters.map(pr=>{
     const ps=fs.filter(s=>s.promoterId===pr.id);
-    return {name:pr.name,total:ps.reduce((a,s)=>a+s.clientPrice,0),count:ps.length,comm:ps.reduce((a,s)=>a+s.commission,0)};
-  }).sort((a,b)=>b.total-a.total);
+    const pending=sales.filter(s=>s.promoterId===pr.id&&s.commissionStatus==="pendiente");
+    return {
+      name:pr.name,
+      total:ps.reduce((a,s)=>a+s.clientPrice,0),
+      count:ps.length,
+      comm:ps.reduce((a,s)=>a+s.commission,0),
+      profit:ps.reduce((a,s)=>a+s.profit,0),
+      pendingComm:pending.reduce((a,s)=>a+s.commission,0),
+    };
+  }).filter(r=>r.count>0).sort((a,b)=>b.total-a.total);
   const maxR=ranking[0]?.total||1;
 
+  // Top productos
   const pm={};
   fs.forEach(s=>{
     if(!pm[s.productId]) pm[s.productId]={name:s.productName,count:0,rev:0,profit:0};
@@ -2727,65 +3314,93 @@ function ReportsPage({sales, expenses, promoters, payments}) {
   const topP=Object.values(pm).sort((a,b)=>b.count-a.count).slice(0,5);
   const maxP=topP[0]?.count||1;
 
+  // Gastos por tipo
+  const expByType = {};
+  expenses.forEach(e=>{
+    if(!expByType[e.type]) expByType[e.type]={type:e.type,total:0,count:0};
+    expByType[e.type].total+=e.amount; expByType[e.type].count++;
+  });
+  const topExp = Object.values(expByType).sort((a,b)=>b.total-a.total);
+  const maxExp = topExp[0]?.total||1;
+
+  const Trend = ({val})=>{
+    if (val===null) return null;
+    const up = val>=0;
+    return (
+      <span style={{fontSize:".68rem",fontWeight:800,color:up?"var(--grn)":"var(--red)",marginLeft:6}}>
+        {up?"↑":"↓"}{Math.abs(val)}% vs mes ant.
+      </span>
+    );
+  };
+
   return (
     <div className="pe">
       <div className="shd">
         <div className="shd-l">Reportes</div>
-        <button className="wa-btn" style={{fontSize:".72rem",padding:"6px 11px"}}
-          onClick={()=>generatePartnerReport(sales,expenses,promoters,period,periodLabel)}>
-          <WaIcon/> Enviar a socio
+        <button className="btn btn-sm btn-gold" style={{fontSize:".76rem",padding:"5px 10px"}}
+          onClick={()=>{
+            const label = new Date().toLocaleDateString("es-BO",{month:"long",year:"numeric"});
+            generatePartnerReport(sales,expenses,promoters,"month",label);
+          }}>
+          Reporte mensual
         </button>
       </div>
       <div className="flt">
-        {[["all","Todo"],["today","Hoy"],["week","7 dias"],["month","30 dias"]].map(([k,v])=>(
+        {[["today","Hoy"],["week","7 días"],["month","30 días"],["all","Todo"]].map(([k,v])=>(
           <button key={k} className={"pill"+(period===k?" act":"")} onClick={()=>setPeriod(k)}>{v}</button>
         ))}
       </div>
       <div className="tabs">
-        {["financiero","promotoras","productos"].map(t=>(
-          <button key={t} className={"tab"+(tab===t?" act":"")} onClick={()=>setTab(t)}>
-            {t.charAt(0).toUpperCase()+t.slice(1)}
-          </button>
+        {[["financiero","Financiero"],["promotoras","Promotoras"],["productos","Productos"],["gastos","Gastos"],["semana","Por día"]].map(([t,l])=>(
+          <button key={t} className={"tab"+(tab===t?" act":"")} onClick={()=>setTab(t)}>{l}</button>
         ))}
       </div>
 
       {tab==="financiero"&&(
         <>
           <div className="g2">
-            <div className="sc hg"><div className="sl">Total vendido</div><div className="sv gold">{fmt(totalSales)}</div><div className="ss">{fs.length} ventas</div></div>
-            <div className="sc ht"><div className="sl">Ganancia tienda</div><div className="sv teal">{fmt(totalProfit)}</div><div className="ss">Antes de gastos fijos</div></div>
+            <div className="sc hg">
+              <div className="sl">Total vendido</div>
+              <div className="sv gold">{fmt(totalSales)}</div>
+              <div className="ss">{fs.length} ventas <Trend val={salesChange}/></div>
+            </div>
+            <div className="sc ht">
+              <div className="sl">Ganancia tienda</div>
+              <div className="sv teal">{fmt(totalProfit)}</div>
+              <div className="ss">Antes de gastos <Trend val={profitChange}/></div>
+            </div>
           </div>
           {histSales.length>0&&(
             <div className="al al-info" style={{marginBottom:12}}>
               <Ic n="history" s={14}/>
-              <span>Incluye <b>{histSales.length} ventas historicas</b></span>
+              <span>Incluye <b>{histSales.length} ventas históricas</b></span>
             </div>
           )}
           <div className="shd mt8"><div className="shd-l">Estado de resultados</div></div>
           <div className="fb">
             <div className="fr"><span className="fk">(+) Ingresos brutos al cliente</span><span className="fv" style={{color:"var(--gold)"}}>{fmt(totalSales)}</span></div>
             <div className="fr"><span className="fk">(-) Comisiones promotoras</span><span className="fv" style={{color:"var(--red)"}}>{fmt(totalComm)}</span></div>
-            <div className="fr"><span className="fk">(=) Lo que entro a la tienda</span><span className="fv">{fmt(r2(totalSales-totalComm))}</span></div>
+            <div className="fr"><span className="fk">(=) Lo que entró a la tienda</span><span className="fv">{fmt(r2(totalSales-totalComm))}</span></div>
             <div className="fr"><span className="fk">(-) Costo materiales</span><span className="fv" style={{color:"var(--red)"}}>{fmt(totalCost)}</span></div>
             <div className="fr total"><span className="fk">= Ganancia bruta</span><span className="fv" style={{color:"var(--teal)"}}>{fmt(totalProfit)}</span></div>
-            <div className="fr"><span className="fk">(-) Gastos operativos</span><span className="fv" style={{color:"var(--red)"}}>{fmt(totalExp)}</span></div>
+            <div className="fr"><span className="fk">(-) Gastos compartidos</span><span className="fv" style={{color:"var(--red)"}}>{fmt(totalExp)}</span></div>
             <div className="fr total"><span className="fk">= Ganancia real final</span>
               <span className="fv" style={{color:netFinal>=0?"var(--grn)":"var(--red)"}}>{fmt(netFinal)}</span>
             </div>
           </div>
-          <div className="shd mt16"><div className="shd-l">Distribucion entre socios</div></div>
+          <div className="shd mt16"><div className="shd-l">Distribución entre socios</div></div>
           <div className="g2">
-            <div className="sc hg"><div className="sl">Socio 1 (50%)</div><div className="sv gold">{fmt(ownerFinal)}</div><div className="ss">Socio administrador</div></div>
-            <div className="sc ht"><div className="sl">Socio 2 (50%)</div><div className="sv teal">{fmt(partFinal)}</div><div className="ss">Distribucion igualitaria</div></div>
+            <div className="sc hg"><div className="sl">Socio admin (50%)</div><div className="sv gold">{fmt(ownerFinal)}</div><div className="ss">Socio administrador</div></div>
+            <div className="sc ht"><div className="sl">Socio (50%)</div><div className="sv teal">{fmt(partFinal)}</div><div className="ss">Distribución igualitaria</div></div>
           </div>
           {totalSales>0&&(
             <div className="card">
-              <div style={{fontSize:".7rem",color:"var(--muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:.4,marginBottom:10}}>Distribucion del ingreso</div>
+              <div style={{fontSize:".76rem",color:"var(--muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:.4,marginBottom:10}}>Distribución del ingreso</div>
               {[
-                {label:"Ganancia socio 1",val:ownerProfit,clr:"var(--gold)"},
-                {label:"Ganancia socio 2",val:partProfit, clr:"var(--teal)"},
-                {label:"Comisiones",      val:totalComm,  clr:"var(--blu)"},
-                {label:"Materiales",      val:totalCost,  clr:"var(--red)"},
+                {label:"Ganancia Sergio",  val:ownerProfit,clr:"var(--gold)"},
+                {label:"Ganancia socio",   val:partProfit, clr:"var(--teal)"},
+                {label:"Comisiones",       val:totalComm,  clr:"var(--blu)"},
+                {label:"Materiales",       val:totalCost,  clr:"var(--red)"},
               ].map(row=>(
                 <div key={row.label} className="rbar">
                   <div className="rbar-l">{row.label}</div>
@@ -2800,36 +3415,46 @@ function ReportsPage({sales, expenses, promoters, payments}) {
 
       {tab==="promotoras"&&(
         <>
-          <div style={{fontSize:".72rem",color:"var(--muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:.4,marginBottom:10}}>Ranking por volumen</div>
-          {ranking.map((r,i)=>(
-            <div key={r.name} className="rbar">
-              <div className="rbar-l">{(i+1)+". "+r.name.split(" ")[0]}</div>
-              <div className="rbar-t"><div className="rbar-f" style={{width:(r.total/maxR*100)+"%"}}/></div>
-              <div className="rbar-v">{r.count}v</div>
-            </div>
-          ))}
+          <div style={{fontSize:".76rem",color:"var(--muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:.4,marginBottom:10}}>Ranking por volumen</div>
+          {ranking.length===0
+            ?<div className="empty"><p>Sin datos para este período.</p></div>
+            :ranking.map((r,i)=>(
+              <div key={r.name}>
+                <div className="rbar">
+                  <div className="rbar-l">{(i+1)+". "+r.name.split(" ")[0]}</div>
+                  <div className="rbar-t"><div className="rbar-f" style={{width:(r.total/maxR*100)+"%"}}/></div>
+                  <div className="rbar-v">{r.count}v</div>
+                </div>
+              </div>
+            ))
+          }
           <div className="dvd"/>
           <div className="fb">
             {ranking.map(r=>(
-              <div key={r.name} className="fr">
-                <span className="fk">{r.name}</span>
-                <div style={{display:"flex",gap:10,alignItems:"center"}}>
-                  <span style={{fontSize:".72rem",color:"var(--red)"}}>Com: {fmt(r.comm)}</span>
-                  <span className="fv" style={{color:"var(--gold)"}}>{fmt(r.total)}</span>
+              <div key={r.name} className="fr" style={{flexWrap:"wrap",gap:4}}>
+                <span className="fk" style={{minWidth:100}}>{r.name.split(" ")[0]}</span>
+                <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                  <span style={{fontSize:".76rem",color:"var(--muted)"}}>Vendido: <b style={{color:"var(--gold)"}}>{fmt(r.total)}</b></span>
+                  <span style={{fontSize:".76rem",color:"var(--muted)"}}>Com: <b style={{color:"var(--gold)"}}>{fmt(r.comm)}</b></span>
+                  {r.pendingComm>0&&<span style={{fontSize:".68rem",color:"var(--red)",fontWeight:800}}>⏳ {fmt(r.pendingComm)} pendiente</span>}
                 </div>
               </div>
             ))}
+            <div className="fr total">
+              <span className="fk">Ganancia generada</span>
+              <span className="fv" style={{color:"var(--teal)"}}>{fmt(ranking.reduce((a,r)=>a+r.profit,0))}</span>
+            </div>
           </div>
           <div className="shd mt16"><div className="shd-l">Historial de pagos</div></div>
           {payments.length===0
-            ?<div className="empty"><Ic n="money" s={36}/><p>Sin pagos aun.</p></div>
+            ?<div className="empty"><Ic n="money" s={36}/><p>Aún no hay pagos registrados.</p></div>
             :payments.slice(0,10).map(pay=>{
               const pr=promoters.find(p=>p.id===pay.promoterId);
               return (
-                <div key={pay.id} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid var(--b1)",fontSize:".82rem"}}>
+                <div key={pay.id} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid var(--b1)",fontSize:".86rem"}}>
                   <div>
                     <div style={{fontWeight:700}}>{pr?.name}</div>
-                    <div style={{fontSize:".7rem",color:"var(--dim)",marginTop:2}}>{fmtDate(pay.date)} - {pay.salesIds.length} ventas</div>
+                    <div style={{fontSize:".76rem",color:"var(--dim)",marginTop:2}}>{fmtDate(pay.date)} - {pay.salesIds.length} ventas</div>
                   </div>
                   <span style={{fontFamily:"Playfair Display,serif",fontSize:"1rem",color:"var(--grn)"}}>{fmt(pay.amount)}</span>
                 </div>
@@ -2841,34 +3466,95 @@ function ReportsPage({sales, expenses, promoters, payments}) {
 
       {tab==="productos"&&(
         <>
-          <div style={{fontSize:".72rem",color:"var(--muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:.4,marginBottom:10}}>Mas vendidos</div>
+          <div style={{fontSize:".76rem",color:"var(--muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:.4,marginBottom:10}}>Más vendidos</div>
           {topP.length===0
-            ?<div className="empty"><p>Sin datos para este periodo.</p></div>
+            ?<div className="empty"><p>Sin datos para este período.</p></div>
             :topP.map(p=>(
-              <div key={p.name} className="rbar">
-                <div className="rbar-l">{p.name}</div>
-                <div className="rbar-t"><div className="rbar-f" style={{width:(p.count/maxP*100)+"%",background:"linear-gradient(90deg,var(--td),var(--teal))"}}/></div>
-                <div className="rbar-v">{p.count}u</div>
+              <div key={p.name}>
+                <div className="rbar">
+                  <div className="rbar-l" style={{maxWidth:110}}>{p.name}</div>
+                  <div className="rbar-t"><div className="rbar-f" style={{width:(p.count/maxP*100)+"%",background:"var(--gold)"}}/></div>
+                  <div className="rbar-v">{p.count}v</div>
+                </div>
+                <div style={{fontSize:".76rem",color:"var(--dim)",marginBottom:6,textAlign:"right"}}>
+                  {fmt(p.rev)} vendido · {fmt(p.profit)} ganancia
+                </div>
+              </div>
+            ))
+          }
+        </>
+      )}
+
+      {tab==="gastos"&&(
+        <>
+          <div className="g2" style={{marginBottom:12}}>
+            <div className="sc hr">
+              <div className="sl">Total gastos</div>
+              <div className="sv red">{fmt(totalExp)}</div>
+              <div className="ss">{fe.length} registros</div>
+            </div>
+            <div className="sc">
+              <div className="sl">Impacto en ganancia</div>
+              <div className="sv" style={{fontSize:"1.2rem",color:totalExp>totalProfit?"var(--red)":"var(--muted)"}}>
+                {totalProfit>0?r2(totalExp/totalProfit*100):0}%
+              </div>
+              <div className="ss">de la ganancia bruta</div>
+            </div>
+          </div>
+          <div style={{fontSize:".76rem",color:"var(--muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:.4,marginBottom:10}}>Por categoría</div>
+          {topExp.length===0
+            ?<div className="empty"><p>Aún no hay gastos registrados.</p></div>
+            :topExp.map(e=>(
+              <div key={e.type} className="rbar">
+                <div className="rbar-l">{e.type}</div>
+                <div className="rbar-t"><div className="rbar-f" style={{width:(e.total/maxExp*100)+"%",background:"var(--red)"}}/></div>
+                <div className="rbar-v" style={{color:"var(--red)"}}>{fmt(e.total)}</div>
               </div>
             ))
           }
           <div className="dvd"/>
-          <div className="fb">
-            {topP.map(p=>(
-              <div key={p.name} className="fr">
-                <span className="fk">{p.name}</span>
-                <div style={{display:"flex",gap:10,alignItems:"center"}}>
-                  <span style={{fontSize:".72rem",color:"var(--teal)"}}>{fmt(p.profit)} gan.</span>
-                  <span className="fv" style={{color:"var(--gold)"}}>{fmt(p.rev)}</span>
-                </div>
+          <div style={{fontSize:".76rem",color:"var(--muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:.4,marginBottom:10,marginTop:4}}>Ultimos gastos</div>
+          {expenses.slice(0,8).map(e=>(
+            <div key={e.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid var(--b1)",fontSize:".86rem"}}>
+              <div>
+                <div style={{fontWeight:700}}>{e.type}</div>
+                <div style={{fontSize:".76rem",color:"var(--dim)",marginTop:1}}>{e.description} · {fmtDate(e.date)}</div>
               </div>
-            ))}
-          </div>
+              <span style={{color:"var(--red)",fontWeight:700}}>{fmt(e.amount)}</span>
+            </div>
+          ))}
+        </>
+      )}
+
+      {tab==="semana"&&(
+        <>
+          <div style={{fontSize:".76rem",color:"var(--muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:.4,marginBottom:12}}>Ventas por dia de la semana</div>
+          {ventasPorDia.map(d=>(
+            <div key={d.dia} className="rbar">
+              <div className="rbar-l" style={{width:36,fontWeight:800}}>{d.dia}</div>
+              <div className="rbar-t">
+                <div className="rbar-f" style={{width:d.total>0?(d.total/maxDia*100)+"%":"2%",background:d.total>0?"var(--gold)":"var(--b2)"}}/>
+              </div>
+              <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0}}>
+                <span style={{fontSize:".68rem",color:"var(--dim)"}}>{d.count}v</span>
+                <span className="rbar-v" style={{color:d.total>0?"var(--gold)":"var(--dim)"}}>{d.total>0?fmt(d.total):"—"}</span>
+              </div>
+            </div>
+          ))}
+          {fs.length>0&&(
+            <div className="al al-info" style={{marginTop:12}}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span>
+                Mejor dia: <b>{ventasPorDia.reduce((a,b)=>b.total>a.total?b:a).dia}</b> con {fmt(ventasPorDia.reduce((a,b)=>b.total>a.total?b:a).total)}
+              </span>
+            </div>
+          )}
         </>
       )}
     </div>
   );
 }
+
 
 // ============================================================
 //  SETTINGS PAGE
@@ -2882,18 +3568,16 @@ function SettingsPage({users, products, promoters, onSaveUser, onDelUser, onSave
 
   return (
     <div className="pe">
-      <div className="shd"><div className="shd-l">Configuracion</div></div>
+      <div className="shd"><div className="shd-l">Configuración</div></div>
       <div className="tabs">
-        {["usuarios","precios"].map(t=>(
-          <button key={t} className={"tab"+(tab===t?" act":"")} onClick={()=>setTab(t)}>
-            {t.charAt(0).toUpperCase()+t.slice(1)}
-          </button>
+        {[["usuarios","Usuarios"],["precios","Productos"],["negocio","Negocio"]].map(([k,l])=>(
+          <button key={k} className={"tab"+(tab===k?" act":"")} onClick={()=>setTab(k)}>{l}</button>
         ))}
       </div>
 
       {tab==="usuarios"&&(
         <>
-          <div style={{fontSize:".72rem",color:"var(--muted)",marginBottom:12,lineHeight:1.6}}>
+          <div style={{fontSize:".76rem",color:"var(--muted)",marginBottom:12,lineHeight:1.6}}>
             Administre los usuarios del sistema. Cada usuario accede con su PIN personal.
           </div>
           <button className="btn btn-gold" style={{marginBottom:14}} onClick={()=>{setEditUser(null);setShowUserForm(true);}}>
@@ -2904,12 +3588,12 @@ function SettingsPage({users, products, promoters, onSaveUser, onDelUser, onSave
               background:"var(--s1)",border:"1px solid var(--b1)",borderRadius:"var(--r)",marginBottom:8}}>
               <div style={{width:34,height:34,borderRadius:"50%",background:"var(--s2)",
                 display:"flex",alignItems:"center",justifyContent:"center",
-                fontWeight:800,fontSize:".8rem",color:"var(--muted)",flexShrink:0}}>
+                fontWeight:800,fontSize:".86rem",color:"var(--muted)",flexShrink:0}}>
                 {u.name.charAt(0)}
               </div>
               <div style={{flex:1}}>
-                <div style={{fontWeight:700,fontSize:".88rem"}}>{u.name}</div>
-                <div style={{fontSize:".7rem",color:"var(--muted)",marginTop:2}}>
+                <div style={{fontWeight:700,fontSize:"1rem"}}>{u.name}</div>
+                <div style={{fontSize:".76rem",color:"var(--muted)",marginTop:2}}>
                   <span className={"chip "+(ROLE_CLASS[u.role]||"ch-dim")}>{ROLE_LABEL[u.role]||u.role}</span>
                   {u.promoterId&&<span style={{marginLeft:6,color:"var(--dim)"}}>Promotora vinculada</span>}
                 </div>
@@ -2931,9 +3615,12 @@ function SettingsPage({users, products, promoters, onSaveUser, onDelUser, onSave
 
       {tab==="precios"&&(
         <>
-          <div style={{fontSize:".72rem",color:"var(--muted)",marginBottom:12,lineHeight:1.6}}>
-            Edita los precios de cada producto. <b style={{color:"var(--gold)"}}>Las ventas ya registradas no cambian.</b>
+          <div style={{fontSize:".76rem",color:"var(--muted)",marginBottom:10,lineHeight:1.6}}>
+            Administra tu catálogo de productos. <b style={{color:"var(--gold)"}}>Las ventas ya registradas no cambian.</b>
           </div>
+          <button className="btn btn-gold" style={{marginBottom:14}} onClick={()=>{setEditProd(null);setShowProdForm(true);}}>
+            <Ic n="plus" s={16} c="#100d02"/> Agregar producto
+          </button>
           {products.map(p=>{
             const commission=r2(p.clientPrice-p.promoterPrice), profit=r2(p.promoterPrice-p.cost);
             return (
@@ -2947,27 +3634,82 @@ function SettingsPage({users, products, promoters, onSaveUser, onDelUser, onSave
                         {p.name.charAt(0)}
                       </div>
                     }
-                    <div style={{fontWeight:700,fontSize:".9rem"}}>{p.name}</div>
+                    <div style={{fontWeight:700,fontSize:"1rem"}}>{p.name}</div>
                   </div>
-                  <button className="btn btn-sm btn-out" style={{padding:"5px 9px"}} onClick={()=>{setEditProd(p);setShowProdForm(true);}}>
-                    <Ic n="edit" s={13}/> Editar
-                  </button>
+                  <div style={{display:"flex",gap:6}}>
+                    <button className="btn btn-sm btn-out" style={{padding:"5px 9px"}} onClick={()=>{setEditProd(p);setShowProdForm(true);}}>
+                      <Ic n="edit" s={13}/> Editar
+                    </button>
+                    <button className="btn btn-sm btn-red" style={{padding:"5px 8px"}}
+                      onClick={()=>{if(window.confirm("Eliminar "+p.name+"?")) onSaveProduct({...p,_delete:true});}}>
+                      <Ic n="trash" s={13}/>
+                    </button>
+                  </div>
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:7,marginBottom:8}}>
                   {[{l:"Precio venta",v:p.clientPrice,c:"var(--txt)"},{l:"Precio neto",v:p.promoterPrice,c:"var(--gold)"},{l:"Costo",v:p.cost,c:"var(--red)"}].map(it=>(
                     <div key={it.l} style={{background:"var(--s2)",borderRadius:"var(--rsm)",padding:"8px 6px",textAlign:"center"}}>
                       <div style={{fontFamily:"Playfair Display,serif",fontSize:"1rem",color:it.c}}>{fmt(it.v)}</div>
-                      <div style={{fontSize:".62rem",color:"var(--dim)",marginTop:2}}>{it.l}</div>
+                      <div style={{fontSize:".68rem",color:"var(--dim)",marginTop:2}}>{it.l}</div>
                     </div>
                   ))}
                 </div>
-                <div style={{display:"flex",justifyContent:"space-between",padding:"7px 10px",background:"var(--s2)",borderRadius:"var(--rsm)",fontSize:".72rem"}}>
-                  <span style={{color:"var(--muted)"}}>Comision: <b style={{color:"var(--gold)"}}>{fmt(commission)}</b></span>
+                <div style={{display:"flex",justifyContent:"space-between",padding:"7px 10px",background:"var(--s2)",borderRadius:"var(--rsm)",fontSize:".76rem"}}>
+                  <span style={{color:"var(--muted)"}}>Comisión: <b style={{color:"var(--gold)"}}>{fmt(commission)}</b></span>
                   <span style={{color:"var(--muted)"}}>Ganancia: <b style={{color:"var(--teal)"}}>{fmt(profit)}</b></span>
                 </div>
               </div>
             );
           })}
+        </>
+      )}
+
+      {tab==="negocio"&&(
+        <>
+          <div className="card" style={{marginBottom:12}}>
+            <div style={{fontSize:".76rem",color:"var(--muted)",fontWeight:800,textTransform:"uppercase",letterSpacing:.5,marginBottom:12}}>Datos del negocio</div>
+            <div className="fr" style={{padding:"8px 0",borderBottom:"1px solid var(--b1)"}}><span className="fk">Nombre</span><span className="fv">{BUSINESS.name}</span></div>
+            <div className="fr" style={{padding:"8px 0",borderBottom:"1px solid var(--b1)"}}><span className="fk">Ciudad</span><span className="fv">{BUSINESS.city}</span></div>
+            <div className="fr" style={{padding:"8px 0",borderBottom:"1px solid var(--b1)"}}><span className="fk">Horario</span><span className="fv" style={{fontSize:".76rem",textAlign:"right",maxWidth:180}}>{BUSINESS.schedule}</span></div>
+            <div className="fr" style={{padding:"8px 0",borderBottom:"1px solid var(--b1)"}}><span className="fk">Division sociedad</span><span className="fv">{BUSINESS.split*100}% / {BUSINESS.split*100}%</span></div>
+            <div className="fr" style={{padding:"8px 0"}}><span className="fk">Tipo de cambio</span><span className="fv">1 USD = {BUSINESS.exchangeRate} BOB</span></div>
+            <div className="al al-info" style={{marginTop:10}}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span>Para cambiar estos datos actualiza el código en la constante BUSINESS. El lunes conectamos Supabase para editar desde aqui.</span>
+            </div>
+          </div>
+
+          <div className="card" style={{marginBottom:12}}>
+            <div style={{fontSize:".76rem",color:"var(--muted)",fontWeight:800,textTransform:"uppercase",letterSpacing:.5,marginBottom:12}}>Mensajes de WhatsApp</div>
+            {[
+              ["Nuevo","Recibimos tu pedido..."],
+              ["Esperando foto","Necesitamos la foto..."],
+              ["Diseñando","Estamos trabajando en el diseño..."],
+              ["Esperando aprobación","Te enviamos el diseño..."],
+              ["Pago pendiente","El diseño fue aprobado..."],
+              ["Pago confirmado","Confirmamos el pago..."],
+              ["Grabando","Ya estamos grabando..."],
+              ["Listo","Tu pedido esta listo..."],
+              ["Enviado","Tu pedido fue enviado..."],
+            ].map(([estado, preview])=>(
+              <div key={estado} style={{padding:"7px 0",borderBottom:"1px solid var(--b1)",display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+                <span style={{fontSize:".76rem",fontWeight:700}}>{estado}</span>
+                <span style={{fontSize:".68rem",color:"var(--muted)",fontStyle:"italic",textAlign:"right",flex:1}}>{preview}</span>
+              </div>
+            ))}
+            <div className="al al-info" style={{marginTop:10}}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span>Los mensajes se personalizan automáticamente con el nombre del cliente y producto. Cuando conectemos Supabase podras editarlos desde aqui.</span>
+            </div>
+          </div>
+
+          <div className="card">
+            <div style={{fontSize:".76rem",color:"var(--muted)",fontWeight:800,textTransform:"uppercase",letterSpacing:.5,marginBottom:12}}>Sistema</div>
+            <div className="fr" style={{padding:"8px 0",borderBottom:"1px solid var(--b1)"}}><span className="fk">Versión</span><span className="fv" style={{color:"var(--gold)"}}>Garabato POS v12</span></div>
+            <div className="fr" style={{padding:"8px 0",borderBottom:"1px solid var(--b1)"}}><span className="fk">Base de datos</span><span className="fv">Local (IndexedDB)</span></div>
+            <div className="fr" style={{padding:"8px 0",borderBottom:"1px solid var(--b1)"}}><span className="fk">Sincronización</span><span className="fv" style={{color:"var(--muted)"}}>Supabase — próximamente</span></div>
+            <div className="fr" style={{padding:"8px 0"}}><span className="fk">Backup</span><span className="fv" style={{color:"var(--muted)"}}>Descarga manual desde el botón en la app</span></div>
+          </div>
         </>
       )}
 
@@ -2989,12 +3731,13 @@ function UserForm({user, promoters, onClose, onSave}) {
         <div className="sh-title">{user?"Editar usuario":"Nuevo usuario"}</div>
         <div className="fg">
           <label className="fl">Nombre</label>
-          <input className="fi" value={f.name} onChange={e=>set("name",e.target.value)} placeholder="Nombre completo"/>
+          <input className="fi" value={f.name} onChange={e=>set("name",e.target.value)} autoComplete="name" placeholder="Nombre completo"/>
         </div>
         <div className="fg">
           <label className="fl">Rol</label>
           <select className="fs" value={f.role} onChange={e=>set("role",e.target.value)}>
             <option value="admin">Admin</option>
+            <option value="socio">Socio</option>
             <option value="employee">Tienda</option>
             <option value="promoter">Promotora</option>
           </select>
@@ -3002,12 +3745,12 @@ function UserForm({user, promoters, onClose, onSave}) {
         <div className="fg">
           <label className="fl">PIN de acceso
             <span style={{fontSize:".68rem",color:"var(--grn)",fontWeight:700,marginLeft:6}}>
-              (minimo 4 digitos)
+              (mínimo 4 dígitos)
             </span>
           </label>
-          <input className="fi" type="password" inputMode="numeric" maxLength={6}
+          <input className="fi" type="password" inputMode="numeric" autoComplete="off" maxLength={6}
             value={f.pin} onChange={e=>set("pin",e.target.value.replace(/\D/g,""))} placeholder="Ej: 1234"/>
-          <div className="fi-hint">Solo numeros. El usuario usa este PIN para entrar a la app.</div>
+          <div className="fi-hint">Solo números. El usuario usa este PIN para entrar a la app.</div>
         </div>
         {f.role==="promoter"&&(
           <div className="fg">
@@ -3016,7 +3759,7 @@ function UserForm({user, promoters, onClose, onSave}) {
               <option value="">Sin vincular</option>
               {promoters.map(pr=><option key={pr.id} value={pr.id}>{pr.name}</option>)}
             </select>
-            <div className="fi-hint">Al vincular, esta usuaria solo vera sus propias ventas y pedidos</div>
+            <div className="fi-hint">Al vincular, esta usuaria solo verá sus propias ventas y pedidos</div>
           </div>
         )}
         <div className="row mt12">
@@ -3057,6 +3800,7 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
     set("clientPrice",p.clientPrice.toString());
     set("promoterPrice",pp.toString()); set("cost",p.cost);
   };
+  const selProdLowStock = selProd && selProd.stock <= selProd.lowStockAlert;
   const pickPromoter = pr=>{
     set("promoterId",pr.id); set("promoterName",pr.name);
     if (selProd) set("promoterPrice",resolvePromoterPrice(selProd,pr).toString());
@@ -3064,7 +3808,7 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
   const setDirectSale = direct=>{
     set("isDirectSale",direct);
     if (direct){
-      set("promoterId","TIENDA"); set("promoterName","Tienda directa");
+      set("promoterId","DIRECTO"); set("promoterName","Tienda directa");
       if (selProd) set("promoterPrice",selProd.clientPrice.toString());
     } else {
       set("promoterId",""); set("promoterName","");
@@ -3077,6 +3821,7 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
   const cst = f.cost||0;
   const {commission,profit,profitOwner,profitPartner} = calcSale(cp,pp,cst);
   const ss  = s => step>s?"s-done":step===s?"s-cur":"s-fut";
+  const step1valid = f.productId && (f.productId!=="custom" || f.productName.trim());
   const step2valid = f.isDirectSale||f.promoterId;
 
   const handleSubmit = async()=>{
@@ -3119,7 +3864,7 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                 <div className="pbr"><span className="pbk">Ingreso total tienda</span><span className="pbv pbv-teal">{fmt(done.clientPrice)}</span></div>
               ):(
                 <>
-                  <div className="pbr"><span className="pbk">Comision promotora</span><span className="pbv pbv-gold">{fmt(done.commission)}</span></div>
+                  <div className="pbr"><span className="pbk">Comisión promotora</span><span className="pbv pbv-gold">{fmt(done.commission)}</span></div>
                   <div className="pbr"><span className="pbk">Monto a entregar a tienda</span><span className="pbv pbv-teal">{fmt(done.promoterPrice)}</span></div>
                 </>
               )}
@@ -3127,7 +3872,7 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                 <>
                   <div className="pbr"><span className="pbk">(-) Costo material</span><span className="pbv pbv-red">{fmt(done.cost)}</span></div>
                   <div className="pbr"><span className="pbk">= Ganancia bruta</span><span className="pbv pbv-grn">{fmt(done.profit)}</span></div>
-                  <div className="pbr"><span className="pbk">Socio 1 (50%)</span><span className="pbv pbv-teal">{fmt(done.profitOwner)}</span></div>
+                  <div className="pbr"><span className="pbk">Socio administrador (50%)</span><span className="pbv pbv-teal">{fmt(done.profitOwner)}</span></div>
                 </>
               )}
             </div>
@@ -3138,7 +3883,7 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
             {isHistoric&&(
               <div className="al al-info" style={{marginBottom:14}}>
                 <Ic n="history" s={14}/>
-                <span>Modo historico - pone la fecha real de la venta</span>
+                <span>Modo histórico - pone la fecha real de la venta</span>
               </div>
             )}
             <div className="steps">
@@ -3152,7 +3897,7 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
 
             {step===1&&(
               <div className="pe">
-                <div style={{fontSize:".9rem",fontWeight:700,marginBottom:14,color:"var(--muted)"}}>
+                <div style={{fontSize:"1rem",fontWeight:700,marginBottom:14,color:"var(--muted)"}}>
                   Paso 1 - <span style={{color:"var(--txt)"}}>Producto y grabado</span>
                 </div>
                 {isHistoric&&(
@@ -3164,23 +3909,32 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                 {/* Datos del cliente - solo tienda y admin */}
                 {(user.role==="admin"||user.role==="employee")&&(
                   <div className="price-box">
-                    <div style={{fontSize:".7rem",color:"var(--muted)",fontWeight:800,textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>
+                    <div style={{fontSize:".76rem",color:"var(--muted)",fontWeight:800,textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>
                       Datos del cliente (opcional)
                     </div>
                     <div className="fi2">
                       <div className="fg">
                         <label className="fl">Nombre</label>
-                        <input className="fi" value={f.clientName} onChange={e=>set("clientName",e.target.value)} placeholder="Nombre del cliente"/>
+                        <input className="fi" value={f.clientName} onChange={e=>set("clientName",e.target.value)} autoComplete="name" placeholder="Nombre del cliente"/>
                       </div>
                       <div className="fg">
-                        <label className="fl">Telefono</label>
-                        <input className="fi" type="tel" value={f.clientPhone} onChange={e=>set("clientPhone",e.target.value)} placeholder="7XXXXXXX"/>
+                        <label className="fl">Teléfono</label>
+                        <input className="fi" type="tel" autoComplete="tel" value={f.clientPhone} onChange={e=>set("clientPhone",e.target.value)} placeholder="Ej: 70012345 (sin prefijo 591)"/>
                       </div>
                     </div>
                   </div>
                 )}
                 <div className="fg">
                   <label className="fl">Producto</label>
+                  <button className={"prod-card"+(f.productId==="custom"?" sel":"")}
+                    style={{width:"100%",textAlign:"left",padding:"10px 12px",display:"flex",alignItems:"center",gap:8,marginBottom:8,borderRadius:"var(--r)"}}
+                    onClick={()=>{set("productId","custom");set("productName","");set("clientPrice","");set("promoterPrice","");set("cost",0);set("isDirectSale",true);}}>
+                    <div style={{width:32,height:32,borderRadius:8,background:"var(--s3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"1.2rem",flexShrink:0}}>✏️</div>
+                    <div>
+                      <div style={{fontWeight:700,fontSize:".86rem"}}>Producto personalizado</div>
+                      <div style={{fontSize:".68rem",color:"var(--muted)",marginTop:1}}>Para productos fuera del catálogo</div>
+                    </div>
+                  </button>
                   <div className="prod-grid">
                     {products.map(p=>(
                       <div key={p.id} className={"prod-card"+(f.productId===p.id?" sel":"")} onClick={()=>pickProduct(p)}>
@@ -3189,7 +3943,7 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                           <div className="prod-card-name" style={{color:f.productId===p.id?"var(--gold)":"var(--txt)"}}>{p.name}</div>
                           <div className="prod-card-price">{fmt(p.clientPrice)}</div>
                           <div className="prod-card-sub">Neto: {fmt(p.promoterPrice)}</div>
-                          {p.stock<=p.lowStockAlert&&<div style={{fontSize:".62rem",color:"var(--red)",marginTop:2}}>Stock bajo: {p.stock}</div>}
+                          {p.stock<=p.lowStockAlert&&<div style={{fontSize:".68rem",color:"var(--red)",marginTop:2}}>Stock bajo: {p.stock}</div>}
                         </div>
                       </div>
                     ))}
@@ -3197,27 +3951,27 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                 </div>
                 {isHistoric&&f.productId&&(
                   <div className="price-box">
-                    <div style={{fontSize:".7rem",color:"var(--muted)",fontWeight:800,textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>
+                    <div style={{fontSize:".76rem",color:"var(--muted)",fontWeight:800,textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>
                       Ajusta si los precios eran diferentes en esa epoca
                     </div>
                     <div className="fi2">
                       <div className="fg">
                         <label className="fl">Precio al cliente</label>
-                        <input className="fi" type="number" value={f.clientPrice} onChange={e=>set("clientPrice",e.target.value)}/>
+                        <input className="fi" type="number" inputMode="decimal" value={f.clientPrice} onChange={e=>set("clientPrice",e.target.value)}/>
                       </div>
                       <div className="fg">
                         <label className="fl">Precio neto recibido</label>
-                        <input className="fi" type="number" value={f.promoterPrice} onChange={e=>set("promoterPrice",e.target.value)}/>
+                        <input className="fi" type="number" inputMode="decimal" value={f.promoterPrice} onChange={e=>set("promoterPrice",e.target.value)}/>
                       </div>
                     </div>
                     <div className="fg">
                       <label className="fl">Costo material (en ese momento)</label>
-                      <input className="fi" type="number" value={f.cost} onChange={e=>set("cost",parseFloat(e.target.value)||0)}/>
+                      <input className="fi" type="number" inputMode="decimal" value={f.cost} onChange={e=>set("cost",parseFloat(e.target.value)||0)}/>
                     </div>
                   </div>
                 )}
                 {f.productId&&cp>0&&pp>0&&(
-                  <div style={{marginBottom:13,fontSize:".74rem",display:"flex",gap:14,flexWrap:"wrap"}}>
+                  <div style={{marginBottom:13,fontSize:".76rem",display:"flex",gap:14,flexWrap:"wrap"}}>
                     <span style={{color:"var(--muted)"}}>Comision promotora: <b style={{color:"var(--gold)"}}>{fmt(commission)}</b></span>
                     {user.role==="admin"&&<span style={{color:"var(--muted)"}}>Ganancia: <b style={{color:"var(--teal)"}}>{fmt(profit)}</b></span>}
                   </div>
@@ -3226,13 +3980,19 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                   <label className="fl">Texto del grabado (opcional)</label>
                   {f.customization&&(
                     <div className="lp">
-                      <div style={{fontSize:".62rem",color:"var(--dim)",textTransform:"uppercase",letterSpacing:1,marginBottom:7}}>Vista previa laser</div>
+                      <div style={{fontSize:".68rem",color:"var(--dim)",textTransform:"uppercase",letterSpacing:1,marginBottom:7}}>Vista previa laser</div>
                       <div className="lp-txt">{f.customization.toUpperCase()}</div>
                     </div>
                   )}
                   <input className="fi" placeholder="Ej: Ana y Luis 2024" value={f.customization} onChange={e=>set("customization",e.target.value)}/>
                 </div>
-                <button className="btn btn-gold" disabled={!f.productId||!f.clientPrice||!f.promoterPrice} onClick={()=>setStep(2)}>
+                {selProdLowStock&&(
+                  <div className="al al-warn" style={{marginTop:8,marginBottom:8}}>
+                    <Ic n="warn" s={13}/>
+                    <span>Stock bajo: solo quedan <b>{selProd.stock}</b> unidades</span>
+                  </div>
+                )}
+                <button className="btn btn-gold" disabled={!f.productId||!f.clientPrice||!f.promoterPrice} onClick={()=>step1valid&&setStep(2)}>
                   Continuar
                 </button>
               </div>
@@ -3240,7 +4000,7 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
 
             {step===2&&(
               <div className="pe">
-                <div style={{fontSize:".9rem",fontWeight:700,marginBottom:14,color:"var(--muted)"}}>
+                <div style={{fontSize:"1rem",fontWeight:700,marginBottom:14,color:"var(--muted)"}}>
                   Paso 2 - <span style={{color:"var(--txt)"}}>Origen de la venta</span>
                 </div>
                 {user.role!=="promoter"&&(
@@ -3253,14 +4013,14 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                     {f.isDirectSale&&(
                       <div className="al al-ok" style={{marginBottom:0}}>
                         <Ic n="check" s={14}/>
-                        <span>Venta directa - cliente de TikTok, redes o tienda fisica. Sin comision de promotora.</span>
+                        <span>Venta directa - cliente de TikTok, redes o tienda fisica. Sin comisión de promotora.</span>
                       </div>
                     )}
                   </div>
                 )}
                 {!f.isDirectSale&&(
                   <div className="fg">
-                    <label className="fl">Quien hizo la venta?</label>
+                    <label className="fl">¿Quién hizo la venta?</label>
                     {promoters.filter(p=>p.active).map(pr=>{
                       const priceForThis=selProd?resolvePromoterPrice(selProd,pr):0;
                       const isSelf=user.role==="promoter"&&user.promoterId===pr.id;
@@ -3276,13 +4036,13 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                           <div style={{width:34,height:34,borderRadius:"50%",
                             background:f.promoterId===pr.id?"var(--gd)":"var(--b1)",
                             display:"flex",alignItems:"center",justifyContent:"center",
-                            fontFamily:"Playfair Display,serif",fontSize:".95rem",
+                            fontFamily:"Playfair Display,serif",fontSize:"1rem",
                             color:f.promoterId===pr.id?"#100d02":"var(--muted)",flexShrink:0}}>
                             {pr.name.charAt(0)}
                           </div>
                           <div style={{flex:1}}>
                             <div style={{fontWeight:700,fontSize:".86rem",color:f.promoterId===pr.id?"var(--gold)":"var(--txt)"}}>{pr.name}</div>
-                            <div style={{fontSize:".7rem",color:"var(--muted)",marginTop:2}}>
+                            <div style={{fontSize:".76rem",color:"var(--muted)",marginTop:2}}>
                               Neto: <b style={{color:"var(--gold)"}}>{fmt(priceForThis)}</b>
                               {pr.customPromoterPrice!=null&&<span style={{color:"var(--blu)",marginLeft:4}}>(precio especial)</span>}
                             </div>
@@ -3294,7 +4054,7 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                   </div>
                 )}
                 <div className="fg">
-                  <label className="fl">Metodo de pago</label>
+                  <label className="fl">Método de pago</label>
                   <div className="pills">
                     {PM_OPTS.map(([v,l])=>(
                       <button key={v} className={"pill"+(f.paymentMethod===v?" act":"")} onClick={()=>set("paymentMethod",v)}>{l}</button>
@@ -3304,14 +4064,14 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                 {step2valid&&(
                   <div className="pb" style={{marginBottom:13}}>
                     <div style={{fontSize:".68rem",color:"var(--muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:.4,marginBottom:8}}>
-                      {isHistoric?"Resumen historico":"Resumen de la venta"}
+                      {isHistoric?"Resumen histórico":"Resumen de la venta"}
                     </div>
                     <div className="pbr"><span className="pbk">Precio al cliente</span><span className="pbv pbv-gold">{fmt(cp)}</span></div>
                     {f.isDirectSale?(
                       <div className="pbr"><span className="pbk">Ingreso total tienda</span><span className="pbv pbv-teal">{fmt(cp)}</span></div>
                     ):(
                       <>
-                        <div className="pbr"><span className="pbk">Comision promotora</span><span className="pbv pbv-gold">{fmt(commission)}</span></div>
+                        <div className="pbr"><span className="pbk">Comisión promotora</span><span className="pbv pbv-gold">{fmt(commission)}</span></div>
                         <div className="pbr"><span className="pbk">Monto a entregar a tienda</span><span className="pbv pbv-teal">{fmt(pp)}</span></div>
                       </>
                     )}
@@ -3319,7 +4079,7 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                       <>
                         <div className="pbr"><span className="pbk">(-) Costo material</span><span className="pbv pbv-red">{fmt(cst)}</span></div>
                         <div className="pbr"><span className="pbk">= Ganancia bruta</span><span className="pbv pbv-grn">{fmt(profit)}</span></div>
-                        <div className="pbr"><span className="pbk">Socio 1 (50%)</span><span className="pbv pbv-teal">{fmt(profitOwner)}</span></div>
+                        <div className="pbr"><span className="pbk">Socio administrador (50%)</span><span className="pbv pbv-teal">{fmt(profitOwner)}</span></div>
                       </>
                     )}
                   </div>
@@ -3333,7 +4093,7 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
 
             {step===3&&(
               <div className="pe">
-                <div style={{fontSize:".9rem",fontWeight:700,marginBottom:14,color:"var(--muted)"}}>
+                <div style={{fontSize:"1rem",fontWeight:700,marginBottom:14,color:"var(--muted)"}}>
                   Paso 3 - <span style={{color:"var(--txt)"}}>Confirmar</span>
                 </div>
                 <div className="pb" style={{marginBottom:14}}>
@@ -3341,15 +4101,15 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                   {f.customization&&<div className="pbr"><span className="pbk">Grabado</span><span className="pbv pbv-gold" style={{fontStyle:"italic"}}>"{f.customization}"</span></div>}
                   {isHistoric&&<div className="pbr"><span className="pbk">Fecha real</span><span className="pbv">{fmtDate(new Date(f.saleDate).getTime())}</span></div>}
                   <div className="pbr"><span className="pbk">Origen</span><span className="pbv">{f.isDirectSale?"Tienda directa":f.promoterName}</span></div>
-                  <div className="pbr"><span className="pbk">Metodo de pago</span><span className="pbv" style={{textTransform:"capitalize"}}>{f.paymentMethod}</span></div>
+                  <div className="pbr"><span className="pbk">Método de pago</span><span className="pbv" style={{textTransform:"capitalize"}}>{f.paymentMethod}</span></div>
                   {f.clientName&&<div className="pbr"><span className="pbk">Cliente</span><span className="pbv">{f.clientName}</span></div>}
-                  {isHistoric&&<div className="pbr"><span className="pbk">Tipo</span><span className="pbv hist-tag">Historica</span></div>}
+                  {isHistoric&&<div className="pbr"><span className="pbk">Tipo</span><span className="pbv hist-tag">Histórica</span></div>}
                   <div className="pbr sep"><span className="pbk">Precio al cliente</span><span className="pbv pbv-gold">{fmt(cp)}</span></div>
                   {f.isDirectSale?(
                     <div className="pbr"><span className="pbk">Ingreso total tienda</span><span className="pbv pbv-teal">{fmt(cp)}</span></div>
                   ):(
                     <>
-                      <div className="pbr"><span className="pbk">Comision promotora</span><span className="pbv pbv-gold">{fmt(commission)}</span></div>
+                      <div className="pbr"><span className="pbk">Comisión promotora</span><span className="pbv pbv-gold">{fmt(commission)}</span></div>
                       <div className="pbr"><span className="pbk">Monto a entregar a tienda</span><span className="pbv pbv-teal">{fmt(pp)}</span></div>
                     </>
                   )}
@@ -3357,16 +4117,16 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                     <>
                       <div className="pbr"><span className="pbk">(-) Costo material</span><span className="pbv pbv-red">{fmt(cst)}</span></div>
                       <div className="pbr"><span className="pbk">= Ganancia bruta</span><span className="pbv pbv-grn">{fmt(profit)}</span></div>
-                      <div className="pbr"><span className="pbk">Socio 1 (50%)</span><span className="pbv pbv-teal">{fmt(profitOwner)}</span></div>
-                      <div className="pbr"><span className="pbk">Socio 2 (50%)</span><span className="pbv pbv-teal">{fmt(profitPartner)}</span></div>
+                      <div className="pbr"><span className="pbk">Socio administrador (50%)</span><span className="pbv pbv-teal">{fmt(profitOwner)}</span></div>
+                      <div className="pbr"><span className="pbk">Socio (50%)</span><span className="pbv pbv-teal">{fmt(profitPartner)}</span></div>
                     </>
                   )}
                 </div>
                 <div className="row">
-                  <button className="btn btn-out" onClick={()=>setStep(2)}>Volver</button>
+                  <button className="btn btn-out" onClick={()=>step1valid&&setStep(2)}>Volver</button>
                   <button className="btn btn-teal" onClick={handleSubmit} style={{flex:2}}>
                     <Ic n="check" s={16} c="#020f0e"/>
-                    {isHistoric?"Cargar venta historica":"Registrar venta"}
+                    {isHistoric?"Cargar venta histórica":"Registrar venta"}
                   </button>
                 </div>
               </div>
@@ -3379,13 +4139,143 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
 }
 
 // ============================================================
+//  CONVERT TO SALE MODAL
+// ============================================================
+function ConvertToSaleModal({order, onClose, onConfirm}) {
+  const [pm, setPm] = useState("efectivo");
+  return (
+    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="sheet">
+        <div className="sh-hd"/>
+        <div className="sh-title">Convertir en venta</div>
+        <div className="pb" style={{marginBottom:16}}>
+          <div className="pbr"><span className="pbk">Cliente</span><span className="pbv">{order.clientName}</span></div>
+          <div className="pbr"><span className="pbk">Producto</span><span className="pbv">{order.productName}</span></div>
+          {order.customization&&<div className="pbr"><span className="pbk">Grabado</span><span className="pbv pbv-gold">"{order.customization}"</span></div>}
+          <div className="pbr sep"><span className="pbk">Total</span><span className="pbv pbv-gold" style={{fontSize:"1.2rem"}}>{new Intl.NumberFormat("es-BO",{style:"currency",currency:"BOB"}).format(order.clientPrice)}</span></div>
+        </div>
+        <div className="fg">
+          <label className="fl">Método de pago</label>
+          <div className="pills">
+            {[["efectivo","Efectivo"],["transferencia","Transferencia"],["qr","QR"]].map(([v,l])=>(
+              <button key={v} className={"pill"+(pm===v?" act":"")} onClick={()=>setPm(v)}>{l}</button>
+            ))}
+          </div>
+        </div>
+        <div className="al al-ok mt12">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>El pedido quedará marcado como convertido y se creará la venta automáticamente.</span>
+        </div>
+        <div className="row mt12">
+          <button className="btn btn-out" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-gold" onClick={()=>onConfirm(pm)} style={{flex:2}}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0a0a00" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Confirmar venta
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+//  SHIP ORDER MODAL
+// ============================================================
+function ShipOrderModal({order, onClose, onConfirm}) {
+  const [empresa, setEmpresa] = useState("");
+  const [tracking, setTracking] = useState("");
+  const [customEmpresa, setCustomEmpresa] = useState("");
+  const empresas = ["Yango","Trans. Copacabana","Trans. Bolivar","Trans. Expreso","Trans. 1ro de Mayo","DHL","FedEx","Otra"];
+  const empresaFinal = empresa === "Otra" ? customEmpresa : empresa;
+  return (
+    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="sheet">
+        <div className="sh-hd"/>
+        <div className="sh-title"><Ic n="truck" s={18}/> Marcar como enviado</div>
+        <div className="pb" style={{marginBottom:16}}>
+          <div className="pbr"><span className="pbk">Cliente</span><span className="pbv">{order.clientName}</span></div>
+          <div className="pbr"><span className="pbk">Producto</span><span className="pbv">{order.productName}</span></div>
+          <div className="pbr"><span className="pbk">Destino</span><span className="pbv">{(order.deliveryCountry&&order.deliveryCountry!=="Bolivia"?order.deliveryCountry+" — ":"")+( order.deliveryCity||"Sin especificar")}</span></div>
+        </div>
+        <div className="fg">
+          <label className="fl">Empresa de transporte</label>
+          <div className="pills" style={{marginBottom:8,flexWrap:"wrap"}}>
+            {empresas.map(e=>(
+              <button key={e} className={"pill"+(empresa===e?" act":"")} onClick={()=>setEmpresa(e)}>{e}</button>
+            ))}
+          </div>
+          {empresa==="Otra"&&(
+            <input className="fi" value={customEmpresa} onChange={e=>setCustomEmpresa(e.target.value)} placeholder="Nombre de la empresa"/>
+          )}
+        </div>
+        <div className="fg">
+          <label className="fl">Número de seguimiento (opcional)</label>
+          <input className="fi" value={tracking} onChange={e=>setTracking(e.target.value)} placeholder="Ej: 123456789"/>
+          <div className="fi-hint">Si tenes número de tracking para el cliente</div>
+        </div>
+        <div className="row mt12">
+          <button className="btn btn-out" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-gold" disabled={!empresaFinal} onClick={()=>onConfirm(empresaFinal,tracking)} style={{flex:2}}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0a0a00" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Confirmar envío
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+//  DELETE SALE MODAL
+// ============================================================
+function DeleteSaleModal({sale, onClose, onConfirm}) {
+  const [motivo, setMotivo] = useState("");
+  const motivos = ["Devolucion al cliente","Error de registro","Pedido cancelado","Otro"];
+  return (
+    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="sheet">
+        <div className="sh-hd"/>
+        <div className="sh-title">Eliminar venta</div>
+        <div className="al al-warn" style={{marginBottom:14}}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span>Esta acción no se puede deshacer. Quedan los datos como registro.</span>
+        </div>
+        <div className="pb" style={{marginBottom:14}}>
+          <div className="pbr"><span className="pbk">Producto</span><span className="pbv">{sale?.productName}</span></div>
+          <div className="pbr"><span className="pbk">Cliente</span><span className="pbv">{sale?.clientName||"—"}</span></div>
+          <div className="pbr sep"><span className="pbk">Monto</span><span className="pbv pbv-red">{new Intl.NumberFormat("es-BO",{style:"currency",currency:"BOB"}).format(sale?.clientPrice||0)}</span></div>
+        </div>
+        <div className="fg">
+          <label className="fl">Motivo de eliminación</label>
+          <div className="pills" style={{flexWrap:"wrap",marginBottom:8}}>
+            {motivos.map(m=>(
+              <button key={m} className={"pill"+(motivo===m?" act":"")} onClick={()=>setMotivo(m)}>{m}</button>
+            ))}
+          </div>
+          {motivo==="Otro"&&(
+            <input className="fi" placeholder="Especifica el motivo..." onChange={e=>setMotivo(e.target.value==="Otro"?"":e.target.value)}/>
+          )}
+        </div>
+        <div className="row mt12">
+          <button className="btn btn-out" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-red" disabled={!motivo} onClick={()=>onConfirm(sale.id,motivo)} style={{flex:2}}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            Eliminar venta
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 //  LOCKED
 // ============================================================
 function Locked() {
   return (
     <div className="locked">
       <Ic n="lock" s={42} c="var(--dim)"/>
-      <p>No tiene acceso a esta seccion.</p>
+      <p>No tiene acceso a esta sección.</p>
     </div>
   );
 }
