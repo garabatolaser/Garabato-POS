@@ -2197,6 +2197,72 @@ function OrderCard({order, promoters, role, isLast, stateColor, onAdvance, onEdi
                     :order.status==="enviado"
                     ?"¡Hola "+order.clientName+"! Tu *"+order.productName+"* ya fue enviado por "+order.deliveryCompany+(order.trackingNumber?" con número de seguimiento *"+order.trackingNumber+"*":"")+". Cualquier consulta, estamos disponibles. Garabato"
                     :"¡Hola "+order.clientName+"! Te contactamos de Garabato sobre tu pedido de *"+order.productName+"*. Garabato"
+                )}>
+                <WaIcon/>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+//  INVENTORY PAGE
+// ============================================================
+function InventoryPage({products, role, onSave, onDelete}) {
+  const [editProd,setEditProd] = useState(null);
+  const [showForm,setShowForm] = useState(false);
+  const [search, setSearch]   = useState("");
+  const low = products.filter(p=>p.stock<=p.lowStockAlert);
+  const visible = search.trim()
+    ? products.filter(p=>p.name.toLowerCase().includes(search.toLowerCase()))
+    : products;
+  return (
+    <div className="pe">
+      <div className="shd">
+        <div className="shd-l">Catálogo</div>
+        {CAN.editConfig(role)&&(
+          <button className="btn btn-sm btn-gold" style={{width:"auto"}} onClick={()=>{setEditProd(null);setShowForm(true);}}>
+            <Ic n="plus" s={14} c="#100d02"/> Nuevo
+          </button>
+        )}
+      </div>
+      {products.length>3&&(
+        <div className="fg" style={{marginBottom:8}}>
+          <input className="fi" placeholder="Buscar producto..." value={search} onChange={e=>setSearch(e.target.value)}/>
+        </div>
+      )}
+      {low.length>0&&(
+        <div className="al al-warn" style={{marginBottom:10}}>
+          <Ic n="warn" s={14}/>
+          <span><b>{low.length} producto{low.length>1?"s":""} con stock bajo</b> — revisar antes de vender</span>
+        </div>
+      )}
+      {visible.length===0
+        ?<div className="empty"><Ic n="box" s={38}/><p>Todavía no hay productos cargados.</p></div>
+        :<div className="inv-grid">{visible.map(p=>{
+          const commission=r2(p.clientPrice-p.promoterPrice), profit=r2(p.promoterPrice-p.cost);
+          return (
+            <div key={p.id} className="pc">
+              <div className="pc-top">
+                {p.photo?<img src={p.photo} alt={p.name} className="pc-img"/>
+                  :<div className="pc-img-ph">{p.name.charAt(0)}</div>}
+                <div style={{flex:1}}>
+                  <div className="pc-name">{p.name}</div>
+                  <div style={{fontSize:".76rem",color:"var(--muted)",marginTop:2}}>
+                  {fmt(p.clientPrice)} al cliente
+                  {p.clientPriceUSD&&<span style={{marginLeft:6,color:"var(--blu)",fontSize:".68rem"}}>USD {p.clientPriceUSD}</span>}
+                </div>
+                </div>
+                {CAN.editConfig(role)&&(
+                  <div style={{display:"flex",gap:6}}>
+                    <button className="btn btn-sm btn-out" style={{padding:"5px 8px"}} onClick={()=>{setEditProd(p);setShowForm(true);}}>
+                      <Ic n="edit" s={13}/>
+                    </button>
+                    {onDelete&&<button className="btn btn-sm btn-red" style={{padding:"5px 8px"}} onClick={()=>{if(window.confirm("Eliminar "+p.name+"? Esta acción no se puede deshacer.")) onDelete(p.id);}}><Ic n="trash" s={13}/></button>}
+                  </div>
                 )}
               </div>
               <div className="pc-grid">
