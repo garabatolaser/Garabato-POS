@@ -706,7 +706,7 @@ const PM_OPTS    = [["efectivo","Efectivo"],["transferencia","Transferencia"],["
 const BUSINESS = {
   name:     "Garabato",
   tagline:  "Personalización Laser",
-  phone:    "591XXXXXXXX", // actualizar con número real
+  phone:    "59169218766",
   city:     "Santa Cruz de la Sierra, Bolivia",
   mapsUrl:  "https://maps.app.goo.gl/garabato",
   lat:      -17.7798126,
@@ -1960,12 +1960,7 @@ function OrdersPage({orders, products, promoters, user, role, onSave, onAdvance,
                                 :order.status==="disenando"
                                 ?"¡Hola "+order.clientName+"! Estamos trabajando en el diseño de tu *"+order.productName+"*. En breve te enviamos una vista previa para que la apruebes. Garabato"
                                 :order.status==="esperando_aprobacion"
-                                ?"¡Hola "+order.clientName+"! Te enviamos el diseño de tu pedido:
-
-*Producto:* "+order.productName+(order.customization?"
-*Grabado:* "+order.customization:"")+"
-
-Revisa el diseño adjunto y confirmanos si está todo bien. Si querés algún cambio, avisanos!. Garabato"
+                                ?"¡Hola "+order.clientName+"! Te enviamos el diseño de tu pedido.\n\n*Producto:* "+order.productName+(order.customization?"\n*Grabado:* "+order.customization:"")+"\n\nRevisa el diseño adjunto y confirmanos si está todo bien. Si querés algún cambio, avisanos! Garabato"
                                 :order.status==="pago_pendiente"
                                 ?"¡Hola "+order.clientName+"! El diseño de tu *"+order.productName+"* fue aprobado! El total a pagar es *Bs. "+order.clientPrice+"*. Podrás pagar en efectivo, QR o transferencia. Esperamos tu confirmación! Garabato"
                                 :order.status==="pago_confirmado"
@@ -2190,12 +2185,7 @@ function OrderCard({order, promoters, role, isLast, stateColor, onAdvance, onEdi
                     :order.status==="disenando"
                     ?"¡Hola "+order.clientName+"! Estamos trabajando en el diseño de tu *"+order.productName+"*. En breve te enviamos una vista previa para que la apruebes. Garabato"
                     :order.status==="esperando_aprobacion"
-                    ?"¡Hola "+order.clientName+"! Te enviamos el diseño de tu pedido:
-
-*Producto:* "+order.productName+(order.customization?"
-*Grabado:* "+order.customization:"")+"
-
-Revisa el diseño adjunto y confirmanos si está todo bien para proceder con el grabado. Si querés algún cambio, avisanos!. Garabato"
+                    ?"¡Hola "+order.clientName+"! Te enviamos el diseño de tu pedido.\n\n*Producto:* "+order.productName+(order.customization?"\n*Grabado:* "+order.customization:"")+"\n\nRevisa el diseño adjunto y confirmanos si está todo bien para proceder con el grabado. Si querés algún cambio, avisanos! Garabato"
                     :order.status==="pago_pendiente"
                     ?"¡Hola "+order.clientName+"! El diseño de tu *"+order.productName+"* fue aprobado! El total a pagar es *Bs. "+order.clientPrice+"*. Podrás pagar en efectivo, QR o transferencia. Esperamos tu confirmación! Garabato"
                     :order.status==="pago_confirmado"
