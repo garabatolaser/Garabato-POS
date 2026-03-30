@@ -2721,8 +2721,7 @@ function InventoryPage({products, role, onSave, onDelete}) {
               </div>
             </div>
           );
-        })}
-      </div>
+        })}</div>}
       {showForm&&<ProductForm product={editProd} onClose={()=>setShowForm(false)} onSave={async p=>{await onSave(p);setShowForm(false);}}/>}
     </div>
   );
