@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 
 // ============================================================
-//  GARABATO POS v12  -  Sistema de gestion comercial
+//  GARABATO POS v12.1  -  Sistema de gestion comercial
 //  Modelo financiero:
 //    clientPrice   = precio que paga el cliente final
 //    promoterPrice = monto neto que entrega la promotora a tienda
