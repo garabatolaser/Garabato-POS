@@ -633,6 +633,83 @@ const DB_VER    = 1;
 const DB_STORES = ["users","products","promoters","sales","expenses","commissionPayments","orders","notifications"];
 let _db = null;
 
+// ============================================================
+//  SUPABASE
+// ============================================================
+const SB_URL = "https://ekdtpgsxlwerdfvshqpj.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVrZHRwZ3N4bHdlcmRmdnNocXBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTc0MDIsImV4cCI6MjA5MDQ3MzQwMn0.rg2hXvFOfSqxinktz_Y1XDdSfdUpeaIVlupkMMUN9pg";
+
+async function sbFetch(path, options={}) {
+  const res = await fetch(SB_URL + "/rest/v1/" + path, {
+    ...options,
+    headers: {
+      "apikey": SB_KEY,
+      "Authorization": "Bearer " + SB_KEY,
+      "Content-Type": "application/json",
+      "Prefer": options.prefer || "return=representation",
+      ...(options.headers||{}),
+    },
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error("Supabase error: " + err);
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+// Mapeo: store local → tabla Supabase + transformación de campos
+const SB_MAP = {
+  users:              { table:"users",              toSB: r=>r, fromSB: r=>r },
+  products:           { table:"products",           toSB: r=>r, fromSB: r=>r },
+  promoters:          { table:"promoters",          toSB: r=>r, fromSB: r=>r },
+  sales:              { table:"sales",              toSB: r=>r, fromSB: r=>r },
+  expenses:           { table:"expenses",           toSB: r=>r, fromSB: r=>r },
+  commissionPayments: { table:"commission_payments", toSB: r=>{return{...r,sales_ids:r.salesIds}}, fromSB: r=>{return{...r,salesIds:r.sales_ids}} },
+  orders:             { table:"orders",             toSB: r=>r, fromSB: r=>r },
+};
+
+async function sbPull(store) {
+  const map = SB_MAP[store]; if (!map) return [];
+  try {
+    const rows = await sbFetch(map.table + "?select=*");
+    return (rows||[]).map(map.fromSB);
+  } catch(e) { console.warn("sbPull error:", store, e.message); return []; }
+}
+
+async function sbPush(store, record) {
+  const map = SB_MAP[store]; if (!map) return;
+  try {
+    const row = map.toSB(record);
+    await sbFetch(map.table + "?on_conflict=id", {
+      method:"POST", prefer:"resolution=merge-duplicates",
+      body: JSON.stringify(row),
+    });
+  } catch(e) { console.warn("sbPush error:", store, e.message); }
+}
+
+async function sbDelete(store, id) {
+  const map = SB_MAP[store]; if (!map) return;
+  try {
+    await sbFetch(map.table + "?id=eq." + id, { method:"DELETE", prefer:"" });
+  } catch(e) { console.warn("sbDelete error:", store, e.message); }
+}
+
+// Sync completo: baja todo de Supabase y reemplaza IndexedDB local
+async function syncFromSupabase() {
+  const db = await openDB();
+  for (const store of ["users","products","promoters","sales","expenses","commissionPayments","orders"]) {
+    const rows = await sbPull(store);
+    if (!rows.length) continue;
+    await new Promise((res,rej)=>{
+      const tx = db.transaction(store,"readwrite");
+      const st = tx.objectStore(store);
+      rows.forEach(r=>st.put(r));
+      tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error);
+    });
+  }
+}
+
 function openDB() {
   if (_db) return Promise.resolve(_db);
   return new Promise((res, rej) => {
@@ -656,17 +733,19 @@ const dbAll = async store => {
 };
 const dbPut = async (store, data) => {
   const db = await openDB();
-  return new Promise((res,rej) => {
+  await new Promise((res,rej) => {
     const r = db.transaction(store,"readwrite").objectStore(store).put(data);
     r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
   });
+  sbPush(store, data).catch(()=>{});
 };
 const dbDel = async (store, key) => {
   const db = await openDB();
-  return new Promise((res,rej) => {
+  await new Promise((res,rej) => {
     const r = db.transaction(store,"readwrite").objectStore(store).delete(key);
     r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
   });
+  sbDelete(store, key).catch(()=>{});
 };
 const dbGet = async (store, key) => {
   const db = await openDB();
@@ -1054,6 +1133,7 @@ export default function App() {
   useEffect(()=>{
     const st=document.createElement("style"); st.textContent=CSS; document.head.appendChild(st);
     seed()
+      .then(()=>navigator.onLine ? syncFromSupabase() : Promise.resolve())
       .then(()=>reload())
       .then(()=>setReady(true))
       .catch(err=>{
@@ -1101,17 +1181,24 @@ export default function App() {
     const handleSync = async ()=>{
     if (!online||syncing) return;
     setSyncing(true);
-    await new Promise(r=>setTimeout(r,600));
-    const ps=sales.filter(s=>!s.synced);
-    const pe=expenses.filter(e=>!e.synced);
-    const po=orders.filter(o=>!o.synced);
-    for (const s of ps) await dbPut("sales",{...s,synced:true});
-    for (const e of pe) await dbPut("expenses",{...e,synced:true});
-    for (const o of po) await dbPut("orders",{...o,synced:true});
-    await reload();
-    setSyncing(false);
-    const total = ps.length+pe.length+po.length;
-    toast(total>0?total+" registro"+(total!==1?"s":"")+" sincronizados":"Todo al dia","ok");
+    try {
+      // 1. Bajar todo de Supabase a IndexedDB local
+      await syncFromSupabase();
+      // 2. Subir pendientes locales a Supabase
+      const ps=sales.filter(s=>!s.synced);
+      const pe=expenses.filter(e=>!e.synced);
+      const po=orders.filter(o=>!o.synced);
+      for (const s of ps) await dbPut("sales",{...s,synced:true});
+      for (const e of pe) await dbPut("expenses",{...e,synced:true});
+      for (const o of po) await dbPut("orders",{...o,synced:true});
+      await reload();
+      const total = ps.length+pe.length+po.length;
+      toast(total>0?total+" registro"+(total!==1?"s":"")+" sincronizados":"✓ Todo sincronizado","ok");
+    } catch(e) {
+      toast("Error al sincronizar","err");
+    } finally {
+      setSyncing(false);
+    }
   };
 
   const handleBackup = async ()=>{
