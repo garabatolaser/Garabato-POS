@@ -630,7 +630,7 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 // ============================================================
 const DB_NAME   = "garabato_v12";
 const DB_VER    = 1;
-const DB_STORES = ["users","products","promoters","sales","expenses","commissionPayments","orders","notifications"];
+const DB_STORES = ["users","products","promoters","sales","expenses","commissionPayments","notifications"];
 let _db = null;
 
 // ============================================================
@@ -667,8 +667,7 @@ const SB_MAP = {
   promoters:          { table:"promoters",          toSB: r=>({id:r.id,name:r.name,phone:r.phone,active:r.active,custom_promoter_price:r.customPromoterPrice||null}), fromSB: r=>({id:r.id,name:r.name,phone:r.phone,active:r.active,customPromoterPrice:r.custom_promoter_price||null}) },
   sales:              { table:"sales",              toSB: r=>({id:r.id,product_id:r.productId,product_name:r.productName,customization:r.customization||null,client_price:r.clientPrice,promoter_price:r.promoterPrice,cost:r.cost,commission:r.commission,profit:r.profit,profit_owner:r.profitOwner,profit_partner:r.profitPartner,payment_method:r.paymentMethod,promoter_id:r.promoterId||null,promoter_name:r.promoterName||null,is_direct_sale:r.isDirectSale||false,client_name:r.clientName||null,client_phone:r.clientPhone||null,notes:r.notes||null,commission_status:r.commissionStatus,date:r.date,is_historic:r.isHistoric||false,deleted:r.deleted||false,deleted_at:r.deletedAt||null,deleted_reason:r.deletedReason||null,order_id:r.orderId||null}), fromSB: r=>({id:r.id,productId:r.product_id,productName:r.product_name,customization:r.customization,clientPrice:r.client_price,promoterPrice:r.promoter_price,cost:r.cost,commission:r.commission,profit:r.profit,profitOwner:r.profit_owner,profitPartner:r.profit_partner,paymentMethod:r.payment_method,promoterId:r.promoter_id,promoterName:r.promoter_name,isDirectSale:r.is_direct_sale,clientName:r.client_name,clientPhone:r.client_phone,notes:r.notes,commissionStatus:r.commission_status,date:r.date,isHistoric:r.is_historic,deleted:r.deleted,deletedAt:r.deleted_at,deletedReason:r.deleted_reason,orderId:r.order_id,synced:true}) },
   expenses:           { table:"expenses",           toSB: r=>({id:r.id,type:r.type,amount:r.amount,description:r.description||null,date:r.date,afecta_sociedad:r.afectaSociedad!==false}), fromSB: r=>({id:r.id,type:r.type,amount:r.amount,description:r.description,date:r.date,afectaSociedad:r.afecta_sociedad,synced:true}) },
-  commissionPayments: { table:"commission_payments", toSB: r=>({id:r.id,promoter_id:r.promoterId,amount:r.amount,sales_ids:r.salesIds||[],date:r.date}), fromSB: r=>({id:r.id,promoterId:r.promoter_id,amount:r.amount,salesIds:r.sales_ids||[],date:r.date}) },
-  orders:             { table:"orders",             toSB: r=>({id:r.id,client_name:r.clientName||null,client_phone:r.clientPhone||null,product_id:r.productId||null,product_name:r.productName||null,customization:r.customization||null,client_price:r.clientPrice||null,promoter_id:r.promoterId||null,promoter_name:r.promoterName||null,grabado_type:r.grabadoType||null,grabado_notes:r.grabadoNotes||null,foto_via_whatsapp:r.fotoViaWhatsapp||false,delivery:r.delivery||null,delivery_country:r.deliveryCountry||null,delivery_city:r.deliveryCity||null,delivery_address:r.deliveryAddress||null,delivery_company:r.deliveryCompany||null,tracking_number:r.trackingNumber||null,notes:r.notes||null,status:r.status,status_history:r.statusHistory||[],date:r.date,converted_to_sale:r.convertedToSale||false,sale_id:r.saleId||null,is_direct_sale:r.isDirectSale||false,client_price_usd:r.clientPriceUSD||null}), fromSB: r=>({id:r.id,clientName:r.client_name,clientPhone:r.client_phone,productId:r.product_id,productName:r.product_name,customization:r.customization,clientPrice:r.client_price,promoterId:r.promoter_id,promoterName:r.promoter_name,grabadoType:r.grabado_type,grabadoNotes:r.grabado_notes,fotoViaWhatsapp:r.foto_via_whatsapp,delivery:r.delivery,deliveryCountry:r.delivery_country,deliveryCity:r.delivery_city,deliveryAddress:r.delivery_address,deliveryCompany:r.delivery_company,trackingNumber:r.tracking_number,notes:r.notes,status:r.status,statusHistory:r.status_history||[],date:r.date,convertedToSale:r.converted_to_sale,saleId:r.sale_id,isDirectSale:r.is_direct_sale,clientPriceUSD:r.client_price_usd,synced:true}) },
+  commissionPayments: { table:"commission_payments", toSB: r=>({id:r.id,promoter_id:r.promoterId,amount:r.amount,sales_ids:r.salesIds||[],date:r.date}), fromSB: r=>({id:r.id,promoterId:r.promoter_id,amount:r.amount,salesIds:r.sales_ids||[],date:r.date}) }
 };
 
 async function sbPull(store) {
@@ -700,7 +699,7 @@ async function sbDelete(store, id) {
 // Sync completo: baja todo de Supabase y reemplaza IndexedDB local
 async function syncFromSupabase() {
   const db = await openDB();
-  for (const store of ["users","products","promoters","sales","expenses","commissionPayments","orders"]) {
+  for (const store of ["users","products","promoters","sales","expenses","commissionPayments"]) {
     const rows = await sbPull(store);
     if (!rows.length) continue;
     await new Promise((res,rej)=>{
@@ -1193,8 +1192,6 @@ export default function App() {
   const [syncing, setSyncing] = useState(false);
   const [showSale,setShowSale]= useState(false);
   const [historic,setHistoric]= useState(false);
-  const [convertOrder,setConvertOrder]= useState(null);
-  const [shipOrder,setShipOrder]= useState(null);
   const [deleteSale,setDeleteSale]= useState(null);
   const [showOnboarding,setShowOnboarding]= useState(false);
   const [products, setProducts]  = useState([]);
@@ -1242,15 +1239,15 @@ export default function App() {
       if (fromCloud && navigator.onLine) {
         await syncFromSupabase().catch(()=>{});
       }
-      const [pr,prm,sl,ex,pay,usr,ord] = await Promise.all([
+      const [pr,prm,sl,ex,pay,usr] = await Promise.all([
         dbAll("products"),dbAll("promoters"),dbAll("sales"),
-        dbAll("expenses"),dbAll("commissionPayments"),dbAll("users"),dbAll("orders"),
+        dbAll("expenses"),dbAll("commissionPayments"),dbAll("users"),
       ]);
       setProducts(pr); setPromoters(prm);
       setSales(sl.sort((a,b)=>b.date-a.date));
       setExpenses(ex.sort((a,b)=>b.date-a.date));
       setPayments(pay.sort((a,b)=>b.date-a.date));
-      setUsers(usr); setOrders(ord.sort((a,b)=>b.date-a.date));
+      setUsers(usr);
     } catch(err) {
       console.error("Error cargando datos:", err);
     }
@@ -1258,18 +1255,11 @@ export default function App() {
 
   const pendingSync = useMemo(()=>
     sales.filter(s=>!s.synced).length + 
-    expenses.filter(e=>!e.synced).length +
-    orders.filter(o=>!o.synced).length,
-  [sales,expenses,orders]);
+    expenses.filter(e=>!e.synced).length,
+  [sales,expenses]);
 
   const role = user?.role;
 
-  const readyOrders = useMemo(()=>orders.filter(o=>o.status==="listo"&&!o.convertedToSale),[orders]);
-  const myReadyOrders = useMemo(()=>{
-    if (!user) return [];
-    if (role==="admin"||role==="employee") return readyOrders;
-    return readyOrders.filter(o=>o.promoterId===user.promoterId);
-  },[readyOrders,user,role]);
 
   // HANDLERS
     const handleSync = async ()=>{
@@ -1281,10 +1271,9 @@ export default function App() {
       // 2. Subir pendientes locales a Supabase
       const ps=sales.filter(s=>!s.synced);
       const pe=expenses.filter(e=>!e.synced);
-      const po=orders.filter(o=>!o.synced);
+  
       for (const s of ps) await dbPut("sales",{...s,synced:true});
       for (const e of pe) await dbPut("expenses",{...e,synced:true});
-      for (const o of po) await dbPut("orders",{...o,synced:true});
       await reload();
       const total = ps.length+pe.length+po.length;
       toast(total>0?total+" registro"+(total!==1?"s":"")+" sincronizados":"✓ Todo sincronizado","ok");
@@ -1298,7 +1287,7 @@ export default function App() {
   const handleBackup = async ()=>{
     const [pr,prm,sl,ex,pay,ord,usr]=await Promise.all([
       dbAll("products"),dbAll("promoters"),dbAll("sales"),dbAll("expenses"),
-      dbAll("commissionPayments"),dbAll("orders"),dbAll("users"),
+      dbAll("commissionPayments"),dbAll("users"),
     ]);
     exportBackup({
       version:"garabato-v12",
@@ -1351,87 +1340,6 @@ export default function App() {
     await reload(); toast("Pago de "+fmt(total)+" registrado","ok");
   };
 
-  const handleSaveOrder = async o=>{
-    const isDirecto = o.promoterId==="DIRECTO" || !o.promoterId;
-    const orderData = {
-      ...o,
-      isDirectSale: isDirecto,
-      promoterId:   isDirecto ? null : o.promoterId,
-      promoterName: isDirecto ? "Tienda directa" : o.promoterName,
-      synced: online,
-    };
-    await dbPut("orders", orderData);
-    await reload();
-    toast("✓ Pedido guardado","ok");
-  };
-
-  const handleAdvanceOrder = async (orderId,newStatus)=>{
-    const o=await dbGet("orders",orderId);
-    if (!o) return;
-    await dbPut("orders",{...o,status:newStatus,synced:false,
-      statusHistory:[...(o.statusHistory||[]),{status:newStatus,date:Date.now()}]});
-    await reload(); toast("→ "+stateInfo(newStatus).label,"ok");
-  };
-
-  const handleDeleteOrder = async id=>{
-    await dbDel("orders",id); await reload(); toast("Pedido eliminado","info");
-  };
-
-  const handleShipOrder = async (order, empresa, tracking) => {
-    const o = await dbGet("orders", order.id);
-    if (!o) return;
-    await dbPut("orders",{...o,status:"enviado",synced:false,
-      deliveryCompany:empresa,trackingNumber:tracking,
-      statusHistory:[...(o.statusHistory||[]),{status:"enviado",date:Date.now()}]});
-    await reload();
-    toast("📦 Pedido enviado","ok");
-  };
-
-  const handleConvertToSale = async order=>{
-    const isDirecto = order.promoterId==="DIRECTO" || !order.promoterId;
-    const product   = products.find(p=>p.id===order.productId);
-    const promoter  = isDirecto ? null : promoters.find(p=>p.id===order.promoterId);
-    
-    // Guardia: si no hay precio no se puede convertir
-    if (!order.clientPrice) { toast("El pedido no tiene precio definido","err"); return; }
-    
-    // Calcular precios
-    const cp  = order.clientPrice;
-    const pp  = isDirecto
-      ? cp  // venta directa: promoterPrice = clientPrice (sin comision)
-      : (promoter?.customPromoterPrice!=null ? promoter.customPromoterPrice : (product?.promoterPrice||cp));
-    const cost = product?.cost || 0;
-    const {commission,profit,profitOwner,profitPartner} = calcSale(cp, pp, cost);
-    
-    const sale = {
-      id:uid("V"),
-      productId:order.productId,
-      productName:order.productName,
-      customization:order.customization,
-      clientPrice:cp,
-      promoterPrice:pp,
-      cost,commission,profit,profitOwner,profitPartner,
-      paymentMethod:order._paymentMethod||"efectivo",
-      promoterId:isDirecto?null:order.promoterId,
-      promoterName:isDirecto?"Tienda directa":order.promoterName,
-      isDirectSale:isDirecto,
-      clientName:order.clientName||"",
-      clientPhone:order.clientPhone||"",
-      notes:order.notes||"",
-      commissionStatus:isDirecto?"pagado":"pendiente",
-      date:Date.now(),
-      isHistoric:false,
-      synced:online,
-      orderId:order.id,
-    };
-    await dbPut("sales",sale);
-    await dbPut("orders",{...order,convertedToSale:true,saleId:sale.id,synced:false});
-    if (product&&product.stock>0) await dbPut("products",{...product,stock:product.stock-1});
-    await reload();
-    setPage("sales");
-    toast("🎉 Pedido convertido en venta!","ok");
-  };
-
   if (!ready) return (
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
       height:"100dvh",background:"#0a0a08",gap:20}}>
@@ -1454,7 +1362,6 @@ export default function App() {
 
   const navItems = [
     {id:"home",     icon:"home",    label:"Inicio"},
-    {id:"orders",   icon:"tag",     label:"Pedidos",  badge:myReadyOrders.length},
     {id:"sales",    icon:"cart",    label:"Ventas",   badge:pendingSync},
     CAN.seeInventory(role) && {id:"inventory",icon:"box",   label:"Stock"},
     (role!=="socio") && {id:"promoters",icon:"users",label:role==="promoter"?"Perfil":"Promotoras"},
@@ -1467,11 +1374,7 @@ export default function App() {
     <>
       {page==="home"     && <HomePage sales={sales} products={products} promoters={promoters}
         expenses={expenses} role={role} orders={orders} user={user}
-        myReadyOrders={myReadyOrders} onGoOrders={()=>setPage("orders")}/>}
-      {page==="orders"   && <OrdersPage orders={orders} products={products} promoters={promoters}
-        user={user} role={role} onSave={handleSaveOrder} onAdvance={handleAdvanceOrder}
-        onDelete={handleDeleteOrder} onConvert={order=>setConvertOrder(order)}
-          onEnviar={order=>setShipOrder(order)}/>}
+        []={[]} onGoOrders={()=>setPage("orders")}/>}
       {page==="sales"    && <SalesPage sales={sales} role={role} user={user} promoters={promoters}
         onMarkPaid={handleMarkPaid} onEdit={handleEditSale}
         onDelete={role==="admin"?sale=>setDeleteSale(sale):null}/>}
@@ -1631,18 +1534,6 @@ export default function App() {
         <NewSaleModal products={products} promoters={promoters} user={user} isHistoric={historic}
           onClose={()=>setShowSale(false)} onSubmit={handleNewSale}/>
       )}
-
-      {convertOrder && (
-        <ConvertToSaleModal order={convertOrder}
-          onClose={()=>setConvertOrder(null)}
-          onConfirm={async(pm)=>{await handleConvertToSale({...convertOrder,_paymentMethod:pm});setConvertOrder(null);}}/>
-      )}
-
-      {shipOrder && (
-        <ShipOrderModal order={shipOrder}
-          onClose={()=>setShipOrder(null)}
-          onConfirm={async(empresa,tracking)=>{await handleShipOrder(shipOrder,empresa,tracking);setShipOrder(null);}}/>
-      )}
       {deleteSale && (
         <DeleteSaleModal sale={deleteSale}
           onClose={()=>setDeleteSale(null)}
@@ -1797,7 +1688,7 @@ function TopBar({user, online, pendingSync, syncing, onSync, onLogout, onBackup}
 // ============================================================
 //  HOME PAGE
 // ============================================================
-function HomePage({sales, products, promoters, expenses, role, orders, user, myReadyOrders, onGoOrders}) {
+function HomePage({sales, products, promoters, expenses, role, orders, user, [], onGoOrders}) {
   const td = todayMs();
   const mySales  = role==="promoter" ? sales.filter(s=>s.promoterId===user.promoterId) : sales;
   const myOrders = role==="promoter" ? orders.filter(o=>o.promoterId===user.promoterId) : orders;
@@ -1845,12 +1736,12 @@ function HomePage({sales, products, promoters, expenses, role, orders, user, myR
         </div>
       )}
 
-      {myReadyOrders.length>0&&(
+      {[].length>0&&(
         <div className="notify-bar" onClick={onGoOrders}>
           <div className="notify-dot"/>
           <div style={{flex:1}}>
             <div style={{fontWeight:700,fontSize:".86rem",color:"var(--grn)"}}>
-              {myReadyOrders.length} pedido{myReadyOrders.length>1?"s":""} listo{myReadyOrders.length>1?"s":""} para entregar
+              {[].length} pedido{[].length>1?"s":""} listo{[].length>1?"s":""} para entregar
             </div>
             <div style={{fontSize:".76rem",color:"var(--muted)",marginTop:2}}>Ver pedidos listos</div>
           </div>
@@ -1916,7 +1807,7 @@ function HomePage({sales, products, promoters, expenses, role, orders, user, myR
           </div>
           <div className="g2">
             <div className="sc"><div className="sl">Pedidos activos</div><div className="sv gold">{activeOrders}</div><div className="ss">En proceso</div></div>
-            <div className="sc"><div className="sl">Listos hoy</div><div className="sv grn">{myReadyOrders.length}</div><div className="ss">Para entregar</div></div>
+            <div className="sc"><div className="sl">Listos hoy</div><div className="sv grn">{[].length}</div><div className="ss">Para entregar</div></div>
           </div>
         </>
       )}
@@ -1949,640 +1840,6 @@ function HomePage({sales, products, promoters, expenses, role, orders, user, myR
 
       <div className="shd mt12"><div className="shd-l">{role==="promoter"?"Mis ventas recientes":"Ventas recientes"}</div></div>
       {mySales.slice(0,5).map(s=><SaleRow key={s.id} sale={s} role={role}/>)}
-    </div>
-  );
-}
-
-// ============================================================
-//  ORDERS PAGE
-// ============================================================
-function OrdersPage({orders, products, promoters, user, role, onSave, onAdvance, onDelete, onConvert, onEnviar}) {
-  const [view,    setView]    = useState("list");
-  const [showForm,setShowForm]= useState(false);
-  const [editOrd, setEditOrd] = useState(null);
-  const [expanded,setExpanded]= useState({nuevo:true,esperando_foto:true,disenando:true,esperando_aprobacion:true,pago_pendiente:true,pago_confirmado:true,grabando:true,listo:true,enviado:true});
-
-  const myOrders = useMemo(()=>
-    role==="promoter" ? orders.filter(o=>o.promoterId===user.promoterId) : orders
-  ,[orders,role,user]);
-
-  const active    = myOrders.filter(o=>!o.convertedToSale);
-  const delivered = myOrders.filter(o=>o.convertedToSale);
-
-  const grouped = useMemo(()=>{
-    const g={};
-    for (const st of ORDER_STATES) g[st.id]=active.filter(o=>o.status===st.id);
-    return g;
-  },[active]);
-
-  const toggleExpand = id => setExpanded(e=>({...e,[id]:!e[id]}));
-
-  return (
-    <div className="pe">
-      <div className="shd">
-        <div className="shd-l">Pedidos</div>
-        <div style={{display:"flex",gap:7,alignItems:"center"}}>
-          <div className="view-toggle">
-            <button className={"vt-btn "+(view==="list"?"act":"off")} onClick={()=>setView("list")}>Lista</button>
-            <button className={"vt-btn "+(view==="kanban"?"act":"off")} onClick={()=>setView("kanban")}>Board</button>
-          </div>
-          <button className="btn btn-sm btn-gold" style={{width:"auto"}}
-            onClick={()=>{setEditOrd(null);setShowForm(true);}}>
-            <Ic n="plus" s={14} c="#100d02"/>
-          </button>
-        </div>
-      </div>
-
-      {/* Estado chips */}
-      <div className="flt" style={{alignItems:"center"}}>
-        {ORDER_STATES.map(st=>{
-          const count=grouped[st.id]?.length||0;
-          return (
-            <div key={st.id} style={{flexShrink:0,padding:"5px 11px",borderRadius:20,
-              background:count>0?"var(--s2)":"var(--s1)",
-              border:"1px solid "+(count>0?st.border:"var(--b1)"),
-              display:"flex",alignItems:"center",gap:5}}>
-              <div style={{width:6,height:6,borderRadius:"50%",background:st.color,flexShrink:0}}/>
-              <span style={{fontSize:".76rem",color:"var(--muted)",fontWeight:700}}>{st.label}</span>
-              {count>0&&<span style={{fontSize:".76rem",color:st.color,fontWeight:800}}>{count}</span>}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* LISTA VIEW */}
-      {view==="list"&&(
-        <>
-          {ORDER_STATES.map(st=>{
-            const group=grouped[st.id]||[], isOpen=expanded[st.id]!==false;
-            return (
-              <div key={st.id} style={{marginBottom:8}}>
-                <button className={"grp-header"+(isOpen&&group.length>0?" open":"")}
-                  onClick={()=>toggleExpand(st.id)}
-                  style={{background:group.length>0?"var(--s2)":"var(--s1)",
-                    borderColor:group.length>0?st.border+"66":"var(--b1)"}}>
-                  <div style={{width:8,height:8,borderRadius:"50%",background:st.color,flexShrink:0}}/>
-                  <span style={{fontWeight:800,fontSize:".86rem",color:group.length>0?st.color:"var(--dim)",flex:1,textAlign:"left"}}>
-                    {st.label.toUpperCase()}
-                  </span>
-                  <span style={{fontSize:".76rem",color:"var(--muted)",fontWeight:700}}>
-                    {group.length} pedido{group.length!==1?"s":""}
-                  </span>
-                  <span style={{color:"var(--dim)",fontSize:".86rem",marginLeft:4}}>
-                    {isOpen?"v":">"}
-                  </span>
-                </button>
-                {isOpen&&group.length>0&&(
-                  <div className="grp-body" style={{borderColor:st.border+"66"}}>
-                    {group.map((order,idx)=>(
-                      <OrderCard key={order.id} order={order} promoters={promoters}
-                        role={role} isLast={idx===group.length-1} stateColor={st.color}
-                        onAdvance={()=>{const ns=nextState(order.status);if(ns)onAdvance(order.id,ns);}}
-                        onEdit={()=>{setEditOrd(order);setShowForm(true);}}
-                        onDelete={()=>onDelete(order.id)}
-                        onConvert={()=>onConvert(order)}
-                        onEnviar={()=>onEnviar(order)}
-                        nextLabel={nextState(order.status)?stateInfo(nextState(order.status)).label:null}
-                      />
-                    ))}
-                  </div>
-                )}
-                {isOpen&&group.length===0&&(
-                  <div className="grp-body" style={{padding:12,textAlign:"center",fontSize:".76rem",color:"var(--dim)"}}>
-                    Sin pedidos
-                  </div>
-                )}
-              </div>
-            );
-          })}
-          {delivered.length>0&&(
-            <div style={{marginTop:8}}>
-              <div style={{fontSize:".68rem",color:"var(--dim)",fontWeight:700,textTransform:"uppercase",letterSpacing:.5,padding:"8px 4px"}}>
-                Entregados ({delivered.length})
-              </div>
-              {delivered.slice(0,5).map(order=>(
-                <div key={order.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 13px",
-                  background:"var(--s1)",border:"1px solid var(--b1)",borderRadius:"var(--r)",marginBottom:6,opacity:.7}}>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontWeight:700,fontSize:".86rem",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                      {order.clientName} - {order.productName}
-                    </div>
-                    <div style={{fontSize:".76rem",color:"var(--dim)",marginTop:2}}>
-                      {order.customization?'"'+order.customization+'" - ':""}{fmtDate(order.date)}
-                    </div>
-                  </div>
-                  <span style={{fontFamily:"Playfair Display,serif",fontSize:"1rem",color:"var(--grn)",fontWeight:700,flexShrink:0}}>
-                    {fmt(order.clientPrice)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </>
-      )}
-
-      {/* KANBAN VIEW */}
-      {view==="kanban"&&(
-        <div className="kanban-wrap">
-          {ORDER_STATES.map(st=>{
-            const group=grouped[st.id]||[];
-            return (
-              <div key={st.id} className="kanban-col">
-                <div className="kanban-head" style={{borderLeftColor:st.color}}>
-                  <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <div style={{width:6,height:6,borderRadius:"50%",background:st.color}}/>
-                    <span style={{fontWeight:800,fontSize:".86rem",color:st.color}}>{st.label.toUpperCase()}</span>
-                  </div>
-                  <span style={{background:st.color+"22",color:st.color,borderRadius:10,padding:"2px 8px",fontSize:".76rem",fontWeight:800}}>
-                    {group.length}
-                  </span>
-                </div>
-                {group.length===0&&<div className="kanban-empty">Sin pedidos</div>}
-                {group.map(order=>{
-                  const ns=nextState(order.status);
-                  return (
-                    <div key={order.id} className="kanban-card" style={{borderTopColor:st.color}}>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:2}}>
-                        <div style={{fontWeight:700,fontSize:".86rem",flex:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                          {order.clientName}
-                        </div>
-                        <span style={{fontSize:".68rem",color:Math.floor((Date.now()-order.date)/86400000)>=2?"var(--red)":"var(--dim)",flexShrink:0,marginLeft:4,fontWeight:700}}>
-                          {Math.floor((Date.now()-order.date)/86400000)===0?"hoy":Math.floor((Date.now()-order.date)/86400000)+"d"}
-                        </span>
-                      </div>
-                      <div style={{fontSize:".76rem",color:"var(--muted)",marginBottom:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                        {order.grabadoType==="foto"?"📷 ":order.grabadoType==="texto"?"✏️ ":order.grabadoType==="vector"?"🎨 ":""}{order.productName}
-                      </div>
-                      {order.customization&&(
-                        <div style={{fontSize:".76rem",color:"var(--gold)",fontStyle:"italic",marginBottom:4,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                          {'"'+order.customization+'"'}
-                        </div>
-                      )}
-                      {order.fotoViaWhatsapp&&order.status==="esperando_foto"&&(
-                        <div style={{fontSize:".68rem",color:"var(--red)",fontWeight:800,marginBottom:4}}>⏳ Esperando foto WA</div>
-                      )}
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                        <span style={{fontSize:".68rem",color:"var(--dim)"}}>{order.promoterName?.split(" ")[0]||"Tienda"}</span>
-                        <span style={{fontFamily:"Playfair Display,serif",fontSize:"1rem",color:"var(--gold)"}}>{fmt(order.clientPrice)}</span>
-                      </div>
-                      {order.delivery==="envio"&&order.deliveryCity&&(
-                        <div style={{fontSize:".68rem",color:"var(--blu)",marginBottom:6}}>Envío: {order.deliveryCity}</div>
-                      )}
-                      <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-                        {ns&&CAN.editData(role)&&(
-                          <button className="btn btn-sm btn-teal" style={{flex:1,padding:"5px 8px",fontSize:".76rem"}}
-                            onClick={()=>onAdvance(order.id,ns)}>
-                            {stateInfo(ns).label}
-                          </button>
-                        )}
-                        {(order.status==="pago_confirmado"||order.status==="grabando"||order.status==="listo"||order.status==="enviado")&&CAN.editData(role)&&(
-                          <button className="btn btn-sm btn-gold" style={{flex:1,padding:"5px 8px",fontSize:".76rem"}}
-                            onClick={()=>onConvert(order)}>
-                            Venta
-                          </button>
-                        )}
-                        {order.clientPhone&&(
-                          <button className="wa-btn" style={{padding:"5px 9px"}}
-                            onClick={()=>openWhatsApp(order.clientPhone,
-                              order.status==="nuevo"
-                                ?"¡Hola "+order.clientName+"! Recibimos tu pedido de *"+order.productName+"*. Ya está registrado y pronto comenzamos. Gracias por elegirnos! Garabato"
-                                :order.status==="esperando_foto"
-                                ?"¡Hola "+order.clientName+"! Para continuar con tu pedido de *"+order.productName+"* necesitamos que nos enviés la foto que querés grabar respondiendo este mensaje. Garabato"
-                                :order.status==="disenando"
-                                ?"¡Hola "+order.clientName+"! Estamos trabajando en el diseño de tu *"+order.productName+"*. En breve te enviamos una vista previa para que la apruebes. Garabato"
-                                :order.status==="esperando_aprobacion"
-                                ?"¡Hola "+order.clientName+"! Te enviamos el diseño de tu pedido.\n\n*Producto:* "+order.productName+(order.customization?"\n*Grabado:* "+order.customization:"")+"\n\nRevisa el diseño adjunto y confirmanos si está todo bien. Si querés algún cambio, avisanos! Garabato"
-                                :order.status==="pago_pendiente"
-                                ?"¡Hola "+order.clientName+"! El diseño de tu *"+order.productName+"* fue aprobado! El total a pagar es *Bs. "+order.clientPrice+"*. Podrás pagar en efectivo, QR o transferencia. Esperamos tu confirmación! Garabato"
-                                :order.status==="pago_confirmado"
-                                ?"¡Hola "+order.clientName+"! Confirmamos que recibimos el pago. Ya comenzamos el grabado de tu *"+order.productName+"*. Te avisamos cuando esté listo. Garabato"
-                                :order.status==="grabando"
-                                ?"¡Hola "+order.clientName+"! Excelentes noticias, ya estamos grabando tu *"+order.productName+"*. En breve estará listo para vos! Garabato"
-                                :order.status==="listo"
-                                ?"¡Hola "+order.clientName+"! Tu *"+order.productName+"* ya está listo"+(order.delivery==="local"?" para retirar en nuestra tienda. Horario: "+BUSINESS.schedule:" para enviar a "+order.deliveryCity)+". Gracias por confiar en nosotros! Garabato"
-                                :order.status==="enviado"
-                                ?"¡Hola "+order.clientName+"! Tu *"+order.productName+"* ya fue enviado por "+order.deliveryCompany+(order.trackingNumber?" con número de seguimiento *"+order.trackingNumber+"*":"")+". Cualquier consulta, estamos disponibles. Garabato"
-                                :"¡Hola "+order.clientName+"! Te contactamos de Garabato sobre tu pedido de *"+order.productName+"*. Garabato"
-                            )}>
-                            <WaIcon/>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {delivered.length>0&&(
-        <div style={{textAlign:"center",padding:"12px",fontSize:".76rem",color:"var(--dim)",marginTop:8}}>
-          {delivered.length} pedido{delivered.length!==1?"s":""} convertido{delivered.length!==1?"s":""} a venta
-        </div>
-      )}
-
-      {showForm&&(
-        <OrderForm order={editOrd} products={products} promoters={promoters} user={user} role={role}
-          onClose={()=>setShowForm(false)}
-          onSave={async o=>{await onSave(o);setShowForm(false);}}/>
-      )}
-    </div>
-  );
-}
-
-// ============================================================
-//  ORDER CARD  (lista expandible)
-// ============================================================
-function OrderCard({order, promoters, role, isLast, stateColor, onAdvance, onEdit, onDelete, onConvert, onEnviar, nextLabel}) {
-  const [open,setOpen] = useState(false);
-  const promoter = promoters.find(p=>p.id===order.promoterId);
-  return (
-    <div style={{background:"var(--s1)",borderBottom:isLast?"none":"1px solid var(--b1)"}}>
-      <div className="order-row" onClick={()=>setOpen(o=>!o)}>
-        <div className="order-bar" style={{background:stateColor}}/>
-        <div className="order-body">
-          <div className="order-name">{order.clientName}</div>
-          <div className="order-prod">
-            {order.productName}{order.customization?' — "'+order.customization+'"':""}
-          </div>
-          <div style={{marginTop:3,display:"flex",flexWrap:"wrap",gap:3}}>
-            {order.grabadoType&&(
-              <span style={{fontSize:".68rem",fontWeight:800,padding:"1px 6px",borderRadius:6,
-                background:order.grabadoType==="foto"?"rgba(168,85,247,.15)":order.grabadoType==="texto"?"rgba(224,198,17,.15)":"rgba(74,158,224,.15)",
-                color:order.grabadoType==="foto"?"#a855f7":order.grabadoType==="texto"?"#8a7800":"#4a9ee0"}}>
-                {order.grabadoType==="foto"?"📷 Foto":order.grabadoType==="texto"?"✏️ Texto":order.grabadoType==="vector"?"🎨 Vector":"🔧 Combinado"}
-              </span>
-            )}
-            {order.fotoViaWhatsapp&&order.status==="esperando_foto"&&(
-              <span style={{fontSize:".68rem",fontWeight:800,padding:"1px 6px",borderRadius:6,
-                background:"rgba(217,85,85,.15)",color:"var(--red)"}}>
-                ⏳ Foto pendiente
-              </span>
-            )}
-            {order.deliveryCountry&&order.deliveryCountry!=="Bolivia"&&(
-              <span style={{fontSize:".68rem",fontWeight:800,padding:"1px 6px",borderRadius:6,
-                background:"rgba(74,158,224,.15)",color:"#4a9ee0"}}>
-                🌎 Internacional
-              </span>
-            )}
-          </div>
-          <div className="order-meta">
-            <span>{order.promoterName?.split(" ")[0]}</span>
-            {order.delivery==="envio"&&<span style={{color:"var(--blu)"}}>{order.deliveryCountry&&order.deliveryCountry!=="Bolivia"?"🌎 ":""}Envío: {order.deliveryCity||"a definir"}</span>}
-            <span>{fmtDate(order.date)}</span>
-          </div>
-        </div>
-        <div style={{textAlign:"right",flexShrink:0}}>
-          <div className="order-amt">{order.deliveryCountry&&order.deliveryCountry!=="Bolivia"&&order.clientPriceUSD?"USD "+order.clientPriceUSD:fmt(order.clientPrice)}</div>
-          <div style={{fontSize:".68rem",color:"var(--dim)",marginTop:2}}>{open?"cerrar":"ver"}</div>
-        </div>
-      </div>
-      {open&&(
-        <div className="order-detail">
-
-          {/* Header info: días + origen */}
-          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
-            <span style={{fontSize:".68rem",fontWeight:800,padding:"2px 8px",borderRadius:10,
-              background:Math.floor((Date.now()-order.date)/86400000)>=2?"rgba(224,85,85,.15)":"var(--s2)",
-              color:Math.floor((Date.now()-order.date)/86400000)>=2?"var(--red)":"var(--muted)"}}>
-              {Math.floor((Date.now()-order.date)/86400000)===0?"Ingresado hoy":Math.floor((Date.now()-order.date)/86400000)+" dia"+(Math.floor((Date.now()-order.date)/86400000)!==1?"s":"")+" desde que ingreso"}
-            </span>
-            {order.isDirectSale&&(
-              <span style={{fontSize:".68rem",fontWeight:800,padding:"2px 8px",borderRadius:10,
-                background:"rgba(74,158,224,.15)",color:"#4a9ee0"}}>
-                🏪 Tienda directa
-              </span>
-            )}
-            {order.convertedToSale&&(
-              <span style={{fontSize:".68rem",fontWeight:800,padding:"2px 8px",borderRadius:10,
-                background:"rgba(46,204,113,.15)",color:"var(--grn)"}}>
-                ✓ Convertido a venta
-              </span>
-            )}
-          </div>
-
-          {/* Tipo de grabado */}
-          {order.grabadoType&&(
-            <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",
-              background:"var(--s2)",borderRadius:"var(--rsm)",marginBottom:8}}>
-              <div style={{fontSize:"1rem"}}>
-                {order.grabadoType==="foto"?"📷":order.grabadoType==="texto"?"✏️":order.grabadoType==="vector"?"🎨":"🔧"}
-              </div>
-              <div style={{flex:1}}>
-                <div style={{fontSize:".76rem",fontWeight:800,color:"var(--txt)"}}>
-                  {order.grabadoType==="foto"?"Fotograbado":order.grabadoType==="texto"?"Texto / Nombre":order.grabadoType==="vector"?"Logo / Dibujo":"Combinado"}
-                </div>
-                {order.customization&&(
-                  <div style={{fontSize:".68rem",color:"var(--gold)",fontStyle:"italic",marginTop:2}}>
-                    "{order.customization}"
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Alerta foto por WhatsApp */}
-          {order.fotoViaWhatsapp&&order.status==="esperando_foto"&&(
-            <div className="al al-warn" style={{marginBottom:8}}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              <span>Cliente envía la foto por WhatsApp — pendiente de recibir</span>
-            </div>
-          )}
-          {order.fotoViaWhatsapp&&order.status!=="esperando_foto"&&(
-            <div style={{fontSize:".68rem",color:"var(--muted)",marginBottom:8,display:"flex",alignItems:"center",gap:5}}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
-              Foto recibida por WhatsApp
-            </div>
-          )}
-
-          {/* Notas del grabado */}
-          {order.grabadoNotes&&(
-            <div style={{fontSize:".76rem",color:"var(--dim)",padding:"5px 8px",
-              background:"var(--s2)",borderRadius:"var(--rsm)",marginBottom:8}}>
-              Instrucciones: {order.grabadoNotes}
-            </div>
-          )}
-
-          {/* Notas generales */}
-          {order.notes&&(
-            <div style={{fontSize:".76rem",color:"var(--dim)",padding:"5px 8px",
-              background:"var(--s2)",borderRadius:"var(--rsm)",marginBottom:8}}>
-              Nota: {order.notes}
-            </div>
-          )}
-
-          {/* Envío */}
-          {order.delivery==="envio"&&order.deliveryCity&&(
-            <div style={{fontSize:".76rem",color:"var(--blu)",marginBottom:8,display:"flex",alignItems:"center",gap:5}}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h11a2 2 0 012 2v3"/><rect x="9" y="11" width="14" height="10" rx="2"/><circle cx="12" cy="20" r="1"/><circle cx="20" cy="20" r="1"/></svg>
-              Envío a: {order.deliveryCity}{order.deliveryAddress?" — "+order.deliveryAddress:""}
-            </div>
-          )}
-
-          {/* Historial de estados */}
-          {order.statusHistory&&order.statusHistory.length>1&&(
-            <div style={{marginBottom:8}}>
-              <div style={{fontSize:".68rem",color:"var(--dim)",fontWeight:700,textTransform:"uppercase",letterSpacing:.4,marginBottom:4}}>Historial</div>
-              <div style={{display:"flex",flexDirection:"column",gap:2}}>
-                {[...order.statusHistory].reverse().slice(0,4).map((h,i)=>{
-                  const st = ORDER_STATES.find(s=>s.id===h.status);
-                  return (
-                    <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:".68rem"}}>
-                      <span style={{color:st?.color||"var(--muted)",fontWeight:700}}>{st?.label||h.status}</span>
-                      <span style={{color:"var(--dim)"}}>{fmtDate(h.date)} {fmtHora(h.date)}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Tracking si fue enviado */}
-          {order.status==="enviado"&&order.deliveryCompany&&(
-            <div style={{fontSize:".76rem",color:"var(--teal)",marginBottom:8,padding:"6px 10px",
-              background:"rgba(17,200,184,.08)",borderRadius:"var(--rsm)",display:"flex",alignItems:"center",gap:6}}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
-              <div>
-                <div style={{fontWeight:700}}>Enviado por {order.deliveryCompany}</div>
-                {order.trackingNumber&&<div style={{marginTop:2}}>Tracking: {order.trackingNumber}</div>}
-              </div>
-            </div>
-          )}
-          <div className="order-actions">
-            {nextLabel&&CAN.editData(role)&&order.status!=="listo"&&(
-              <button className="btn btn-sm btn-teal" style={{fontSize:".76rem"}} onClick={onAdvance}>
-                Avanzar: {nextLabel}
-              </button>
-            )}
-            {order.status==="listo"&&CAN.editData(role)&&!order.convertedToSale&&(
-              <button className="btn btn-sm btn-teal" style={{fontSize:".76rem"}} onClick={onEnviar}>
-                Marcar como enviado
-              </button>
-            )}
-            {(order.status==="pago_confirmado"||order.status==="grabando"||order.status==="listo"||order.status==="enviado")&&!order.convertedToSale&&CAN.editData(role)&&(
-              <button className="btn btn-sm btn-gold" style={{fontSize:".76rem"}} onClick={onConvert}>
-                <Ic n="cart" s={12} c="#100d02"/> Convertir en venta
-              </button>
-            )}
-            {order.clientPhone&&(
-              <button className="wa-btn"
-                onClick={()=>openWhatsApp(order.clientPhone,
-                  order.status==="nuevo"
-                    ?"¡Hola "+order.clientName+"! Recibimos tu pedido de *"+order.productName+"*. Ya está registrado y pronto comenzamos. Gracias por elegirnos! Garabato"
-                    :order.status==="esperando_foto"
-                    ?"¡Hola "+order.clientName+"! Para continuar con tu pedido de *"+order.productName+"* necesitamos que nos enviés la foto que querés grabar respondiendo este mensaje. Garabato"
-                    :order.status==="disenando"
-                    ?"¡Hola "+order.clientName+"! Estamos trabajando en el diseño de tu *"+order.productName+"*. En breve te enviamos una vista previa para que la apruebes. Garabato"
-                    :order.status==="esperando_aprobacion"
-                    ?"¡Hola "+order.clientName+"! Te enviamos el diseño de tu pedido.\n\n*Producto:* "+order.productName+(order.customization?"\n*Grabado:* "+order.customization:"")+"\n\nRevisa el diseño adjunto y confirmanos si está todo bien para proceder con el grabado. Si querés algún cambio, avisanos! Garabato"
-                    :order.status==="pago_pendiente"
-                    ?"¡Hola "+order.clientName+"! El diseño de tu *"+order.productName+"* fue aprobado! El total a pagar es *Bs. "+order.clientPrice+"*. Podrás pagar en efectivo, QR o transferencia. Esperamos tu confirmación! Garabato"
-                    :order.status==="pago_confirmado"
-                    ?"¡Hola "+order.clientName+"! Confirmamos el pago recibido. Ya comenzamos el grabado de tu *"+order.productName+"*. Te avisamos cuando esté listo. Garabato"
-                    :order.status==="grabando"
-                    ?"¡Hola "+order.clientName+"! Excelentes noticias, ya estamos grabando tu *"+order.productName+"*. En breve estará listo para vos! Garabato"
-                    :order.status==="listo"
-                    ?"¡Hola "+order.clientName+"! Tu *"+order.productName+"* ya está listo"+(order.delivery==="local"?" para retirar en nuestra tienda. Horario: "+BUSINESS.schedule:" para enviar a "+order.deliveryCity)+". Gracias por confiar en nosotros! Garabato"
-                    :order.status==="enviado"
-                    ?"¡Hola "+order.clientName+"! Tu *"+order.productName+"* ya fue enviado por "+order.deliveryCompany+(order.trackingNumber?" con número de seguimiento *"+order.trackingNumber+"*":"")+". Cualquier consulta, estamos disponibles. Garabato"
-                    :"¡Hola "+order.clientName+"! Te contactamos de Garabato sobre tu pedido de *"+order.productName+"*. Garabato"
-                )}>
-                <WaIcon/>
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-function OrderForm({order, products, promoters, user, role, onClose, onSave}) {
-  const blank = {
-    id:uid("O"),clientName:"",clientPhone:"",
-    productId:"",productName:"",customization:"",clientPrice:"",
-    promoterId:  user.role==="promoter"?user.promoterId:"",
-    promoterName:user.role==="promoter"?(promoters.find(p=>p.id===user.promoterId)?.name||""):"",
-    grabadoType:"foto",grabadoText:"",grabadoNotes:"",fotoViaWhatsapp:false,deliveryCountry:"Bolivia",
-    delivery:"local",deliveryCity:"",deliveryAddress:"",notes:"",
-    status:"nuevo",statusHistory:[{status:"nuevo",date:Date.now()}],
-    date:Date.now(),convertedToSale:false,
-  };
-  const [f,setF] = useState(order||blank);
-  const set = (k,v)=>setF(x=>({...x,[k]:v}));
-  const valid = f.clientName&&f.productId&&(f.promoterId||f.promoterId==="DIRECTO")&&f.clientPrice;
-
-  return (
-    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
-      <div className="sheet">
-        <div className="sh-hd"/>
-        <div className="sh-title">{order?"Editar pedido":"Nuevo pedido"}</div>
-
-        <div className="price-box">
-          <div style={{fontSize:".76rem",color:"var(--muted)",fontWeight:800,textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>Datos del cliente</div>
-          <div className="fi2">
-            <div className="fg">
-              <label className="fl">Nombre</label>
-              <input className="fi" value={f.clientName} onChange={e=>set("clientName",e.target.value)} autoComplete="name" placeholder="Nombre del cliente"/>
-            </div>
-            <div className="fg">
-              <label className="fl">Teléfono</label>
-              <input className="fi" type="tel" autoComplete="tel" value={f.clientPhone} onChange={e=>set("clientPhone",e.target.value)} placeholder="7XXXXXXX"/>
-              <div className="fi-hint">Para WhatsApp directo</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="fg">
-          <label className="fl">Producto</label>
-          <div className="prod-grid">
-            {products.map(p=>(
-              <div key={p.id} className={"prod-card"+(f.productId===p.id?" sel":"")} onClick={()=>{set("productId",p.id);set("productName",p.name);set("clientPrice",p.clientPrice.toString());}}>
-                {p.photo?<img src={p.photo} alt={p.name} className="prod-card-img"/>:<div className="prod-card-ph">{p.name.charAt(0)}</div>}
-                <div className="prod-card-info">
-                  <div className="prod-card-name" style={{color:f.productId===p.id?"var(--gold)":"var(--txt)"}}>{p.name}</div>
-                  <div className="prod-card-price">{fmt(p.clientPrice)}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="fg">
-          <label className="fl">Precio acordado (Bs.)</label>
-          <input className="fi" type="number" inputMode="decimal" value={f.clientPrice} onChange={e=>set("clientPrice",e.target.value)} placeholder="0"/>
-        </div>
-
-        <div className="fg">
-          <label className="fl">Tipo de grabado</label>
-          <div className="pills" style={{marginBottom:10}}>
-            {[["foto","Fotograbado"],["texto","Texto/Nombre"],["vector","Logo/Dibujo"],["combinado","Combinado"]].map(([v,l])=>(
-              <button key={v} className={"pill"+(f.grabadoType===v?" act":"")} onClick={()=>set("grabadoType",v)}>{l}</button>
-            ))}
-          </div>
-          {f.grabadoType==="foto"&&(
-            <div className="al al-info" style={{marginBottom:10}}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              <div style={{flex:1}}>
-                <div style={{fontWeight:700,marginBottom:3}}>Foto del cliente</div>
-                <div className="pills">
-                  <button className={"pill"+(f.fotoViaWhatsapp?" act":"")} onClick={()=>set("fotoViaWhatsapp",true)}>Envia por WhatsApp</button>
-                  <button className={"pill"+(!f.fotoViaWhatsapp?" act":"")} onClick={()=>set("fotoViaWhatsapp",false)}>Sube en formulario</button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="fg">
-          <label className="fl">
-            {f.grabadoType==="foto"?"Referencia / descripción de la foto":f.grabadoType==="texto"?"Texto a grabar":"Descripción del diseño"}
-          </label>
-          {(f.grabadoType==="texto"||f.grabadoType==="combinado")&&f.customization&&(
-            <div className="lp">
-              <div style={{fontSize:".68rem",color:"var(--dim)",textTransform:"uppercase",letterSpacing:1,marginBottom:7}}>Vista previa laser</div>
-              <div className="lp-txt">{f.customization.toUpperCase()}</div>
-            </div>
-          )}
-          <input className="fi" value={f.customization} onChange={e=>set("customization",e.target.value)}
-            placeholder={f.grabadoType==="foto"?"Ej: foto de mascota, retrato, paisaje...":f.grabadoType==="texto"?"Ej: Ana y Luis 2024":"Ej: logo empresa, escudo, ilustracion..."}/>
-        </div>
-        <div className="fg">
-          <label className="fl">Notas del grabado (opcional)</label>
-          <textarea className="fta" value={f.grabadoNotes||""} onChange={e=>set("grabadoNotes",e.target.value)}
-            placeholder="Instrucciones especiales, tamaño, posición, referencias..."/>
-        </div>
-
-        <div className="fg">
-          <label className="fl">Origen del pedido</label>
-          <div style={{display:"flex",gap:7,marginBottom:10,flexWrap:"wrap"}}>
-            <button className={"pill"+(f.promoterId==="DIRECTO"?" act":"")}
-              onClick={()=>{set("promoterId","DIRECTO");set("promoterName","Tienda directa");}}>
-              🏪 Tienda directa
-            </button>
-            <button className={"pill"+(f.promoterId!=="DIRECTO"&&f.promoterId?"":" act-dimmed")}
-              style={{opacity:promoters.filter(p=>p.active).length===0?.4:1}}
-              onClick={()=>{if(f.promoterId==="DIRECTO"){set("promoterId","");set("promoterName","");}}}>
-              👤 Via promotora
-            </button>
-          </div>
-          {f.promoterId!=="DIRECTO"&&promoters.filter(p=>p.active).map(pr=>{
-            const isSelf=user.role==="promoter"&&user.promoterId===pr.id;
-            return (
-              <div key={pr.id} onClick={()=>{set("promoterId",pr.id);set("promoterName",pr.name);}} style={{
-                display:"flex",alignItems:"center",gap:10,padding:"10px 12px",
-                background:f.promoterId===pr.id?"linear-gradient(145deg,#18140a,#201c0e)":"var(--s2)",
-                border:"1px solid "+(f.promoterId===pr.id?"var(--gd)":"var(--b1)"),
-                borderRadius:"var(--rsm)",cursor:"pointer",marginBottom:7,transition:".2s",
-                opacity:user.role==="promoter"&&!isSelf?.3:1,
-                pointerEvents:user.role==="promoter"&&!isSelf?"none":"auto",
-              }}>
-                <div style={{width:30,height:30,borderRadius:"50%",
-                  background:f.promoterId===pr.id?"var(--gd)":"var(--b1)",
-                  display:"flex",alignItems:"center",justifyContent:"center",
-                  fontFamily:"Cormorant Garamond,serif",color:f.promoterId===pr.id?"#100d02":"var(--muted)",flexShrink:0}}>
-                  {pr.name.charAt(0)}
-                </div>
-                <span style={{fontWeight:700,fontSize:".86rem",color:f.promoterId===pr.id?"var(--gold)":"var(--txt)"}}>{pr.name}</span>
-                {f.promoterId===pr.id&&<Ic n="check" s={15} c="var(--gold)"/>}
-              </div>
-            );
-          })}
-        }
-        </div>
-
-        <div className="fg">
-          <label className="fl">Entrega</label>
-          <div className="pills" style={{marginBottom:10}}>
-            <button className={"pill"+(f.delivery==="local"?" act":"")} onClick={()=>set("delivery","local")}>Retiro en tienda</button>
-            <button className={"pill"+(f.delivery==="envio"?" act":"")} onClick={()=>set("delivery","envio")}>Envío a domicilio</button>
-          </div>
-          {f.delivery==="envio"&&(
-            <>
-            <div className="fg" style={{marginBottom:8}}>
-              <label className="fl">País de destino</label>
-              <div className="pills" style={{flexWrap:"wrap"}}>
-                {["Bolivia","Argentina","Brasil","Peru","Chile","Otro"].map(c=>(
-                  <button key={c} className={"pill"+((f.deliveryCountry||"Bolivia")===c?" act":"")} onClick={()=>set("deliveryCountry",c)}>{c}</button>
-                ))}
-              </div>
-              {(f.deliveryCountry&&f.deliveryCountry!=="Bolivia")&&(
-                <div className="al al-info" style={{marginTop:8}}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                  <span>Envío internacional — recordar usar DHL o FedEx</span>
-                </div>
-              )}
-            </div>
-            <div className="fi2">
-              <div className="fg">
-                <label className="fl">Ciudad</label>
-                <input className="fi" value={f.deliveryCity} onChange={e=>set("deliveryCity",e.target.value)} placeholder="Ej: Santa Cruz"/>
-              </div>
-              <div className="fg">
-                <label className="fl">Dirección</label>
-                <input className="fi" value={f.deliveryAddress} onChange={e=>set("deliveryAddress",e.target.value)} placeholder="Referencia o dirección"/>
-              </div>
-            </div>
-            </>
-          )}
-        </div>
-        <div className="fg">
-          <label className="fl">Notas internas</label>
-          <textarea className="fta" value={f.notes} onChange={e=>set("notes",e.target.value)} placeholder="Detalles, instrucciones especiales..."/>
-        </div>
-
-        <div className="row mt12">
-          <button className="btn btn-out" onClick={onClose}>Cancelar</button>
-          <button className="btn btn-gold" disabled={!valid} onClick={()=>onSave({
-              ...f,
-              clientPrice:parseFloat(f.clientPrice)||0,
-              status:f.fotoViaWhatsapp&&f.grabadoType==="foto"?"esperando_foto":"nuevo",
-              statusHistory:[{status:f.fotoViaWhatsapp&&f.grabadoType==="foto"?"esperando_foto":"nuevo",date:Date.now()}],
-            })}>
-            <Ic n="check" s={16} c="#100d02"/> Guardar pedido
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
@@ -4292,93 +3549,6 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
             )}
           </>
         )}
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
-//  CONVERT TO SALE MODAL
-// ============================================================
-function ConvertToSaleModal({order, onClose, onConfirm}) {
-  const [pm, setPm] = useState("efectivo");
-  return (
-    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
-      <div className="sheet">
-        <div className="sh-hd"/>
-        <div className="sh-title">Convertir en venta</div>
-        <div className="pb" style={{marginBottom:16}}>
-          <div className="pbr"><span className="pbk">Cliente</span><span className="pbv">{order.clientName}</span></div>
-          <div className="pbr"><span className="pbk">Producto</span><span className="pbv">{order.productName}</span></div>
-          {order.customization&&<div className="pbr"><span className="pbk">Grabado</span><span className="pbv pbv-gold">"{order.customization}"</span></div>}
-          <div className="pbr sep"><span className="pbk">Total</span><span className="pbv pbv-gold" style={{fontSize:"1.2rem"}}>{new Intl.NumberFormat("es-BO",{style:"currency",currency:"BOB"}).format(order.clientPrice)}</span></div>
-        </div>
-        <div className="fg">
-          <label className="fl">Método de pago</label>
-          <div className="pills">
-            {[["efectivo","Efectivo"],["transferencia","Transferencia"],["qr","QR"]].map(([v,l])=>(
-              <button key={v} className={"pill"+(pm===v?" act":"")} onClick={()=>setPm(v)}>{l}</button>
-            ))}
-          </div>
-        </div>
-        <div className="al al-ok mt12">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
-          <span>El pedido quedará marcado como convertido y se creará la venta automáticamente.</span>
-        </div>
-        <div className="row mt12">
-          <button className="btn btn-out" onClick={onClose}>Cancelar</button>
-          <button className="btn btn-gold" onClick={()=>onConfirm(pm)} style={{flex:2}}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0a0a00" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
-            Confirmar venta
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ============================================================
-//  SHIP ORDER MODAL
-// ============================================================
-function ShipOrderModal({order, onClose, onConfirm}) {
-  const [empresa, setEmpresa] = useState("");
-  const [tracking, setTracking] = useState("");
-  const [customEmpresa, setCustomEmpresa] = useState("");
-  const empresas = ["Yango","Trans. Copacabana","Trans. Bolivar","Trans. Expreso","Trans. 1ro de Mayo","DHL","FedEx","Otra"];
-  const empresaFinal = empresa === "Otra" ? customEmpresa : empresa;
-  return (
-    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
-      <div className="sheet">
-        <div className="sh-hd"/>
-        <div className="sh-title"><Ic n="truck" s={18}/> Marcar como enviado</div>
-        <div className="pb" style={{marginBottom:16}}>
-          <div className="pbr"><span className="pbk">Cliente</span><span className="pbv">{order.clientName}</span></div>
-          <div className="pbr"><span className="pbk">Producto</span><span className="pbv">{order.productName}</span></div>
-          <div className="pbr"><span className="pbk">Destino</span><span className="pbv">{(order.deliveryCountry&&order.deliveryCountry!=="Bolivia"?order.deliveryCountry+" — ":"")+( order.deliveryCity||"Sin especificar")}</span></div>
-        </div>
-        <div className="fg">
-          <label className="fl">Empresa de transporte</label>
-          <div className="pills" style={{marginBottom:8,flexWrap:"wrap"}}>
-            {empresas.map(e=>(
-              <button key={e} className={"pill"+(empresa===e?" act":"")} onClick={()=>setEmpresa(e)}>{e}</button>
-            ))}
-          </div>
-          {empresa==="Otra"&&(
-            <input className="fi" value={customEmpresa} onChange={e=>setCustomEmpresa(e.target.value)} placeholder="Nombre de la empresa"/>
-          )}
-        </div>
-        <div className="fg">
-          <label className="fl">Número de seguimiento (opcional)</label>
-          <input className="fi" value={tracking} onChange={e=>setTracking(e.target.value)} placeholder="Ej: 123456789"/>
-          <div className="fi-hint">Si tenes número de tracking para el cliente</div>
-        </div>
-        <div className="row mt12">
-          <button className="btn btn-out" onClick={onClose}>Cancelar</button>
-          <button className="btn btn-gold" disabled={!empresaFinal} onClick={()=>onConfirm(empresaFinal,tracking)} style={{flex:2}}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0a0a00" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
-            Confirmar envío
-          </button>
-        </div>
       </div>
     </div>
   );
