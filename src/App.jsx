@@ -1200,7 +1200,6 @@ export default function App() {
   const [expenses, setExpenses]  = useState([]);
   const [payments, setPayments]  = useState([]);
   const [users,    setUsers]     = useState([]);
-  const [orders,   setOrders]    = useState([]);
   const {show:toast, ToastContainer} = useToast();
 
   useEffect(()=>{
@@ -1373,8 +1372,7 @@ export default function App() {
   const PageContent = ()=>(
     <>
       {page==="home"     && <HomePage sales={sales} products={products} promoters={promoters}
-        expenses={expenses} role={role} orders={orders} user={user}
-        []={[]} onGoOrders={()=>setPage("orders")}/>}
+        expenses={expenses} role={role} user={user}/>}
       {page==="sales"    && <SalesPage sales={sales} role={role} user={user} promoters={promoters}
         onMarkPaid={handleMarkPaid} onEdit={handleEditSale}
         onDelete={role==="admin"?sale=>setDeleteSale(sale):null}/>}
@@ -1688,10 +1686,9 @@ function TopBar({user, online, pendingSync, syncing, onSync, onLogout, onBackup}
 // ============================================================
 //  HOME PAGE
 // ============================================================
-function HomePage({sales, products, promoters, expenses, role, orders, user, [], onGoOrders}) {
+function HomePage({sales, products, promoters, expenses, role, user}) {
   const td = todayMs();
   const mySales  = role==="promoter" ? sales.filter(s=>s.promoterId===user.promoterId) : sales;
-  const myOrders = role==="promoter" ? orders.filter(o=>o.promoterId===user.promoterId) : orders;
 
   const todaySales = mySales.filter(s=>s.date>=td);
   const totalToday = todaySales.reduce((a,s)=>a+s.clientPrice,0);
@@ -1702,7 +1699,6 @@ function HomePage({sales, products, promoters, expenses, role, orders, user, [],
   const pendComm   = sales.filter(s=>s.commissionStatus==="pendiente").reduce((a,s)=>a+s.commission,0);
   const myPendComm = mySales.filter(s=>s.commissionStatus==="pendiente").reduce((a,s)=>a+s.commission,0);
   const lowStock   = products.filter(p=>p.stock<=p.lowStockAlert);
-  const activeOrders = myOrders.filter(o=>!o.convertedToSale).length;
 
   return (
     <div className="pe">
@@ -1736,64 +1732,7 @@ function HomePage({sales, products, promoters, expenses, role, orders, user, [],
         </div>
       )}
 
-      {[].length>0&&(
-        <div className="notify-bar" onClick={onGoOrders}>
-          <div className="notify-dot"/>
-          <div style={{flex:1}}>
-            <div style={{fontWeight:700,fontSize:".86rem",color:"var(--grn)"}}>
-              {[].length} pedido{[].length>1?"s":""} listo{[].length>1?"s":""} para entregar
-            </div>
-            <div style={{fontSize:".76rem",color:"var(--muted)",marginTop:2}}>Ver pedidos listos</div>
-          </div>
-          <Ic n="check" s={18} c="var(--grn)"/>
-        </div>
-      )}
 
-      {(()=>{
-        const dormidos = myOrders.filter(o=>
-          !o.convertedToSale &&
-          o.status!=="listo" && o.status!=="enviado" &&
-          (Date.now()-o.date) > 2*86400000
-        );
-        return dormidos.length>0 ? (
-          <div className="al al-warn" style={{cursor:"pointer"}} onClick={onGoOrders}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            <div style={{flex:1}}>
-              <div style={{fontWeight:800}}>
-                {dormidos.length} pedido{dormidos.length>1?"s":""} sin avanzar hace más de 2 días
-              </div>
-              <div style={{fontSize:".76rem",marginTop:2,opacity:.85}}>
-                {dormidos.slice(0,2).map(o=>o.clientName).join(", ")}{dormidos.length>2?" y "+(dormidos.length-2)+" más":""}
-              </div>
-            </div>
-          </div>
-        ) : null;
-      })()}
-
-      {role!=="promoter"&&activeOrders>0&&(
-        <div className="card" style={{marginBottom:12,padding:"12px 14px"}}>
-          <div style={{fontSize:".68rem",fontWeight:800,color:"var(--muted)",textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>
-            Pedidos activos — {activeOrders} en total
-          </div>
-          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-            {ORDER_STATES.filter(s=>s.id!=="listo"&&s.id!=="enviado").map(st=>{
-              const count = myOrders.filter(o=>o.status===st.id&&!o.convertedToSale).length;
-              if (!count) return null;
-              return (
-                <div key={st.id} onClick={onGoOrders} style={{
-                  display:"flex",alignItems:"center",gap:5,padding:"5px 10px",
-                  borderRadius:20,border:"1px solid "+st.border+"44",
-                  background:st.border+"11",cursor:"pointer"
-                }}>
-                  <div style={{width:6,height:6,borderRadius:"50%",background:st.color,flexShrink:0}}/>
-                  <span style={{fontSize:".68rem",fontWeight:800,color:st.color}}>{st.label}</span>
-                  <span style={{fontSize:".76rem",fontWeight:800,color:"var(--txt)"}}>{count}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {CAN.seeReports(role)&&(
         <>
@@ -1806,8 +1745,8 @@ function HomePage({sales, products, promoters, expenses, role, orders, user, [],
             <div className="sc hr"><div className="sl">Com. pendientes</div><div className="sv red">{fmt(pendComm)}</div><div className="ss">Por liquidar</div></div>
           </div>
           <div className="g2">
-            <div className="sc"><div className="sl">Pedidos activos</div><div className="sv gold">{activeOrders}</div><div className="ss">En proceso</div></div>
-            <div className="sc"><div className="sl">Listos hoy</div><div className="sv grn">{[].length}</div><div className="ss">Para entregar</div></div>
+            <div className="sc"><div className="sl">Productos</div><div className="sv gold">{products.length}</div><div className="ss">En catálogo</div></div>
+            <div className="sc"><div className="sl">Promotoras</div><div className="sv grn">{promoters.filter(p=>p.active).length}</div><div className="ss">Activas</div></div>
           </div>
         </>
       )}
@@ -1834,7 +1773,7 @@ function HomePage({sales, products, promoters, expenses, role, orders, user, [],
       {role==="employee"&&(
         <div className="g2">
           <div className="sc hg"><div className="sl">Ventas hoy</div><div className="sv gold">{todaySales.length}</div><div className="ss">Registradas hoy</div></div>
-          <div className="sc"><div className="sl">Pedidos activos</div><div className="sv">{activeOrders}</div><div className="ss">En proceso</div></div>
+          <div className="sc"><div className="sl">Ventas hoy</div><div className="sv">{todaySales.length}</div><div className="ss">Registradas</div></div>
         </div>
       )}
 
