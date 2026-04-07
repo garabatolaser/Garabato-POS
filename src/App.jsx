@@ -1496,7 +1496,7 @@ export default function App() {
       )}
 
       <div className="content">
-        <PageContent/>
+        {PageContent()}
       </div>
 
       {/* FAB - solo mobile */}
