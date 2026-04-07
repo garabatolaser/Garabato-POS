@@ -671,11 +671,11 @@ const SB_MAP = {
 };
 
 async function sbPull(store) {
-  const map = SB_MAP[store]; if (!map) return [];
+  const map = SB_MAP[store]; if (!map) return null;
   try {
     const rows = await sbFetch(map.table + "?select=*");
     return (rows||[]).map(map.fromSB);
-  } catch(e) { console.warn("sbPull error:", store, e.message); return []; }
+  } catch(e) { console.warn("sbPull error:", store, e.message); return null; }
 }
 
 async function sbPush(store, record) {
@@ -697,14 +697,17 @@ async function sbDelete(store, id) {
 }
 
 // Sync completo: baja todo de Supabase y reemplaza IndexedDB local
+// Si sbPull devuelve null (error de red), se salta esa tabla (no toca el local)
+// Si devuelve [] (tabla vacía en Supabase), limpia el local también
 async function syncFromSupabase() {
   const db = await openDB();
   for (const store of ["users","products","promoters","sales","expenses","commissionPayments"]) {
     const rows = await sbPull(store);
-    if (!rows.length) continue;
+    if (rows === null) continue; // error de red: mantener datos locales
     await new Promise((res,rej)=>{
       const tx = db.transaction(store,"readwrite");
       const st = tx.objectStore(store);
+      st.clear(); // limpiar primero para reflejar el estado real de Supabase
       rows.forEach(r=>st.put(r));
       tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error);
     });
