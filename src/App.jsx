@@ -1274,7 +1274,7 @@ export default function App() {
       for (const s of ps) await dbPut("sales",{...s,synced:true});
       for (const e of pe) await dbPut("expenses",{...e,synced:true});
       await reload();
-      const total = ps.length+pe.length+po.length;
+      const total = ps.length+pe.length;
       toast(total>0?total+" registro"+(total!==1?"s":"")+" sincronizados":"✓ Todo sincronizado","ok");
     } catch(e) {
       toast("Error al sincronizar","err");
@@ -1284,7 +1284,7 @@ export default function App() {
   };
 
   const handleBackup = async ()=>{
-    const [pr,prm,sl,ex,pay,ord,usr]=await Promise.all([
+    const [pr,prm,sl,ex,pay,usr]=await Promise.all([
       dbAll("products"),dbAll("promoters"),dbAll("sales"),dbAll("expenses"),
       dbAll("commissionPayments"),dbAll("users"),
     ]);
@@ -1296,7 +1296,6 @@ export default function App() {
       sales:sl,
       expenses:ex,
       commissionPayments:pay,
-      orders:ord,
       users:usr.map(u=>({...u,pin:"[OCULTO]"})), // no exportar PINs reales
     });
     toast("✓ Backup descargado","ok");
@@ -1424,9 +1423,8 @@ export default function App() {
           <div style={{padding:"8px 10px",borderTop:"1px solid var(--b1)"}}>
             <div style={{fontSize:".68rem",color:"#555",fontWeight:700,textTransform:"uppercase",letterSpacing:.5,marginBottom:6}}>Resumen de hoy</div>
             {(()=>{
-              const todaySales = sales.filter(s=>s.date>=todayMs());
-              const activeOrd  = orders.filter(o=>!o.convertedToSale).length;
-              const readyOrd   = orders.filter(o=>o.status==="listo"&&!o.convertedToSale).length;
+              const todaySales = sales.filter(s=>s.date>=todayMs()&&!s.deleted);
+              const todayTotal = todaySales.reduce((a,s)=>a+s.clientPrice,0);
               return (
                 <div style={{display:"flex",flexDirection:"column",gap:4}}>
                   <div style={{display:"flex",justifyContent:"space-between",fontSize:".76rem"}}>
@@ -1434,15 +1432,9 @@ export default function App() {
                     <span style={{color:"#e0c611",fontWeight:800}}>{todaySales.length}</span>
                   </div>
                   <div style={{display:"flex",justifyContent:"space-between",fontSize:".76rem"}}>
-                    <span style={{color:"#666"}}>Pedidos activos</span>
-                    <span style={{color:"#e0c611",fontWeight:800}}>{activeOrd}</span>
+                    <span style={{color:"#666"}}>Total hoy</span>
+                    <span style={{color:"#e0c611",fontWeight:800}}>{fmt(todayTotal)}</span>
                   </div>
-                  {readyOrd>0&&(
-                    <div style={{display:"flex",justifyContent:"space-between",fontSize:".76rem"}}>
-                      <span style={{color:"#2ecc71"}}>Listos p/ entregar</span>
-                      <span style={{color:"#2ecc71",fontWeight:800}}>{readyOrd}</span>
-                    </div>
-                  )}
                 </div>
               );
             })()}
