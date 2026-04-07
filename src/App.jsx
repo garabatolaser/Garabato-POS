@@ -623,6 +623,11 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 .flt > *{flex-shrink:0}
 .card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:15px;margin-bottom:11px}
 .card-gold{background:linear-gradient(145deg,#0f0e00,#1a1800);border-color:#5a4800}
+.cfg-row{display:flex;align-items:center;gap:10px;padding:12px 14px;
+  background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);margin-bottom:8px}
+.cfg-row-name{font-weight:700;font-size:1rem;color:var(--txt)}
+.app-light .cfg-row{background:var(--ls1);border-color:var(--lb1)}
+.app-light .cfg-row-name{color:var(--ltxt)}
 `;
 
 // ============================================================
@@ -2143,7 +2148,7 @@ function ProductForm({product, onClose, onSave}) {
               {uploading?"Procesando imagen...":"Seleccionar imagen del producto"}
             </button>
           )}
-          <input ref={fileRef} type="file" accept="image/*" capture="environment"
+          <input ref={fileRef} type="file" accept="image/*"
             style={{display:"none"}} onChange={handlePhoto}/>
           <div className="fi-hint">La imagen se comprime automáticamente para no ocupar memoria</div>
         </div>
@@ -2934,15 +2939,14 @@ function SettingsPage({users, products, promoters, onSaveUser, onDelUser, onSave
             <Ic n="plus" s={16} c="#100d02"/> Agregar usuario
           </button>
           {users.map(u=>(
-            <div key={u.id} style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",
-              background:"var(--s1)",border:"1px solid var(--b1)",borderRadius:"var(--r)",marginBottom:8}}>
+            <div key={u.id} className="cfg-row">
               <div style={{width:34,height:34,borderRadius:"50%",background:"var(--s2)",
                 display:"flex",alignItems:"center",justifyContent:"center",
-                fontWeight:800,fontSize:".86rem",color:"var(--muted)",flexShrink:0}}>
+                fontWeight:800,fontSize:".86rem",color:"var(--gold)",flexShrink:0}}>
                 {u.name.charAt(0)}
               </div>
               <div style={{flex:1}}>
-                <div style={{fontWeight:700,fontSize:"1rem"}}>{u.name}</div>
+                <div className="cfg-row-name">{u.name}</div>
                 <div style={{fontSize:".76rem",color:"var(--muted)",marginTop:2}}>
                   <span className={"chip "+(ROLE_CLASS[u.role]||"ch-dim")}>{ROLE_LABEL[u.role]||u.role}</span>
                   {u.promoterId&&<span style={{marginLeft:6,color:"var(--dim)"}}>Promotora vinculada</span>}
