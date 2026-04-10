@@ -253,12 +253,13 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 .splash-sub{font-size:.76rem;color:var(--muted);letter-spacing:2px;margin-bottom:40px;text-transform:uppercase}
 .ugrid{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px}
 .ub{background:#e0c611;border:none;border-radius:var(--r);padding:20px 12px;
-  cursor:pointer;text-align:center;transition:.2s;-webkit-appearance:none;outline:none}
+  cursor:pointer;text-align:center;transition:.2s;-webkit-appearance:none;outline:none;
+  user-select:none;-webkit-user-select:none}
 .ub.sel{background:#c8b000;box-shadow:0 0 0 3px #e0c61166}
 .ub-ico{display:none}
-.ub-name{font-size:.86rem;font-weight:700;color:#0a0a00}
+.ub-name{font-size:.86rem;font-weight:700;color:#0a0a00;user-select:none;-webkit-user-select:none}
 .ub.sel .ub-name{color:#0a0a00}
-.ub-role{font-size:.68rem;margin-top:6px}
+.ub-role{font-size:.68rem;margin-top:6px;user-select:none;-webkit-user-select:none}
 .pin-hd{text-align:center;font-size:.86rem;color:var(--muted);margin-bottom:14px}
 .pin-hd b{color:var(--gold)}
 .pin-dots{display:flex;justify-content:center;gap:12px;margin-bottom:20px}
@@ -266,7 +267,8 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 .pd.on{background:var(--gold);border-color:var(--gold);box-shadow:0 0 10px rgba(200,168,75,.5)}
 .pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;max-width:336px;margin:0 auto}
 .pk{aspect-ratio:1/1;background:var(--s2);border:1px solid var(--b1);border-radius:20px;
-  font-size:1.8rem;font-weight:700;color:var(--txt);cursor:pointer;transition:.15s;-webkit-appearance:none;outline:none}
+  font-size:1.8rem;font-weight:700;color:var(--txt);cursor:pointer;transition:.15s;-webkit-appearance:none;outline:none;
+  user-select:none;-webkit-user-select:none}
 .pk:active{background:var(--s3);transform:scale(.93)}
 .pk.del{font-size:.86rem;color:var(--muted)}
 .pin-err{text-align:center;font-size:.86rem;color:var(--red);margin-top:10px;min-height:18px}
