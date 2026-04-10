@@ -264,9 +264,9 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 .pin-dots{display:flex;justify-content:center;gap:12px;margin-bottom:20px}
 .pd{width:16px;height:16px;border-radius:50%;background:var(--b1);border:1px solid var(--b2);transition:.2s}
 .pd.on{background:var(--gold);border-color:var(--gold);box-shadow:0 0 10px rgba(200,168,75,.5)}
-.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:320px;margin:0 auto}
-.pk{height:72px;background:var(--s2);border:1px solid var(--b1);border-radius:var(--rsm);
-  font-size:1.5rem;font-weight:700;color:var(--txt);cursor:pointer;transition:.15s;-webkit-appearance:none;outline:none}
+.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:360px;margin:0 auto}
+.pk{height:90px;background:var(--s2);border:1px solid var(--b1);border-radius:var(--rsm);
+  font-size:1.9rem;font-weight:700;color:var(--txt);cursor:pointer;transition:.15s;-webkit-appearance:none;outline:none}
 .pk:active{background:var(--s3);transform:scale(.93)}
 .pk.del{font-size:.86rem;color:var(--muted)}
 .pin-err{text-align:center;font-size:.86rem;color:var(--red);margin-top:10px;min-height:18px}
@@ -1723,11 +1723,6 @@ function LoginScreen({users, onLogin}) {
             ))}
           </div>
           <div className="pin-err">{err}</div>
-          {!err&&!pin&&(
-            <div style={{textAlign:"center",fontSize:".76rem",color:"var(--dim)",marginTop:10,lineHeight:1.5}}>
-              Primera vez? El PIN por defecto es <b style={{color:"var(--gold)"}}>1234</b>
-            </div>
-          )}
         </>
       )}
     </div>
