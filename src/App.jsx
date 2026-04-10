@@ -264,8 +264,8 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 .pin-dots{display:flex;justify-content:center;gap:12px;margin-bottom:20px}
 .pd{width:16px;height:16px;border-radius:50%;background:var(--b1);border:1px solid var(--b2);transition:.2s}
 .pd.on{background:var(--gold);border-color:var(--gold);box-shadow:0 0 10px rgba(200,168,75,.5)}
-.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:300px;margin:0 auto}
-.pk{aspect-ratio:1/1;background:var(--s2);border:1px solid var(--b1);border-radius:16px;
+.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;max-width:336px;margin:0 auto}
+.pk{aspect-ratio:1/1;background:var(--s2);border:1px solid var(--b1);border-radius:20px;
   font-size:1.8rem;font-weight:700;color:var(--txt);cursor:pointer;transition:.15s;-webkit-appearance:none;outline:none}
 .pk:active{background:var(--s3);transform:scale(.93)}
 .pk.del{font-size:.86rem;color:var(--muted)}
