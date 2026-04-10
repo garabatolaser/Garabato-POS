@@ -317,7 +317,7 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 @keyframes pe{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
 /* TYPOGRAPHY / SECTION HEADERS */
-.shd{font-family:'Playfair Display',serif;font-size:1.2rem;color:var(--txt);
+.shd{font-family:'DM Sans',sans-serif;font-size:1.1rem;font-weight:800;color:var(--txt);
   margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
 .shd-l{display:flex;align-items:center;gap:7px}
 
@@ -328,7 +328,7 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 .sc.ht{background:linear-gradient(145deg,#081312,#0e1e1c);border-color:var(--td)}
 .sc.hr{background:linear-gradient(145deg,#120909,#1a0e0e);border-color:var(--rd)}
 .sl{font-size:.68rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
-.sv{font-family:'Playfair Display',serif;font-size:1.5rem;color:var(--txt);line-height:1}
+.sv{font-family:'DM Sans',sans-serif;font-size:1.5rem;font-weight:800;color:var(--txt);line-height:1}
 .sv.gold{color:var(--gold)}.sv.teal{color:var(--teal)}.sv.sv.grn{color:var(--grn)}
 .ss{font-size:.68rem;color:var(--dim);margin-top:3px}
 
@@ -406,7 +406,7 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .si-meta{font-size:.68rem;color:var(--dim);margin-top:3px;display:flex;gap:7px;flex-wrap:wrap}
 .si-r{text-align:right;flex-shrink:0}
-.si-amt{font-family:'Playfair Display',serif;font-size:1rem;color:var(--gold)}
+.si-amt{font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:800;color:var(--gold)}
 .si-sub{font-size:.68rem;color:var(--muted);margin-top:1px}
 .sdot{position:absolute;top:9px;right:9px;width:6px;height:6px;border-radius:50%}
 .sd-ok{background:var(--grn)}.sd-no{background:var(--red)}
@@ -421,7 +421,7 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 .pc-name{font-weight:700;font-size:1rem}
 .pc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .pcs{background:var(--s2);border-radius:6px;padding:8px 6px;text-align:center}
-.pcs-v{font-family:'Playfair Display',serif;font-size:1rem}
+.pcs-v{font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:800}
 .pcs-l{font-size:.68rem;color:var(--dim);margin-top:2px}
 
 /* VISUAL PRODUCT GRID (selector) */
@@ -436,7 +436,7 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 .prod-card-info{padding:9px 10px}
 .prod-card-name{font-size:.86rem;font-weight:700;line-height:1.2;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.prod-card-price{font-family:'Playfair Display',serif;font-size:1rem;color:var(--gold);margin-top:3px}
+.prod-card-price{font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:800;color:var(--gold);margin-top:3px}
 .prod-card-sub{font-size:.68rem;color:var(--dim);margin-top:1px}
 
 /* PHOTO UPLOAD */
@@ -458,12 +458,12 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 .prc-h{display:flex;align-items:center;gap:10px;margin-bottom:11px}
 .prc-av{width:40px;height:40px;border-radius:50%;background:linear-gradient(145deg,var(--gd),var(--s3));
   display:flex;align-items:center;justify-content:center;
-  font-family:'Playfair Display',serif;font-size:1rem;color:var(--gold);flex-shrink:0}
+  font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:800;color:var(--gold);flex-shrink:0}
 .prc-name{font-weight:700;font-size:1rem}
 .prc-ph{font-size:.76rem;color:var(--muted);margin-top:2px}
 .prc-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
 .prs{background:var(--s2);border-radius:7px;padding:9px 7px;text-align:center}
-.prs-v{font-family:'Playfair Display',serif;font-size:1rem;color:var(--gold)}
+.prs-v{font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:800;color:var(--gold)}
 .prs-l{font-size:.68rem;color:var(--dim);margin-top:2px}
 
 /* EXPENSE ROW */
@@ -475,7 +475,7 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 .ei-type{font-weight:700;font-size:.86rem}
 .ei-desc{font-size:.76rem;color:var(--muted);margin-top:1px}
 .ei-date{font-size:.68rem;color:var(--dim);margin-top:2px}
-.ei-amt{font-family:'Playfair Display',serif;font-size:1rem;color:var(--red);text-align:right;flex-shrink:0}
+.ei-amt{font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:800;color:var(--red);text-align:right;flex-shrink:0}
 
 /* MODAL / SHEET */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:300;
@@ -484,7 +484,7 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
   padding:18px 18px max(18px,env(safe-area-inset-bottom));
   max-height:94dvh;overflow-y:auto;border-top:1px solid var(--b2);box-shadow:var(--sh-lg)}
 .sh-hd{width:32px;height:3px;background:var(--b2);border-radius:2px;margin:0 auto 18px}
-.sh-title{font-family:'Playfair Display',serif;font-size:1.2rem;margin-bottom:16px}
+.sh-title{font-family:'DM Sans',sans-serif;font-size:1.1rem;font-weight:800;margin-bottom:16px}
 
 /* SALE STEPS */
 .steps{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:18px}
@@ -533,7 +533,7 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
   border-radius:50%;display:flex;align-items:center;justify-content:center;
   margin-bottom:16px;animation:pop .4s cubic-bezier(.175,.885,.32,1.275)}
 @keyframes pop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
-.suc-title{font-family:'Playfair Display',serif;font-size:1.5rem;margin-bottom:6px}
+.suc-title{font-family:'DM Sans',sans-serif;font-size:1.4rem;font-weight:800;margin-bottom:6px}
 
 /* ALERTS */
 .al{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:var(--rsm);
@@ -564,7 +564,7 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 .order-name{font-weight:700;font-size:.86rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .order-prod{font-size:.76rem;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .order-meta{font-size:.68rem;color:var(--dim);margin-top:2px;display:flex;gap:7px;flex-wrap:wrap}
-.order-amt{font-family:'Playfair Display',serif;font-size:1rem;color:var(--gold);flex-shrink:0}
+.order-amt{font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:800;color:var(--gold);flex-shrink:0}
 .order-detail{padding:0 13px 12px 27px;border-top:1px solid var(--b1)}
 .order-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .kanban-wrap{display:flex;gap:10px;overflow-x:auto;padding-bottom:12px;
@@ -604,7 +604,7 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
   border:1px solid var(--b1);border-radius:var(--r);margin-bottom:8px;box-shadow:var(--sh-sm)}
 .pay-av{width:38px;height:38px;border-radius:50%;background:linear-gradient(145deg,var(--gd),var(--s3));
   display:flex;align-items:center;justify-content:center;
-  font-family:'Playfair Display',serif;font-size:1rem;color:var(--gold);flex-shrink:0}
+  font-family:'DM Sans',sans-serif;font-size:1rem;font-weight:800;color:var(--gold);flex-shrink:0}
 
 /* MISC */
 .price-box{background:var(--s2);border-radius:var(--r);padding:13px;margin-bottom:13px;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
@@ -1413,7 +1413,7 @@ export default function App() {
       height:"100dvh",background:"#0a0a08",gap:20}}>
       <img src={LOGO_B64} style={{width:80,height:80,borderRadius:16,
         animation:"pulse 1.5s ease-in-out infinite",objectFit:"cover"}}/>
-      <div style={{fontFamily:"Playfair Display,serif",fontSize:"1.5rem",
+      <div style={{fontFamily:"DM Sans,sans-serif",fontWeight:800,fontSize:"1.5rem",
         color:"#e0c611",letterSpacing:"3px"}}>GARABATO</div>
       <div style={{fontSize:".76rem",color:"#555",letterSpacing:"1px",
         textTransform:"uppercase"}}>Cargando...</div>
@@ -1628,7 +1628,7 @@ export default function App() {
             <div className="sh-hd"/>
             <div style={{textAlign:"center",marginBottom:20}}>
               <div style={{fontSize:"2rem",marginBottom:8}}>🎉</div>
-              <div style={{fontFamily:"Playfair Display,serif",fontSize:"1.5rem",color:"var(--gold)",marginBottom:6}}>
+              <div style={{fontFamily:"DM Sans,sans-serif",fontWeight:800,fontSize:"1.5rem",color:"var(--gold)",marginBottom:6}}>
                 Bienvenido a Garabato POS
               </div>
               <div style={{fontSize:".86rem",color:"var(--muted)",lineHeight:1.6}}>
@@ -1800,7 +1800,7 @@ function HomePage({sales, products, promoters, expenses, role, user}) {
           {new Date().toLocaleDateString("es-BO",{weekday:"long",day:"numeric",month:"long"})}
         </div>
         <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between"}}>
-          <div style={{fontFamily:"Playfair Display,serif",fontSize:"2rem",color:"var(--gold)",lineHeight:1}}>
+          <div style={{fontFamily:"DM Sans,sans-serif",fontWeight:800,fontSize:"2rem",color:"var(--gold)",lineHeight:1}}>
             {fmt(totalToday)}
           </div>
           <div style={{fontSize:".76rem",color:"var(--gd)",fontWeight:700}}>
@@ -1818,15 +1818,15 @@ function HomePage({sales, products, promoters, expenses, role, user}) {
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:8}}>
               <div style={{textAlign:"center"}}>
                 <div style={{fontSize:".68rem",color:"var(--gd)",fontWeight:700,textTransform:"uppercase",letterSpacing:.4}}>Ventas</div>
-                <div style={{fontFamily:"Playfair Display,serif",fontSize:"1.2rem",color:"var(--gold)"}}>{todaySales.length}</div>
+                <div style={{fontFamily:"DM Sans,sans-serif",fontWeight:800,fontSize:"1.2rem",color:"var(--gold)"}}>{todaySales.length}</div>
               </div>
               <div style={{textAlign:"center"}}>
                 <div style={{fontSize:".68rem",color:"var(--gd)",fontWeight:700,textTransform:"uppercase",letterSpacing:.4}}>Ganancia</div>
-                <div style={{fontFamily:"Playfair Display,serif",fontSize:"1.2rem",color:"var(--teal)"}}>{fmt(profitToday)}</div>
+                <div style={{fontFamily:"DM Sans,sans-serif",fontWeight:800,fontSize:"1.2rem",color:"var(--teal)"}}>{fmt(profitToday)}</div>
               </div>
               <div style={{textAlign:"center"}}>
                 <div style={{fontSize:".68rem",color:"var(--gd)",fontWeight:700,textTransform:"uppercase",letterSpacing:.4}}>Comisiones</div>
-                <div style={{fontFamily:"Playfair Display,serif",fontSize:"1.2rem",color:"var(--red)"}}>{fmt(commGenToday)}</div>
+                <div style={{fontFamily:"DM Sans,sans-serif",fontWeight:800,fontSize:"1.2rem",color:"var(--red)"}}>{fmt(commGenToday)}</div>
               </div>
             </div>
             {(byPromoterToday.length>0||directToday.length>0)&&(
@@ -2575,7 +2575,7 @@ function PromotersPage({promoters, sales, role, payments, onPay, onSave, user}) 
                     {fmtDate(pay.date)} - {pay.salesIds.length} venta{pay.salesIds.length>1?"s":""}
                   </div>
                 </div>
-                <div style={{fontFamily:"Playfair Display,serif",fontSize:"1.2rem",color:"var(--grn)"}}>{fmt(pay.amount)}</div>
+                <div style={{fontFamily:"DM Sans,sans-serif",fontWeight:800,fontSize:"1.2rem",color:"var(--grn)"}}>{fmt(pay.amount)}</div>
               </div>
             );
           })
@@ -2993,7 +2993,7 @@ function ReportsPage({sales, expenses, promoters, payments}) {
                     <div style={{fontWeight:700}}>{pr?.name}</div>
                     <div style={{fontSize:".76rem",color:"var(--dim)",marginTop:2}}>{fmtDate(pay.date)} - {pay.salesIds.length} ventas</div>
                   </div>
-                  <span style={{fontFamily:"Playfair Display,serif",fontSize:"1rem",color:"var(--grn)"}}>{fmt(pay.amount)}</span>
+                  <span style={{fontFamily:"DM Sans,sans-serif",fontWeight:800,fontSize:"1rem",color:"var(--grn)"}}>{fmt(pay.amount)}</span>
                 </div>
               );
             })
@@ -3185,7 +3185,7 @@ function SettingsPage({users, products, promoters, onSaveUser, onDelUser, onSave
                 <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:7,marginBottom:8}}>
                   {[{l:"Precio venta",v:p.clientPrice,c:"var(--txt)"},{l:"Precio neto",v:p.promoterPrice,c:"var(--gold)"},{l:"Costo",v:p.cost,c:"var(--red)"}].map(it=>(
                     <div key={it.l} style={{background:"var(--s2)",borderRadius:"var(--rsm)",padding:"8px 6px",textAlign:"center"}}>
-                      <div style={{fontFamily:"Playfair Display,serif",fontSize:"1rem",color:it.c}}>{fmt(it.v)}</div>
+                      <div style={{fontFamily:"DM Sans,sans-serif",fontWeight:800,fontSize:"1rem",color:it.c}}>{fmt(it.v)}</div>
                       <div style={{fontSize:".68rem",color:"var(--dim)",marginTop:2}}>{it.l}</div>
                     </div>
                   ))}
@@ -3604,7 +3604,7 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                           <div style={{width:34,height:34,borderRadius:"50%",
                             background:f.promoterId===pr.id?"var(--gd)":"var(--b1)",
                             display:"flex",alignItems:"center",justifyContent:"center",
-                            fontFamily:"Playfair Display,serif",fontSize:"1rem",
+                            fontFamily:"DM Sans,sans-serif",fontWeight:800,fontSize:"1rem",
                             color:f.promoterId===pr.id?"#100d02":"var(--muted)",flexShrink:0}}>
                             {pr.name.charAt(0)}
                           </div>
