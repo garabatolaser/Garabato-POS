@@ -684,7 +684,7 @@ async function sbFetch(path, options={}) {
 // La app usa camelCase, Supabase acepta cualquier nombre de columna
 // Usamos las columnas tal como están en la tabla (las creamos con los mismos nombres)
 const SB_MAP = {
-  users:              { table:"users",              toSB: r=>({id:r.id,name:r.name,role:r.role,pin:r.pin,promoter_id:r.promoterId||null}), fromSB: r=>({id:r.id,name:r.name,role:r.role,pin:r.pin,promoterId:r.promoter_id||null}) },
+  users:              { table:"users",              toSB: r=>({id:r.id,name:r.name,role:r.role,pin:r.pin,promoter_id:r.promoterId||null}), fromSB: r=>({id:r.id,name:r.name,role:r.role,pin:r.pin,promoterId:r.promoter_id||null,synced:true}) },
   products:           { table:"products",           toSB: r=>({id:r.id,name:r.name,photo:r.photo||null,client_price:r.clientPrice,promoter_price:r.promoterPrice,cost:r.cost,stock:r.stock,low_stock_alert:r.lowStockAlert,client_price_usd:r.clientPriceUSD||null,grabado_types_allowed:r.grabadoTypesAllowed||[],has_variants:r.hasVariants||false,variants:r.variants||[],price_history:r.priceHistory||[]}), fromSB: r=>({id:r.id,name:r.name,photo:r.photo,clientPrice:r.client_price,promoterPrice:r.promoter_price,cost:r.cost,stock:r.stock,lowStockAlert:r.low_stock_alert,clientPriceUSD:r.client_price_usd,grabadoTypesAllowed:r.grabado_types_allowed||[],hasVariants:r.has_variants||false,variants:r.variants||[],priceHistory:r.price_history||[]}) },
   promoters:          { table:"promoters",          toSB: r=>({id:r.id,name:r.name,phone:r.phone,active:r.active,custom_promoter_price:r.customPromoterPrice||null}), fromSB: r=>({id:r.id,name:r.name,phone:r.phone,active:r.active,customPromoterPrice:r.custom_promoter_price||null}) },
   sales:              { table:"sales",              toSB: r=>({id:r.id,product_id:r.productId,product_name:r.productName,customization:r.customization||null,client_price:r.clientPrice,promoter_price:r.promoterPrice,cost:r.cost,commission:r.commission,profit:r.profit,profit_owner:r.profitOwner,profit_partner:r.profitPartner,payment_method:r.paymentMethod,promoter_id:r.promoterId||null,promoter_name:r.promoterName||null,is_direct_sale:r.isDirectSale||false,client_name:r.clientName||null,client_phone:r.clientPhone||null,notes:r.notes||null,commission_status:r.commissionStatus,date:r.date,is_historic:r.isHistoric||false,deleted:r.deleted||false,deleted_at:r.deletedAt||null,deleted_reason:r.deletedReason||null,order_id:r.orderId||null,variant_id:r.variantId||null,variant_name:r.variantName||null}), fromSB: r=>({id:r.id,productId:r.product_id,productName:r.product_name,customization:r.customization,clientPrice:r.client_price,promoterPrice:r.promoter_price,cost:r.cost,commission:r.commission,profit:r.profit,profitOwner:r.profit_owner,profitPartner:r.profit_partner,paymentMethod:r.payment_method,promoterId:r.promoter_id,promoterName:r.promoter_name,isDirectSale:r.is_direct_sale,clientName:r.client_name,clientPhone:r.client_phone,notes:r.notes,commissionStatus:r.commission_status,date:r.date,isHistoric:r.is_historic,deleted:r.deleted,deletedAt:r.deleted_at,deletedReason:r.deleted_reason,orderId:r.order_id,variantId:r.variant_id,variantName:r.variant_name,synced:true}) },
@@ -723,14 +723,25 @@ async function sbDelete(store, id) {
 // Si devuelve [] (tabla vacía en Supabase), limpia el local también
 async function syncFromSupabase() {
   const db = await openDB();
-  for (const store of ["users","products","promoters","sales","expenses","commissionPayments"]) {
+  // Datos transaccionales: clear + replace (Supabase es la fuente de verdad)
+  for (const store of ["products","promoters","sales","expenses","commissionPayments"]) {
     const rows = await sbPull(store);
     if (rows === null) continue; // error de red: mantener datos locales
     await new Promise((res,rej)=>{
       const tx = db.transaction(store,"readwrite");
       const st = tx.objectStore(store);
-      st.clear(); // limpiar primero para reflejar el estado real de Supabase
+      st.clear();
       rows.forEach(r=>st.put(r));
+      tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error);
+    });
+  }
+  // Usuarios: merge sin borrar — nunca pisar cambios locales si Supabase falla o está vacío
+  const uRows = await sbPull("users");
+  if (uRows !== null && uRows.length > 0) {
+    await new Promise((res,rej)=>{
+      const tx = db.transaction("users","readwrite");
+      const st = tx.objectStore("users");
+      uRows.forEach(r => st.put({...r, synced:true}));
       tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error);
     });
   }
@@ -1243,8 +1254,8 @@ export default function App() {
 
   useEffect(()=>{
     const st=document.createElement("style"); st.textContent=CSS; document.head.appendChild(st);
-    seed()
-      .then(()=>navigator.onLine ? syncFromSupabase() : Promise.resolve())
+    (navigator.onLine ? syncFromSupabase() : Promise.resolve())
+      .then(()=>seed())
       .then(()=>reload())
       .then(()=>{
         setReady(true);
@@ -1474,7 +1485,7 @@ export default function App() {
         : <Locked/>)}
       {page==="settings" && (CAN.manageConfig(role)
         ? <SettingsPage users={users} products={products} promoters={promoters}
-            onSaveUser={async u=>{await dbPut("users",{...u,synced:navigator.onLine});await reload();toast("✓ Usuario guardado","ok");}}
+            onSaveUser={async u=>{await dbPut("users",{...u,synced:false});await reload();toast("✓ Usuario guardado","ok");}}
             onDelUser={async id=>{await dbDel("users",id);await reload();toast("Usuario eliminado","info");}}
             onSaveProduct={async p=>{
               if(p._delete){await dbDel("products",p.id);await reload();toast("Producto eliminado","info");}
