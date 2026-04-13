@@ -860,16 +860,8 @@ const dbPut = async (store, data) => {
     const r = db.transaction(store,"readwrite").objectStore(store).put(data);
     r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
   });
-  sbPush(store, data)
-    .then(()=>{
-      // Marcar como synced en local si era false
-      if (data.synced===false) {
-        openDB().then(db2=>{
-          db2.transaction(store,"readwrite").objectStore(store).put({...data,synced:true});
-        }).catch(()=>{});
-      }
-    })
-    .catch(()=>{}); // Se reintentará en el próximo sync manual
+  const _ok = () => { if(data.synced===false) openDB().then(db2=>{ db2.transaction(store,"readwrite").objectStore(store).put({...data,synced:true}); }).catch(()=>{}); };
+  sbPush(store, data).then(_ok).catch(()=>{ setTimeout(()=>sbPush(store,data).then(_ok).catch(()=>{}),8000); });
 };
 const dbDel = async (store, key) => {
   const db = await openDB();
@@ -1283,10 +1275,27 @@ export default function App() {
       startRealtime(()=>reload());
     };
     const off=()=>{setOnline(false); stopRealtime();};
-    const onVisible=()=>{ if(document.visibilityState==="visible"&&navigator.onLine) reload(true); };
+    const onVisible=()=>{
+      if(document.visibilityState==="visible"&&navigator.onLine){
+        if(!_realtimeWs) startRealtime(()=>reload()); // reconectar si se cayó
+        reload(true);
+      }
+    };
+    // Auto-sync silencioso cada 30 segundos
+    const _autoSync = async ()=>{
+      if(!navigator.onLine) return;
+      try{
+        const _SS=["products","promoters","users","sales","expenses","commissionPayments"];
+        for(const _s of _SS){ const _a=await dbAll(_s); for(const _r of _a.filter(x=>x.synced===false)){ await sbPush(_s,_r).catch(()=>{}); } }
+        await syncFromSupabase().catch(()=>{});
+        reload();
+      }catch(e){}
+    };
+    const _autoTimer = setInterval(_autoSync, 30000);
     window.addEventListener("online",on); window.addEventListener("offline",off);
     document.addEventListener("visibilitychange",onVisible);
     return ()=>{
+      clearInterval(_autoTimer);
       window.removeEventListener("online",on); window.removeEventListener("offline",off);
       document.removeEventListener("visibilitychange",onVisible);
       stopRealtime();
