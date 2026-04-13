@@ -722,26 +722,33 @@ async function sbDelete(store, id) {
 // Si sbPull devuelve null (error de red), se salta esa tabla (no toca el local)
 // Si devuelve [] (tabla vacía en Supabase), limpia el local también
 async function syncFromSupabase() {
-  const db = await openDB();
-  // Datos transaccionales: clear + replace (Supabase es la fuente de verdad)
-  for (const store of ["products","promoters","sales","expenses","commissionPayments"]) {
+  // Estrategia: merge inteligente para TODOS los stores
+  // - Registros con synced:false (no subidos aún) NUNCA se borran
+  // - Registros de Supabase se upsert sobre los locales
+  // - Registros locales synced:true que ya no están en Supabase se eliminan (borrados en otro dispositivo)
+  // - Si Supabase devuelve null (error de red) o [] (vacío), no se toca el local
+  for (const store of ["products","promoters","sales","expenses","commissionPayments","users"]) {
     const rows = await sbPull(store);
     if (rows === null) continue; // error de red: mantener datos locales
+    // Obtener registros locales ANTES de modificar
+    const localAll  = await dbAll(store);
+    const unsynced  = localAll.filter(r => r.synced === false);
+    const sbIds     = new Set(rows.map(r => r.id));
+    const db        = await openDB();
     await new Promise((res,rej)=>{
       const tx = db.transaction(store,"readwrite");
       const st = tx.objectStore(store);
-      st.clear();
-      rows.forEach(r=>st.put(r));
-      tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error);
-    });
-  }
-  // Usuarios: merge sin borrar — nunca pisar cambios locales si Supabase falla o está vacío
-  const uRows = await sbPull("users");
-  if (uRows !== null && uRows.length > 0) {
-    await new Promise((res,rej)=>{
-      const tx = db.transaction("users","readwrite");
-      const st = tx.objectStore("users");
-      uRows.forEach(r => st.put({...r, synced:true}));
+      // 1. Eliminar registros locales que ya estaban en Supabase pero fueron borrados allá
+      //    Solo si Supabase devolvió datos (rows.length>0 = Supabase respondió correctamente)
+      if (rows.length > 0) {
+        localAll
+          .filter(r => r.synced !== false && !sbIds.has(r.id))
+          .forEach(r => st.delete(r.id));
+      }
+      // 2. Upsert todos los registros de Supabase (con synced:true)
+      rows.forEach(r => st.put({...r, synced:true}));
+      // 3. Re-guardar registros locales no sincronizados que NO están en Supabase todavía
+      unsynced.filter(r => !sbIds.has(r.id)).forEach(r => st.put(r));
       tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error);
     });
   }
@@ -1266,10 +1273,14 @@ export default function App() {
         console.error("Error inicializando app:", err);
         setReady(true);
       });
-    const on=()=>{
+    const on=async ()=>{
       setOnline(true);
+      try{
+        const _SS=["products","promoters","users","sales","expenses","commissionPayments"];
+        for(const _s of _SS){const _a=await dbAll(_s);for(const _r of _a.filter(x=>x.synced===false)){await sbPush(_s,_r).catch(()=>{});}}
+      }catch(e){}
       reload(true);
-      startRealtime(()=>reload()); // reconectar realtime al volver online
+      startRealtime(()=>reload());
     };
     const off=()=>{setOnline(false); stopRealtime();};
     const onVisible=()=>{ if(document.visibilityState==="visible"&&navigator.onLine) reload(true); };
@@ -1361,7 +1372,7 @@ export default function App() {
   };
 
   const handleNewSale = async data=>{
-    await dbPut("sales",{...data,synced:navigator.onLine&&!data.isHistoric});
+    await dbPut("sales",{...data,synced:false});
     if (!data.isHistoric) {
       const prod=products.find(p=>p.id===data.productId);
       if (prod) {
@@ -1369,9 +1380,9 @@ export default function App() {
           // Decrementar stock de la variante específica
           const variants = prod.variants.map(v=>v.id===data.variantId&&v.stock>0?{...v,stock:v.stock-1}:v);
           const totalStock = variants.reduce((a,v)=>a+(v.stock||0),0);
-          await dbPut("products",{...prod,variants,stock:totalStock,synced:navigator.onLine});
+          await dbPut("products",{...prod,variants,stock:totalStock,synced:false});
         } else if (prod.stock>0) {
-          await dbPut("products",{...prod,stock:prod.stock-1,synced:navigator.onLine});
+          await dbPut("products",{...prod,stock:prod.stock-1,synced:false});
         }
       }
     }
@@ -1394,9 +1405,9 @@ export default function App() {
         if (prod) {
           if (s.variantId && prod.hasVariants && prod.variants?.length) {
             const variants = prod.variants.map(v=>v.id===s.variantId?{...v,stock:(v.stock||0)+1}:v);
-            await dbPut("products",{...prod,variants,synced:navigator.onLine});
+            await dbPut("products",{...prod,variants,synced:false});
           } else {
-            await dbPut("products",{...prod,stock:(prod.stock||0)+1,synced:navigator.onLine});
+            await dbPut("products",{...prod,stock:(prod.stock||0)+1,synced:false});
           }
         }
       }
@@ -1462,7 +1473,7 @@ export default function App() {
         ? <InventoryPage products={products} role={role}
             onSave={async p=>{
               const existing = await dbGet("products",p.id);
-              let toSave = {...p,synced:navigator.onLine};
+              let toSave = {...p,synced:false};
               if(existing && (existing.clientPrice!==p.clientPrice||existing.promoterPrice!==p.promoterPrice||existing.cost!==p.cost)){
                 toSave.priceHistory=[...(existing.priceHistory||[]),
                   {date:Date.now(),clientPrice:existing.clientPrice,promoterPrice:existing.promoterPrice,cost:existing.cost}
@@ -1474,7 +1485,7 @@ export default function App() {
         : <Locked/>)}
       {page==="promoters"&& <PromotersPage promoters={promoters} sales={sales} role={role}
         payments={payments} user={user} onPay={handlePayPromoter}
-        onSave={CAN.editData(role)?async p=>{await dbPut("promoters",{...p,synced:navigator.onLine});await reload();toast("✓ Promotora guardada","ok");}:null}/>}
+        onSave={CAN.editData(role)?async p=>{await dbPut("promoters",{...p,synced:false});await reload();toast("✓ Promotora guardada","ok");}:null}/>}
       {page==="expenses" && (CAN.seeExpenses(role)
         ? <ExpensesPage expenses={expenses}
             onAdd={async e=>{await dbPut("expenses",{...e,synced:online});await reload();toast("✓ Gasto registrado","ok");}}
@@ -1492,7 +1503,7 @@ export default function App() {
               else{
                 // Guardar historial de precios si cambiaron
                 const existing = await dbGet("products",p.id);
-                let toSave = {...p,synced:navigator.onLine};
+                let toSave = {...p,synced:false};
                 if(existing && (existing.clientPrice!==p.clientPrice||existing.promoterPrice!==p.promoterPrice||existing.cost!==p.cost)){
                   toSave.priceHistory=[...(existing.priceHistory||[]),
                     {date:Date.now(),clientPrice:existing.clientPrice,promoterPrice:existing.promoterPrice,cost:existing.cost}
