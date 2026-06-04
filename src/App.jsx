@@ -1477,7 +1477,8 @@ export default function App() {
         expenses={expenses} role={role} user={user}/>}
       {page==="sales"    && <SalesPage sales={sales} role={role} user={user} promoters={promoters}
         onMarkPaid={handleMarkPaid} onEdit={handleEditSale}
-        onDelete={role==="admin"?sale=>setDeleteSale(sale):null}/>}
+        onDelete={role==="admin"?sale=>setDeleteSale(sale):null}
+        onImport={role==="admin"?async rows=>{for(const s of rows){await dbPut("sales",s);}await reload();toast(`✓ ${rows.length} ventas importadas`,"ok");}:null}/>}
       {page==="inventory"&& (CAN.seeInventory(role)
         ? <InventoryPage products={products} role={role}
             onSave={async p=>{
@@ -1501,7 +1502,7 @@ export default function App() {
             onDelete={async id=>{await dbDel("expenses",id);await reload();toast("Gasto eliminado","info");}}/>
         : <Locked/>)}
       {page==="reports"  && (CAN.seeReports(role)
-        ? <ReportsPage sales={sales} expenses={expenses} promoters={promoters} payments={payments}/>
+        ? <ReportsPage sales={sales} expenses={expenses} promoters={promoters} payments={payments} role={role}/>
         : <Locked/>)}
       {page==="settings" && (CAN.manageConfig(role)
         ? <SettingsPage users={users} products={products} promoters={promoters}
@@ -1939,12 +1940,14 @@ function HomePage({sales, products, promoters, expenses, role, user}) {
 // ============================================================
 //  SALESPAGE
 // ============================================================
-function SalesPage({sales, role, user, promoters, onMarkPaid, onEdit, onDelete}) {
-  const [filter,  setFilter]   = useState("all");
-  const [period,  setPeriod]   = useState("all");
-  const [search,  setSearch]   = useState("");
-  const [hideHist,setHideHist] = useState(false);
-  const [editSale,setEditSale] = useState(null);
+function SalesPage({sales, role, user, promoters, onMarkPaid, onEdit, onDelete, onImport}) {
+  const [filter,      setFilter]      = useState("all");
+  const [period,      setPeriod]      = useState("all");
+  const [search,      setSearch]      = useState("");
+  const [hideHist,    setHideHist]    = useState(false);
+  const [editSale,    setEditSale]    = useState(null);
+  const [qrSinRef,    setQrSinRef]    = useState(false);
+  const [showImport,  setShowImport]  = useState(false);
 
   const visible = useMemo(()=>{
     const now = Date.now();
@@ -1957,6 +1960,10 @@ function SalesPage({sales, role, user, promoters, onMarkPaid, onEdit, onDelete})
     if (period==="week")   list=list.filter(s=>s.date>=now-7*86400000);
     if (period==="month")  list=list.filter(s=>s.date>=now-30*86400000);
     if (hideHist) list=list.filter(s=>!s.isHistoric);
+    if (qrSinRef) list=list.filter(s=>
+      (s.paymentMethod==="qr"||s.paymentMethod==="transferencia")&&
+      (!s.paymentRef||!s.paymentRef.trim())
+    );
     if (search.trim()){
       const q=search.toLowerCase();
       list=list.filter(s=>
@@ -1967,11 +1974,27 @@ function SalesPage({sales, role, user, promoters, onMarkPaid, onEdit, onDelete})
       );
     }
     return list;
-  },[sales,role,user,filter,search,hideHist]);
+  },[sales,role,user,filter,search,hideHist,qrSinRef]);
 
   const total   = visible.reduce((a,s)=>a+s.clientPrice,0);
   const profit  = visible.reduce((a,s)=>a+s.profit,0);
-  const todayCount = visible.filter(s=>s.date>=todayMs()).length;
+
+  const handleExport = ()=>{
+    const header=["ID","Fecha","Producto","Personalizacion","Promotora","Cliente","Telefono","Metodo Pago","Ref Pago","Precio Cliente","Precio Neto","Costo","Comision","Ganancia","Historica","Notas"];
+    const rows=visible.map(s=>[
+      s.id, fmtDate(s.date), s.productName, s.customization||"",
+      s.promoterName||"", s.clientName||"", s.clientPhone||"",
+      s.paymentMethod||"", s.paymentRef||"",
+      s.clientPrice, s.promoterPrice, s.cost, s.commission, s.profit,
+      s.isHistoric?"Si":"No", s.notes||""
+    ]);
+    const csv=[header,...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+    const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download=`garabato-ventas-${new Date().toLocaleDateString("es-BO").replace(/\//g,"-")}.csv`;
+    a.click();
+  };
 
   return (
     <div className="pe">
@@ -1982,6 +2005,16 @@ function SalesPage({sales, role, user, promoters, onMarkPaid, onEdit, onDelete})
           {CAN.seeReports(role)&&<div style={{fontSize:".68rem",color:"var(--teal)"}}>Ganancia: {fmt(profit)}</div>}
         </div>
       </div>
+      {role==="admin"&&(
+        <div style={{display:"flex",gap:7,marginBottom:10}}>
+          <button className="btn btn-sm btn-out" onClick={handleExport} style={{flex:1}}>
+            <Ic n="download" s={13}/> Exportar CSV
+          </button>
+          <button className="btn btn-sm btn-out" onClick={()=>setShowImport(true)} style={{flex:1}}>
+            <Ic n="history" s={13}/> Importar CSV
+          </button>
+        </div>
+      )}
       <div className="fg">
         <input className="fi" placeholder="Buscar producto, cliente, promotora..."
           value={search} onChange={e=>setSearch(e.target.value)}/>
@@ -2003,6 +2036,9 @@ function SalesPage({sales, role, user, promoters, onMarkPaid, onEdit, onDelete})
           <button className={"pill"+(hideHist?" act-red":"")} onClick={()=>setHideHist(v=>!v)}>
             {hideHist?"Ocultar históricas":"Ver históricas"}
           </button>
+          <button className={"pill"+(qrSinRef?" act-red":"")} onClick={()=>setQrSinRef(v=>!v)}>
+            QR sin comprobante
+          </button>
         </div>
       )}
       {visible.length===0
@@ -2023,6 +2059,11 @@ function SalesPage({sales, role, user, promoters, onMarkPaid, onEdit, onDelete})
           onSave={async u=>{await onEdit(u);setEditSale(null);}}/>
       )}
 
+      {showImport&&onImport&&(
+        <CSVImportModal promoters={promoters}
+          onClose={()=>setShowImport(false)}
+          onImport={async rows=>{await onImport(rows);setShowImport(false);}}/>
+      )}
 
     </div>
   );
@@ -2806,7 +2847,7 @@ function ExpensesPage({expenses, onAdd, onDelete}) {
 // ============================================================
 //  REPORTS PAGE
 // ============================================================
-function ReportsPage({sales, expenses, promoters, payments}) {
+function ReportsPage({sales, expenses, promoters, payments, role}) {
   const [tab,   setTab]   = useState("financiero");
   const [period,setPeriod]= useState("month");
   const periodLabel = period==="today"?"Hoy":period==="week"?"Últimos 7 días":period==="month"?"Últimos 30 días":"Todo el período";
@@ -2916,7 +2957,7 @@ function ReportsPage({sales, expenses, promoters, payments}) {
         ))}
       </div>
       <div className="tabs">
-        {[["financiero","Financiero"],["promotoras","Promotoras"],["productos","Productos"],["gastos","Gastos"],["semana","Por día"]].map(([t,l])=>(
+        {[["financiero","Financiero"],["promotoras","Promotoras"],["productos","Productos"],["gastos","Gastos"],["semana","Por día"],["socios","Sociedad"]].map(([t,l])=>(
           <button key={t} className={"tab"+(tab===t?" act":"")} onClick={()=>setTab(t)}>{l}</button>
         ))}
       </div>
@@ -3116,6 +3157,127 @@ function ReportsPage({sales, expenses, promoters, payments}) {
           )}
         </>
       )}
+
+      {tab==="socios"&&(()=>{
+        const allS    = sales;
+        const tvHist  = allS.reduce((a,s)=>a+s.clientPrice,0);
+        const efecS   = allS.filter(s=>s.paymentMethod==="efectivo");
+        const qrS     = allS.filter(s=>s.paymentMethod==="qr"||s.paymentMethod==="transferencia");
+        const otrosS  = allS.filter(s=>!["efectivo","qr","transferencia"].includes(s.paymentMethod));
+        const netEfec = efecS.reduce((a,s)=>a+s.clientPrice,0);
+        const netQR   = qrS.reduce((a,s)=>a+s.clientPrice,0);
+        const netOtros= otrosS.reduce((a,s)=>a+s.clientPrice,0);
+        const gainEfec= efecS.reduce((a,s)=>a+s.profit,0);
+        const gainQR  = qrS.reduce((a,s)=>a+s.profit,0);
+        const gainTotal= allS.reduce((a,s)=>a+s.profit,0);
+        const expSoc  = expenses.filter(e=>e.afectaSociedad!==false).reduce((a,e)=>a+e.amount,0);
+        const netFin  = r2(gainTotal-expSoc);
+        const porSocio= r2(netFin/2);
+        const sergioRec = r2(gainEfec*0.5+gainQR);
+        const socioRec  = r2(gainEfec*0.5);
+        const saldo     = r2(sergioRec-socioRec-porSocio);
+        const qrSinComp = allS.filter(s=>(s.paymentMethod==="qr"||s.paymentMethod==="transferencia")&&(!s.paymentRef||!s.paymentRef.trim()));
+        return (
+          <>
+            <div className="al al-info" style={{marginBottom:14}}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span>Reporte histórico completo — {allS.length} ventas totales</span>
+            </div>
+            <div className="shd mt8"><div className="shd-l">Total vendido histórico</div></div>
+            <div className="g2">
+              <div className="sc hg">
+                <div className="sl">Vendido total</div>
+                <div className="sv gold">{fmt(tvHist)}</div>
+                <div className="ss">{allS.length} ventas</div>
+              </div>
+              <div className="sc ht">
+                <div className="sl">Ganancia bruta</div>
+                <div className="sv teal">{fmt(gainTotal)}</div>
+                <div className="ss">Antes de gastos</div>
+              </div>
+            </div>
+            <div className="shd mt8"><div className="shd-l">Por método de pago</div></div>
+            <div className="fb">
+              <div className="fr"><span className="fk">Efectivo</span>
+                <div style={{textAlign:"right"}}>
+                  <span className="fv" style={{color:"var(--grn)"}}>{fmt(netEfec)}</span>
+                  <div style={{fontSize:".68rem",color:"var(--dim)"}}>{efecS.length} ventas · ganancia {fmt(gainEfec)}</div>
+                </div>
+              </div>
+              <div className="fr"><span className="fk">QR / Transferencia</span>
+                <div style={{textAlign:"right"}}>
+                  <span className="fv" style={{color:"var(--blu)"}}>{fmt(netQR)}</span>
+                  <div style={{fontSize:".68rem",color:"var(--dim)"}}>{qrS.length} ventas · ganancia {fmt(gainQR)}</div>
+                </div>
+              </div>
+              {netOtros>0&&<div className="fr"><span className="fk">Otros métodos</span><span className="fv">{fmt(netOtros)}</span></div>}
+              <div className="fr"><span className="fk">(-) Gastos societarios</span><span className="fv" style={{color:"var(--red)"}}>{fmt(expSoc)}</span></div>
+              <div className="fr total"><span className="fk">= Ganancia real neta</span><span className="fv" style={{color:netFin>=0?"var(--grn)":"var(--red)"}}>{fmt(netFin)}</span></div>
+            </div>
+            <div className="shd mt16"><div className="shd-l">Distribución entre socios</div></div>
+            <div className="g2">
+              <div className="sc hg">
+                <div className="sl">Sergio (Admin)</div>
+                <div className="sv gold">{fmt(porSocio)}</div>
+                <div className="ss">50% ganancia neta</div>
+              </div>
+              <div className="sc ht">
+                <div className="sl">Socio</div>
+                <div className="sv teal">{fmt(porSocio)}</div>
+                <div className="ss">50% ganancia neta</div>
+              </div>
+            </div>
+            <div className="shd mt8"><div className="shd-l">Deuda societaria estimada</div></div>
+            <div className="fb">
+              <div className="fr">
+                <span className="fk">Ganancia efectivo recibida por Sergio</span>
+                <span className="fv">{fmt(gainEfec*0.5)}</span>
+              </div>
+              <div className="fr">
+                <span className="fk">Ganancia QR/transf. recibida por Sergio</span>
+                <span className="fv" style={{color:"var(--blu)"}}>{fmt(gainQR)}</span>
+              </div>
+              <div className="fr">
+                <span className="fk">Total recibido Sergio (estimado)</span>
+                <span className="fv" style={{color:"var(--gold)"}}>{fmt(sergioRec)}</span>
+              </div>
+              <div className="fr">
+                <span className="fk">Total recibido Socio (estimado)</span>
+                <span className="fv" style={{color:"var(--teal)"}}>{fmt(socioRec)}</span>
+              </div>
+              <div className="fr total">
+                <span className="fk">Saldo a favor de Sergio</span>
+                <span className="fv" style={{color:saldo>0?"var(--grn)":"var(--red)",fontSize:"1.1rem",fontWeight:800}}>{fmt(Math.abs(saldo))}</span>
+              </div>
+              <div style={{fontSize:".68rem",color:"var(--dim)",padding:"6px 0",lineHeight:1.5}}>
+                Estimado: QR/transferencias van a cuenta Sergio. Efectivo se asume repartido 50/50 en el momento.
+              </div>
+            </div>
+            {qrSinComp.length>0&&(
+              <>
+                <div className="shd mt16">
+                  <div className="shd-l" style={{color:"var(--red)"}}>QR sin comprobante</div>
+                  <span className="chip ch-red">{qrSinComp.length}</span>
+                </div>
+                <div className="al al-warn" style={{marginBottom:10}}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                  <span>{qrSinComp.length} ventas QR/transferencia sin comprobante · {fmt(qrSinComp.reduce((a,s)=>a+s.clientPrice,0))} en riesgo</span>
+                </div>
+                {qrSinComp.slice(0,5).map(s=>(
+                  <div key={s.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid var(--b1)",fontSize:".86rem"}}>
+                    <div>
+                      <div style={{fontWeight:700}}>{s.productName}</div>
+                      <div style={{fontSize:".76rem",color:"var(--dim)",marginTop:1}}>{fmtDate(s.date)} · {s.promoterName?.split(" ")[0]}</div>
+                    </div>
+                    <span style={{color:"var(--gold)",fontWeight:700}}>{fmt(s.clientPrice)}</span>
+                  </div>
+                ))}
+                {qrSinComp.length>5&&<div style={{fontSize:".76rem",color:"var(--muted)",textAlign:"center",padding:"8px 0"}}>... y {qrSinComp.length-5} más. Usar filtro "QR sin comprobante" en Ventas.</div>}
+              </>
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 }
@@ -3729,6 +3891,127 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
             )}
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+//  CSV IMPORT MODAL
+// ============================================================
+function CSVImportModal({promoters, onClose, onImport}) {
+  const [rows,    setRows]    = useState(null);
+  const [error,   setError]   = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const parseCSV = text => {
+    const lines = text.trim().split(/\r?\n/);
+    if (lines.length < 2) return null;
+    const header = lines[0].split(",").map(h=>h.replace(/^"|"$/g,"").trim().toLowerCase());
+    const required = ["fecha","producto","precio_cliente"];
+    for (const r of required) {
+      if (!header.includes(r)) return {err:`Columna requerida faltante: ${r}`};
+    }
+    const get = (row,name) => {
+      const i = header.indexOf(name);
+      if (i<0) return "";
+      return (row[i]||"").replace(/^"|"$/g,"").trim();
+    };
+    const parsed = [];
+    for (let i=1;i<lines.length;i++) {
+      const cols = lines[i].match(/("(?:[^"]|"")*"|[^,]*)/g)||lines[i].split(",");
+      const raw = cols.map(c=>(c||"").replace(/^"|"$/g,"").trim());
+      const fechaStr = get(raw,"fecha");
+      if (!fechaStr) continue;
+      const fechaMs = isNaN(Date.parse(fechaStr)) ? Date.now() : new Date(fechaStr).getTime();
+      const cp  = parseFloat(get(raw,"precio_cliente"))||0;
+      const pp  = parseFloat(get(raw,"precio_neto"))||cp;
+      const cst = parseFloat(get(raw,"costo"))||0;
+      const {commission,profit,profitOwner,profitPartner} = calcSale(cp,pp,cst);
+      const promName = get(raw,"promotora")||"Tienda directa";
+      const pr = promoters.find(p=>p.name.toLowerCase().includes(promName.toLowerCase()));
+      const isDirectSale = !pr&&(promName.toLowerCase().includes("tienda")||promName.toLowerCase().includes("directa")||promName==="");
+      parsed.push({
+        id: uid("I"),
+        productId: "imported",
+        productName: get(raw,"producto")||"Importado",
+        customization: "",
+        clientPrice:cp, promoterPrice:pp, cost:cst,
+        commission, profit, profitOwner, profitPartner,
+        paymentMethod: (get(raw,"metodo_pago")||"efectivo").toLowerCase(),
+        paymentRef: get(raw,"referencia_pago")||"",
+        promoterId: pr?.id||null,
+        promoterName: pr?pr.name:(isDirectSale?"Tienda directa":promName),
+        isDirectSale: !!isDirectSale,
+        clientName: get(raw,"nombre_cliente")||"",
+        clientPhone: "",
+        notes: get(raw,"notas")||"",
+        commissionStatus: (pr||!isDirectSale)?"pendiente":"pagado",
+        date: fechaMs,
+        isHistoric: true,
+        synced: false,
+      });
+    }
+    return parsed;
+  };
+
+  const handleFile = e => {
+    setError(""); setRows(null);
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const result = parseCSV(ev.target.result);
+      if (!result) { setError("Archivo vacío o sin encabezados."); return; }
+      if (result.err) { setError(result.err); return; }
+      setRows(result);
+    };
+    reader.readAsText(file,"utf-8");
+  };
+
+  const handleImport = async () => {
+    if (!rows||rows.length===0) return;
+    setLoading(true);
+    await onImport(rows);
+    setLoading(false);
+  };
+
+  return (
+    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="sheet">
+        <div className="sh-hd"/>
+        <div className="sh-title">Importar ventas desde CSV</div>
+        <div style={{fontSize:".76rem",color:"var(--muted)",marginBottom:14,lineHeight:1.6}}>
+          El CSV debe tener encabezados en la primera fila. Columnas soportadas:<br/>
+          <code style={{fontSize:".68rem",color:"var(--gold)"}}>fecha, producto, precio_cliente, precio_neto, costo, metodo_pago, promotora, referencia_pago, nombre_cliente, notas</code>
+        </div>
+        <div className="fg">
+          <input type="file" accept=".csv,text/csv" className="fi" onChange={handleFile}/>
+        </div>
+        {error&&<div className="al al-warn" style={{marginBottom:10}}><span>{error}</span></div>}
+        {rows&&(
+          <div className="al al-ok" style={{marginBottom:14}}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
+            <span><b>{rows.length} filas</b> detectadas y listas para importar.</span>
+          </div>
+        )}
+        {rows&&rows.length>0&&(
+          <div style={{background:"var(--s2)",borderRadius:"var(--rsm)",padding:"10px 12px",marginBottom:14,maxHeight:180,overflowY:"auto"}}>
+            {rows.slice(0,8).map((r,i)=>(
+              <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"1px solid var(--b1)",fontSize:".76rem"}}>
+                <span>{fmtDate(r.date)} · {r.productName}</span>
+                <span style={{color:"var(--gold)",fontWeight:700}}>{fmt(r.clientPrice)}</span>
+              </div>
+            ))}
+            {rows.length>8&&<div style={{fontSize:".68rem",color:"var(--dim)",paddingTop:6}}>... y {rows.length-8} más</div>}
+          </div>
+        )}
+        <div className="row mt12">
+          <button className="btn btn-out" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-gold" disabled={!rows||rows.length===0||loading} onClick={handleImport} style={{flex:2}}>
+            {loading?"Importando...":"Importar "+((rows&&rows.length)||0)+" ventas"}
+          </button>
+        </div>
       </div>
     </div>
   );
