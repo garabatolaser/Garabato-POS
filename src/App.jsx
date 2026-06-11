@@ -645,14 +645,44 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 .cfg-row-name{font-weight:700;font-size:1rem;color:var(--txt)}
 .app-light .cfg-row{background:var(--ls1);border-color:var(--lb1)}
 .app-light .cfg-row-name{color:var(--ltxt)}
+
+/* VOUCHER ROWS */
+.vc-row{display:flex;align-items:stretch;background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);margin-bottom:8px;overflow:hidden;box-shadow:var(--sh-sm)}
+.vc-bar{width:4px;flex-shrink:0}
+.vc-bar-ok{background:var(--grn)}.vc-bar-no{background:var(--red)}
+.vc-thumb{width:56px;height:56px;flex-shrink:0;border:none;cursor:pointer;padding:0;position:relative;background:var(--s2);overflow:hidden;-webkit-appearance:none;outline:none;border-right:1px solid var(--b1);align-self:stretch;display:flex;align-items:center;justify-content:center}
+.vc-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.vc-thumb-pdf{display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(217,85,85,.12);color:var(--red);font-size:.58rem;font-weight:800;gap:2px;width:100%;height:100%}
+.vc-thumb-ov{position:absolute;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;opacity:0;transition:.15s;font-size:.9rem}
+.vc-thumb:hover .vc-thumb-ov,.vc-thumb:active .vc-thumb-ov{opacity:1}
+.vc-body{flex:1;padding:10px 12px;min-width:0}
+.vc-grid{display:grid;grid-template-columns:1fr 1fr;gap:3px 10px;margin-bottom:6px}
+.vc-lbl{font-size:.6rem;color:var(--dim);font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+.vc-val{font-size:.76rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vc-foot{background:var(--s2);border-top:1px solid var(--b1);padding:9px 16px;font-size:.76rem;color:var(--muted);display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.app-light .vc-row{background:var(--ls1);border-color:var(--lb1)}
+.app-light .vc-thumb{background:var(--ls2);border-right-color:var(--lb1)}
+.app-light .vc-lbl{color:#aaa}
+.app-light .vc-val{color:var(--ltxt)}
+.app-light .vc-foot{background:var(--ls2);border-top-color:var(--lb1)}
+/* VOUCHER FULLSCREEN */
+.vc-fs{position:fixed;inset:0;background:#000;z-index:500;display:flex;flex-direction:column}
+.vc-fs-top{position:absolute;top:max(14px,env(safe-area-inset-top));right:16px;z-index:501;display:flex;gap:8px}
+.vc-fs-btn{width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.7);border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;-webkit-appearance:none;outline:none}
+.vc-fs-img{flex:1;overflow:auto;display:flex;align-items:center;justify-content:center;padding:52px 8px 8px}
+.vc-fs-img img{max-width:100%;max-height:100%;object-fit:contain}
+.vc-fs-info{background:var(--s1);padding:14px 18px max(14px,env(safe-area-inset-bottom));border-top:1px solid var(--b1);max-height:40vh;overflow-y:auto}
+/* SIN COMPROBANTE BADGE en SaleRow */
+.vc-missing{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:8px;font-size:.62rem;font-weight:800;background:rgba(217,85,85,.15);color:var(--red);cursor:pointer;border:none;-webkit-appearance:none;outline:none}
+.vc-has{display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:8px;font-size:.62rem;font-weight:800;background:rgba(69,184,124,.13);color:var(--grn);cursor:pointer;border:none;-webkit-appearance:none;outline:none}
 `;
 
 // ============================================================
 //  DATABASE  (IndexedDB)
 // ============================================================
 const DB_NAME   = "garabato_v12";
-const DB_VER    = 1;
-const DB_STORES = ["users","products","promoters","sales","expenses","commissionPayments","notifications"];
+const DB_VER    = 2;
+const DB_STORES = ["users","products","promoters","sales","expenses","commissionPayments","notifications","vouchers"];
 let _db = null;
 
 // ============================================================
@@ -687,9 +717,10 @@ const SB_MAP = {
   users:              { table:"users",              toSB: r=>({id:r.id,name:r.name,role:r.role,pin:r.pin,promoter_id:r.promoterId||null}), fromSB: r=>({id:r.id,name:r.name,role:r.role,pin:r.pin,promoterId:r.promoter_id||null,synced:true}) },
   products:           { table:"products",           toSB: r=>({id:r.id,name:r.name,photo:r.photo||null,client_price:r.clientPrice,promoter_price:r.promoterPrice,cost:r.cost,stock:r.stock,low_stock_alert:r.lowStockAlert,client_price_usd:r.clientPriceUSD||null,grabado_types_allowed:r.grabadoTypesAllowed||[],has_variants:r.hasVariants||false,variants:r.variants||[],price_history:r.priceHistory||[]}), fromSB: r=>({id:r.id,name:r.name,photo:r.photo,clientPrice:r.client_price,promoterPrice:r.promoter_price,cost:r.cost,stock:r.stock,lowStockAlert:r.low_stock_alert,clientPriceUSD:r.client_price_usd,grabadoTypesAllowed:r.grabado_types_allowed||[],hasVariants:r.has_variants||false,variants:r.variants||[],priceHistory:r.price_history||[]}) },
   promoters:          { table:"promoters",          toSB: r=>({id:r.id,name:r.name,phone:r.phone,active:r.active,custom_promoter_price:r.customPromoterPrice||null}), fromSB: r=>({id:r.id,name:r.name,phone:r.phone,active:r.active,customPromoterPrice:r.custom_promoter_price||null}) },
-  sales:              { table:"sales",              toSB: r=>({id:r.id,product_id:r.productId,product_name:r.productName,customization:r.customization||null,client_price:r.clientPrice,promoter_price:r.promoterPrice,cost:r.cost,commission:r.commission,profit:r.profit,profit_owner:r.profitOwner,profit_partner:r.profitPartner,payment_method:r.paymentMethod,promoter_id:r.promoterId||null,promoter_name:r.promoterName||null,is_direct_sale:r.isDirectSale||false,client_name:r.clientName||null,client_phone:r.clientPhone||null,notes:r.notes||null,commission_status:r.commissionStatus,date:r.date,is_historic:r.isHistoric||false,deleted:r.deleted||false,deleted_at:r.deletedAt||null,deleted_reason:r.deletedReason||null,order_id:r.orderId||null,variant_id:r.variantId||null,variant_name:r.variantName||null}), fromSB: r=>({id:r.id,productId:r.product_id,productName:r.product_name,customization:r.customization,clientPrice:r.client_price,promoterPrice:r.promoter_price,cost:r.cost,commission:r.commission,profit:r.profit,profitOwner:r.profit_owner,profitPartner:r.profit_partner,paymentMethod:r.payment_method,promoterId:r.promoter_id,promoterName:r.promoter_name,isDirectSale:r.is_direct_sale,clientName:r.client_name,clientPhone:r.client_phone,notes:r.notes,commissionStatus:r.commission_status,date:r.date,isHistoric:r.is_historic,deleted:r.deleted,deletedAt:r.deleted_at,deletedReason:r.deleted_reason,orderId:r.order_id,variantId:r.variant_id,variantName:r.variant_name,synced:true}) },
+  sales:              { table:"sales",              toSB: r=>({id:r.id,product_id:r.productId,product_name:r.productName,customization:r.customization||null,client_price:r.clientPrice,promoter_price:r.promoterPrice,cost:r.cost,commission:r.commission,profit:r.profit,profit_owner:r.profitOwner,profit_partner:r.profitPartner,payment_method:r.paymentMethod,promoter_id:r.promoterId||null,promoter_name:r.promoterName||null,is_direct_sale:r.isDirectSale||false,client_name:r.clientName||null,client_phone:r.clientPhone||null,notes:r.notes||null,commission_status:r.commissionStatus,date:r.date,is_historic:r.isHistoric||false,deleted:r.deleted||false,deleted_at:r.deletedAt||null,deleted_reason:r.deletedReason||null,order_id:r.orderId||null,variant_id:r.variantId||null,variant_name:r.variantName||null,voucher_id:r.voucherId||null}), fromSB: r=>({id:r.id,productId:r.product_id,productName:r.product_name,customization:r.customization,clientPrice:r.client_price,promoterPrice:r.promoter_price,cost:r.cost,commission:r.commission,profit:r.profit,profitOwner:r.profit_owner,profitPartner:r.profit_partner,paymentMethod:r.payment_method,promoterId:r.promoter_id,promoterName:r.promoter_name,isDirectSale:r.is_direct_sale,clientName:r.client_name,clientPhone:r.client_phone,notes:r.notes,commissionStatus:r.commission_status,date:r.date,isHistoric:r.is_historic,deleted:r.deleted,deletedAt:r.deleted_at,deletedReason:r.deleted_reason,orderId:r.order_id,variantId:r.variant_id,variantName:r.variant_name,voucherId:r.voucher_id||null,synced:true}) },
   expenses:           { table:"expenses",           toSB: r=>({id:r.id,type:r.type,amount:r.amount,description:r.description||null,date:r.date,afecta_sociedad:r.afectaSociedad!==false}), fromSB: r=>({id:r.id,type:r.type,amount:r.amount,description:r.description,date:r.date,afectaSociedad:r.afecta_sociedad,synced:true}) },
-  commissionPayments: { table:"commission_payments", toSB: r=>({id:r.id,promoter_id:r.promoterId,amount:r.amount,sales_ids:r.salesIds||[],date:r.date}), fromSB: r=>({id:r.id,promoterId:r.promoter_id,amount:r.amount,salesIds:r.sales_ids||[],date:r.date}) }
+  commissionPayments: { table:"commission_payments", toSB: r=>({id:r.id,promoter_id:r.promoterId,amount:r.amount,sales_ids:r.salesIds||[],date:r.date}), fromSB: r=>({id:r.id,promoterId:r.promoter_id,amount:r.amount,salesIds:r.sales_ids||[],date:r.date}) },
+  vouchers:           { table:"vouchers",           toSB: r=>({id:r.id,hash:r.hash||null,file_type:r.fileType||null,file_name:r.fileName||null,amount:r.amount||0,reference:r.reference||null,holder_name:r.holderName||null,bank:r.bank||null,payment_date:r.paymentDate||null,payment_time:r.paymentTime||null,uploaded_at:r.uploadedAt||null,uploaded_by:r.uploadedBy||null,sale_id:r.saleId||null,sale_summary:r.saleSummary||null,notes:r.notes||null}), fromSB: r=>({id:r.id,hash:r.hash,image:null,fileType:r.file_type,fileName:r.file_name,amount:r.amount,reference:r.reference,holderName:r.holder_name,bank:r.bank,paymentDate:r.payment_date,paymentTime:r.payment_time,uploadedAt:r.uploaded_at,uploadedBy:r.uploaded_by,saleId:r.sale_id,saleSummary:r.sale_summary,notes:r.notes,synced:true}) }
 };
 
 async function sbPull(store) {
@@ -727,7 +758,7 @@ async function syncFromSupabase() {
   // - Registros de Supabase se upsert sobre los locales
   // - Registros locales synced:true que ya no están en Supabase se eliminan (borrados en otro dispositivo)
   // - Si Supabase devuelve null (error de red) o [] (vacío), no se toca el local
-  for (const store of ["products","promoters","sales","expenses","commissionPayments","users"]) {
+  for (const store of ["products","promoters","sales","expenses","commissionPayments","users","vouchers"]) {
     const rows = await sbPull(store);
     if (rows === null) continue; // error de red: mantener datos locales
     // Obtener registros locales ANTES de modificar
@@ -970,6 +1001,12 @@ function openWhatsApp(phone, message) {
     window.location.href = "https://wa.me/"+full+"?text="+text;
   }
 }
+async function fileHash(file) {
+  const buf = await file.arrayBuffer();
+  const hashBuf = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(hashBuf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+
 function compressImage(file) {
   return new Promise(resolve => {
     const reader = new FileReader();
@@ -1198,6 +1235,8 @@ const PATHS = {
   truck:   <><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></>,
   star:    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>,
   filter:  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>,
+  clip:    <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>,
+  eye:     <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>,
 };
 const Ic = ({n,s=20,c="currentColor"}) => (
   <svg width={s} height={s} viewBox="0 0 24 24" fill="none"
@@ -1249,6 +1288,7 @@ export default function App() {
   const [expenses, setExpenses]  = useState([]);
   const [payments, setPayments]  = useState([]);
   const [users,    setUsers]     = useState([]);
+  const [vouchers, setVouchers]  = useState([]);
   const {show:toast, ToastContainer} = useToast();
 
   useEffect(()=>{
@@ -1268,7 +1308,7 @@ export default function App() {
     const on=async ()=>{
       setOnline(true);
       try{
-        const _SS=["products","promoters","users","sales","expenses","commissionPayments"];
+        const _SS=["products","promoters","users","sales","expenses","commissionPayments","vouchers"];
         for(const _s of _SS){const _a=await dbAll(_s);for(const _r of _a.filter(x=>x.synced===false)){await sbPush(_s,_r).catch(()=>{});}}
       }catch(e){}
       reload(true);
@@ -1285,7 +1325,7 @@ export default function App() {
     const _autoSync = async ()=>{
       if(!navigator.onLine) return;
       try{
-        const _SS=["products","promoters","users","sales","expenses","commissionPayments"];
+        const _SS=["products","promoters","users","sales","expenses","commissionPayments","vouchers"];
         for(const _s of _SS){ const _a=await dbAll(_s); for(const _r of _a.filter(x=>x.synced===false)){ await sbPush(_s,_r).catch(()=>{}); } }
         await syncFromSupabase().catch(()=>{});
         reload();
@@ -1308,15 +1348,16 @@ export default function App() {
       if (fromCloud && navigator.onLine) {
         await syncFromSupabase().catch(()=>{});
       }
-      const [pr,prm,sl,ex,pay,usr] = await Promise.all([
+      const [pr,prm,sl,ex,pay,usr,vch] = await Promise.all([
         dbAll("products"),dbAll("promoters"),dbAll("sales"),
-        dbAll("expenses"),dbAll("commissionPayments"),dbAll("users"),
+        dbAll("expenses"),dbAll("commissionPayments"),dbAll("users"),dbAll("vouchers"),
       ]);
       setProducts(pr); setPromoters(prm);
       setSales(sl.sort((a,b)=>b.date-a.date));
       setExpenses(ex.sort((a,b)=>b.date-a.date));
       setPayments(pay.sort((a,b)=>b.date-a.date));
       setUsers(usr);
+      setVouchers(vch.sort((a,b)=>(b.uploadedAt||0)-(a.uploadedAt||0)));
     } catch(err) {
       console.error("Error cargando datos:", err);
     }
@@ -1338,7 +1379,7 @@ export default function App() {
       // 1. Bajar todo de Supabase
       await syncFromSupabase();
       // 2. Subir TODO lo no sincronizado de TODOS los stores
-      const SYNC_STORES = ["products","promoters","users","sales","expenses","commissionPayments"];
+      const SYNC_STORES = ["products","promoters","users","sales","expenses","commissionPayments","vouchers"];
       let total = 0;
       for (const store of SYNC_STORES) {
         const all = await dbAll(store);
@@ -1461,12 +1502,15 @@ export default function App() {
     if (u.role==="admin" && products.length===0) setShowOnboarding(true);
   }}/>;
 
+  const unassignedVouchers = vouchers.filter(v=>!v.saleId).length;
+
   const navItems = [
     {id:"home",     icon:"home",    label:"Inicio"},
     {id:"sales",    icon:"cart",    label:"Ventas",   badge:pendingSync},
     CAN.seeInventory(role) && {id:"inventory",icon:"box",   label:"Stock"},
     (role!=="socio") && {id:"promoters",icon:"users",label:role==="promoter"?"Perfil":"Promotoras"},
     CAN.seeExpenses(role)  && {id:"expenses", icon:"receipt",label:"Gastos"},
+    CAN.seeReports(role)   && {id:"vouchers", icon:"clip",   label:"Comprobantes", badge:unassignedVouchers||0},
     CAN.seeReports(role)   && {id:"reports",  icon:"chart",  label:"Reportes"},
     CAN.manageConfig(role) && {id:"settings", icon:"settings",label:"Configuración"},
   ].filter(Boolean);
@@ -1476,9 +1520,29 @@ export default function App() {
       {page==="home"     && <HomePage sales={sales} products={products} promoters={promoters}
         expenses={expenses} role={role} user={user}/>}
       {page==="sales"    && <SalesPage sales={sales} role={role} user={user} promoters={promoters}
+        vouchers={vouchers}
         onMarkPaid={handleMarkPaid} onEdit={handleEditSale}
         onDelete={role==="admin"?sale=>setDeleteSale(sale):null}
-        onImport={role==="admin"?async rows=>{for(const s of rows){await dbPut("sales",s);}await reload();toast(`✓ ${rows.length} ventas importadas`,"ok");}:null}/>}
+        onImport={role==="admin"?async rows=>{for(const s of rows){await dbPut("sales",s);}await reload();toast(`✓ ${rows.length} ventas importadas`,"ok");}:null}
+        onReload={reload}/>}
+      {page==="vouchers" && (CAN.seeReports(role)
+        ? <VouchersPage vouchers={vouchers} sales={sales} user={user}
+            onSave={async v=>{await dbPut("vouchers",{...v,synced:false});await reload();toast("✓ Comprobante guardado","ok");}}
+            onAssign={async(vid,sid)=>{
+              const v=await dbGet("vouchers",vid); const s=await dbGet("sales",sid);
+              if(v&&s){
+                await dbPut("vouchers",{...v,saleId:sid,saleSummary:s.productName+" · "+fmtDate(s.date),synced:false});
+                await dbPut("sales",{...s,voucherId:vid,synced:false});
+                await reload(); toast("✓ Comprobante asignado","ok");
+              }
+            }}
+            onUnassign={async(vid,sid)=>{
+              const v=await dbGet("vouchers",vid); const s=sid?await dbGet("sales",sid):null;
+              if(v) await dbPut("vouchers",{...v,saleId:null,saleSummary:"",synced:false});
+              if(s) await dbPut("sales",{...s,voucherId:null,synced:false});
+              await reload(); toast("Asignación removida","info");
+            }}/>
+        : <Locked/>)}
       {page==="inventory"&& (CAN.seeInventory(role)
         ? <InventoryPage products={products} role={role}
             onSave={async p=>{
@@ -1940,14 +2004,17 @@ function HomePage({sales, products, promoters, expenses, role, user}) {
 // ============================================================
 //  SALESPAGE
 // ============================================================
-function SalesPage({sales, role, user, promoters, onMarkPaid, onEdit, onDelete, onImport}) {
+function SalesPage({sales, role, user, promoters, vouchers, onMarkPaid, onEdit, onDelete, onImport, onReload}) {
   const [filter,      setFilter]      = useState("all");
   const [period,      setPeriod]      = useState("all");
   const [search,      setSearch]      = useState("");
   const [hideHist,    setHideHist]    = useState(false);
   const [editSale,    setEditSale]    = useState(null);
-  const [qrSinRef,    setQrSinRef]    = useState(false);
-  const [showImport,  setShowImport]  = useState(false);
+  const [qrSinRef,           setQrSinRef]           = useState(false);
+  const [showImport,         setShowImport]         = useState(false);
+  const [viewVoucher,        setViewVoucher]        = useState(null);
+  const [assignVoucherForSale,setAssignVoucherForSale] = useState(null);
+  const [assignSaleForVoucher,setAssignSaleForVoucher] = useState(null);
 
   const visible = useMemo(()=>{
     const now = Date.now();
@@ -2043,14 +2110,20 @@ function SalesPage({sales, role, user, promoters, onMarkPaid, onEdit, onDelete, 
       )}
       {visible.length===0
         ?<div className="empty"><Ic n="cart" s={38}/><p>Aún no hay ventas registradas.</p></div>
-        :visible.map(s=>(
-          <SaleRow key={s.id} sale={s} role={role}
-            showActions={CAN.seeComms(role)}
-            onMarkPaid={s.commissionStatus==="pendiente"?()=>onMarkPaid(s.id):null}
-            onEdit={()=>setEditSale(s)}
-            onDelete={role==="admin"&&onDelete?()=>onDelete(s):null}
-          />
-        ))
+        :visible.map(s=>{
+          const saleVoucher = vouchers?.find(v=>v.id===s.voucherId)||null;
+          return (
+            <SaleRow key={s.id} sale={s} role={role}
+              showActions={CAN.seeComms(role)}
+              onMarkPaid={s.commissionStatus==="pendiente"?()=>onMarkPaid(s.id):null}
+              onEdit={()=>setEditSale(s)}
+              onDelete={role==="admin"&&onDelete?()=>onDelete(s):null}
+              voucher={saleVoucher}
+              onVoucherView={saleVoucher?()=>setViewVoucher(saleVoucher):null}
+              onVoucherAssign={CAN.seeReports(role)?()=>setAssignSaleForVoucher(s):null}
+            />
+          );
+        })
       }
 
       {editSale&&(
@@ -2063,6 +2136,49 @@ function SalesPage({sales, role, user, promoters, onMarkPaid, onEdit, onDelete, 
         <CSVImportModal promoters={promoters}
           onClose={()=>setShowImport(false)}
           onImport={async rows=>{await onImport(rows);setShowImport(false);}}/>
+      )}
+
+      {viewVoucher&&(
+        <VerComprobante voucher={viewVoucher} sales={sales}
+          onClose={()=>setViewVoucher(null)}
+          onAssign={()=>{setAssignVoucherForSale(viewVoucher);setViewVoucher(null);}}/>
+      )}
+
+      {assignVoucherForSale&&(
+        <AsignarComprobante voucher={assignVoucherForSale} sales={sales}
+          onClose={()=>setAssignVoucherForSale(null)}
+          onConfirm={async(vid,sid)=>{
+            const v=await dbGet("vouchers",vid); const s2=await dbGet("sales",sid);
+            if(v&&s2){
+              await dbPut("vouchers",{...v,saleId:sid,saleSummary:s2.productName+" · "+fmtDate(s2.date),synced:false});
+              await dbPut("sales",{...s2,voucherId:vid,synced:false});
+            }
+            setAssignVoucherForSale(null);
+            if(onReload) await onReload();
+          }}/>
+      )}
+
+      {assignSaleForVoucher&&(
+        <SubirComprobante
+          vouchers={vouchers||[]} user={user}
+          prefillSale={assignSaleForVoucher}
+          onClose={()=>setAssignSaleForVoucher(null)}
+          onSave={async v=>{
+            await dbPut("vouchers",{...v,synced:false});
+            const s2=await dbGet("sales",assignSaleForVoucher.id);
+            if(s2) await dbPut("sales",{...s2,voucherId:v.id,synced:false});
+            setAssignSaleForVoucher(null);
+            if(onReload) await onReload();
+          }}
+          onSaveAndAssign={async v=>{
+            await dbPut("vouchers",{...v,synced:false});
+            const s2=await dbGet("sales",assignSaleForVoucher.id);
+            if(s2) await dbPut("sales",{...s2,voucherId:v.id,synced:false});
+            setAssignSaleForVoucher(null);
+            if(onReload) await onReload();
+          }}
+          reload={reload}
+        />
       )}
 
     </div>
@@ -2165,8 +2281,9 @@ function SaleEditModal({sale, role, onClose, onSave}) {
 // ============================================================
 //  SALEROW
 // ============================================================
-function SaleRow({sale, role, showActions, onMarkPaid, onEdit, onDelete}) {
+function SaleRow({sale, role, showActions, onMarkPaid, onEdit, onDelete, voucher, onVoucherAssign, onVoucherView}) {
   const pm={efectivo:"Efectivo",transferencia:"Transferencia",qr:"QR"};
+  const needsVoucher = (sale.paymentMethod==="qr"||sale.paymentMethod==="transferencia") && !sale.voucherId && !sale.isDirectSale;
   return (
     <div className="si">
       <div className="si-ico"><Ic n={sale.isHistoric?"history":"laser"} s={16}/></div>
@@ -2175,7 +2292,19 @@ function SaleRow({sale, role, showActions, onMarkPaid, onEdit, onDelete}) {
         {sale.customization&&<div className="si-cust">"{sale.customization}"</div>}
         <div className="si-meta">
           <span>{fmtDate(sale.date)}{!sale.isHistoric&&" "+fmtHora(sale.date)}</span>
-          <span>{pm[sale.paymentMethod]||sale.paymentMethod}</span>
+          <span style={{display:"inline-flex",alignItems:"center",gap:3}}>
+            {pm[sale.paymentMethod]||sale.paymentMethod}
+            {sale.voucherId&&onVoucherView&&(
+              <button className="vc-has" onClick={e=>{e.stopPropagation();onVoucherView();}}>
+                <Ic n="clip" s={9}/> Comprobante
+              </button>
+            )}
+            {needsVoucher&&onVoucherAssign&&(
+              <button className="vc-missing" onClick={e=>{e.stopPropagation();onVoucherAssign();}}>
+                Sin comprobante
+              </button>
+            )}
+          </span>
           <span>{sale.promoterName?.split(" ")[0]}</span>
           {sale.clientName&&<span style={{color:"var(--muted)"}}>{sale.clientName}</span>}
           {sale.isHistoric&&<span className="hist-tag">Histórica</span>}
@@ -4068,6 +4197,535 @@ function Locked() {
     <div className="locked">
       <Ic n="lock" s={42} c="var(--dim)"/>
       <p>No tiene acceso a esta sección.</p>
+    </div>
+  );
+}
+
+// ============================================================
+//  VOUCHERS PAGE
+// ============================================================
+function VouchersPage({vouchers, sales, user, onSave, onAssign, onUnassign}) {
+  const [tab,      setTab]      = useState("unassigned");
+  const [showUpload,setShowUpload]= useState(false);
+  const [assignVC, setAssignVC] = useState(null);
+  const [viewVC,   setViewVC]   = useState(null);
+
+  const unassigned = vouchers.filter(v=>!v.saleId);
+  const displayed  = tab==="unassigned" ? unassigned : vouchers;
+
+  const getMatches = v => {
+    if (v.saleId) return [];
+    return sales.filter(s=>!s.deleted&&!s.voucherId&&s.clientPrice===v.amount);
+  };
+
+  const pendingTotal = unassigned.reduce((a,v)=>a+(v.amount||0),0);
+
+  return (
+    <div className="pe">
+      <div className="shd">
+        <div className="shd-l"><Ic n="clip" s={18}/> Comprobantes</div>
+        <button className="btn btn-sm btn-gold" style={{width:"auto"}} onClick={()=>setShowUpload(true)}>
+          <Ic n="plus" s={13} c="#0a0a00"/> Subir
+        </button>
+      </div>
+
+      <div className="tabs">
+        <button className={"tab"+(tab==="unassigned"?" act":"")} onClick={()=>setTab("unassigned")}>
+          Sin asignar {unassigned.length>0&&<span className="chip ch-red" style={{marginLeft:4}}>{unassigned.length}</span>}
+        </button>
+        <button className={"tab"+(tab==="all"?" act":"")} onClick={()=>setTab("all")}>Todos ({vouchers.length})</button>
+      </div>
+
+      {displayed.length===0
+        ? <div className="empty"><Ic n="clip" s={38}/><p>{tab==="unassigned"?"Todos los comprobantes están asignados.":"No hay comprobantes registrados."}</p></div>
+        : displayed.map(v=>(
+          <VoucherRow key={v.id} voucher={v} matches={getMatches(v)} sales={sales}
+            onView={()=>setViewVC(v)}
+            onAssign={()=>setAssignVC(v)}
+            onViewSale={()=>{}}/>
+        ))
+      }
+
+      {vouchers.length>0&&(
+        <div className="vc-foot">
+          <span>{unassigned.length} sin asignar</span>
+          <span>{vouchers.length} total</span>
+          <span style={{color:"var(--red)",fontWeight:800}}>{fmt(pendingTotal)} pendiente</span>
+        </div>
+      )}
+
+      {showUpload&&(
+        <SubirComprobante
+          vouchers={vouchers} user={user}
+          onClose={()=>setShowUpload(false)}
+          onSave={async v=>{await onSave(v);setShowUpload(false);}}
+          onSaveAndAssign={async v=>{await onSave(v);setShowUpload(false);setAssignVC(v);}}/>
+      )}
+
+      {assignVC&&(
+        <AsignarComprobante voucher={assignVC} sales={sales}
+          onClose={()=>setAssignVC(null)}
+          onConfirm={async(vid,sid)=>{await onAssign(vid,sid);setAssignVC(null);}}/>
+      )}
+
+      {viewVC&&(
+        <VerComprobante voucher={viewVC} sales={sales}
+          onClose={()=>setViewVC(null)}
+          onAssign={()=>{setAssignVC(viewVC);setViewVC(null);}}
+          onUnassign={async()=>{await onUnassign(viewVC.id,viewVC.saleId);setViewVC(null);}}/>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+//  VOUCHER ROW
+// ============================================================
+function VoucherRow({voucher, matches, sales, onView, onAssign}) {
+  const assigned  = !!voucher.saleId;
+  const hasMatch  = !assigned && matches && matches.length>0;
+  const sale      = assigned ? sales.find(s=>s.id===voucher.saleId) : null;
+  const ref4      = voucher.reference ? "···"+(voucher.reference||"").slice(-4) : "—";
+
+  return (
+    <div className="vc-row">
+      <div className={"vc-bar "+(assigned?"vc-bar-ok":"vc-bar-no")}/>
+      <button className="vc-thumb" onClick={onView} title="Ver comprobante">
+        {voucher.fileType==="image"&&voucher.image
+          ? <img src={voucher.image} alt="comprobante"/>
+          : voucher.fileType==="pdf"
+            ? <div className="vc-thumb-pdf">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                PDF
+              </div>
+            : <div style={{color:"var(--dim)",fontSize:"1.2rem"}}><Ic n="clip" s={20}/></div>
+        }
+        <div className="vc-thumb-ov">🔍</div>
+      </button>
+      <div className="vc-body">
+        <div className="vc-grid">
+          <div>
+            <div className="vc-lbl">Fecha</div>
+            <div className="vc-val">{voucher.paymentDate||"—"}{voucher.paymentTime&&" "+voucher.paymentTime}</div>
+          </div>
+          <div>
+            <div className="vc-lbl">Comprobante</div>
+            <div className="vc-val">{ref4}</div>
+          </div>
+          <div>
+            <div className="vc-lbl">Titular</div>
+            <div className="vc-val">{voucher.holderName||"—"}</div>
+          </div>
+          <div>
+            <div className="vc-lbl">Banco</div>
+            <div className="vc-val">{voucher.bank||"—"}</div>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:6,alignItems:"center",marginTop:6,flexWrap:"wrap"}}>
+          <span style={{fontSize:"1rem",fontWeight:800,color:"var(--gold)"}}>{fmt(voucher.amount)}</span>
+          {assigned
+            ? <span className="chip ch-grn">Asignado</span>
+            : <span className="chip ch-red">Sin asignar</span>
+          }
+          {hasMatch&&<span className="chip ch-gold">Posible coincidencia</span>}
+        </div>
+        {sale&&<div style={{fontSize:".76rem",color:"var(--teal)",marginTop:4}}>{sale.productName} · {fmtDate(sale.date)}</div>}
+        <div style={{display:"flex",gap:6,marginTop:7,flexWrap:"wrap"}}>
+          <button className="btn btn-sm btn-out" onClick={onView} style={{padding:"5px 9px"}}>
+            <Ic n="eye" s={11}/> Ver
+          </button>
+          {!assigned&&(
+            <button className="btn btn-sm btn-gold" onClick={onAssign} style={{padding:"5px 10px"}}>
+              Asignar
+            </button>
+          )}
+          {assigned&&(
+            <button className="btn btn-sm btn-out" onClick={onView} style={{padding:"5px 9px"}}>
+              Ver venta
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+//  MODAL: SUBIR COMPROBANTE
+// ============================================================
+function SubirComprobante({vouchers, user, onClose, onSave, onSaveAndAssign, prefillSale}) {
+  const BANKS = ["Tigo Money","BNB","Banco Unión","Banco Mercantil","Banco Bisa","Banco Nacional","Otro"];
+  const [file,      setFile]      = useState(null);
+  const [preview,   setPreview]   = useState(null);
+  const [fileType,  setFileType]  = useState("");
+  const [hash,      setHash]      = useState("");
+  const [dupAlert,  setDupAlert]  = useState(null); // {exists: true/false, voucher}
+  const [amount,    setAmount]    = useState(prefillSale?.clientPrice||"");
+  const [payDate,   setPayDate]   = useState(todayISO());
+  const [payTime,   setPayTime]   = useState("");
+  const [reference, setReference] = useState("");
+  const [holderName,setHolderName]= useState("");
+  const [bank,      setBank]      = useState("Tigo Money");
+  const [notes,     setNotes]     = useState("");
+  const [saving,    setSaving]    = useState(false);
+  const fileRef = useRef();
+
+  const handleFile = async e => {
+    const f = e.target.files?.[0]; if (!f) return;
+    if (f.size > 10*1024*1024) { alert("El archivo supera los 10MB."); return; }
+    const isPDF = f.type==="application/pdf";
+    const isImg = f.type.startsWith("image/");
+    if (!isPDF&&!isImg) { alert("Solo se aceptan JPG, PNG o PDF."); return; }
+
+    // Calcular hash
+    const h = await fileHash(f);
+    setHash(h);
+
+    // Verificar duplicados
+    const existing = vouchers.find(v=>v.hash===h);
+    if (existing) {
+      setDupAlert({assigned:!!existing.saleId, voucher:existing});
+      return;
+    }
+    setDupAlert(null);
+    setFile(f);
+    setFileType(isPDF?"pdf":"image");
+
+    // Preview
+    if (isPDF) {
+      setPreview(null);
+    } else {
+      let base64 = await compressImage(f);
+      if (base64.length > 2*1024*1024) base64 = await new Promise(res=>{
+        const reader=new FileReader(); reader.onload=ev=>{
+          const img=new Image(); img.onload=()=>{
+            const c=document.createElement("canvas");
+            const MAX=800; const ratio=Math.min(MAX/img.width,MAX/img.height,1);
+            c.width=img.width*ratio; c.height=img.height*ratio;
+            c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+            res(c.toDataURL("image/jpeg",0.5));
+          }; img.src=ev.target.result;
+        }; reader.readAsDataURL(f);
+      });
+      setPreview(base64);
+    }
+  };
+
+  const handleSave = async (andAssign=false) => {
+    if (!file||!amount||!payDate) return;
+    setSaving(true);
+    let image = preview;
+    if (!image && fileType==="pdf") {
+      // Convertir PDF a base64
+      image = await new Promise(res=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.readAsDataURL(file);});
+    }
+    const v = {
+      id: uid("vc"), hash, image, fileType,
+      fileName: file.name,
+      amount: parseFloat(amount)||0,
+      reference: reference.trim(),
+      holderName: holderName.trim(),
+      bank, paymentDate: payDate, paymentTime: payTime,
+      uploadedAt: Date.now(), uploadedBy: user?.name||"",
+      saleId: null, saleSummary: "", notes: notes.trim(),
+    };
+    setSaving(false);
+    if (andAssign) await onSaveAndAssign(v);
+    else await onSave(v);
+  };
+
+  return (
+    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="sheet">
+        <div className="sh-hd"/>
+        <div className="sh-title">Subir comprobante de pago</div>
+
+        {dupAlert&&(
+          dupAlert.assigned
+            ? <div className="al al-warn">
+                <Ic n="warn" s={14}/>
+                <div>
+                  <div style={{fontWeight:800}}>Este comprobante ya está asignado</div>
+                  <div style={{fontSize:".76rem",marginTop:2}}>{dupAlert.voucher.saleSummary}</div>
+                  <button className="btn btn-sm btn-out" style={{marginTop:8}} onClick={onClose}>Cerrar</button>
+                </div>
+              </div>
+            : <div className="al al-info">
+                <Ic n="warn" s={14}/>
+                <div>
+                  <div style={{fontWeight:800}}>Este comprobante ya existe sin asignar</div>
+                  <div style={{fontSize:".76rem",marginTop:2}}>Bs. {dupAlert.voucher.amount}</div>
+                  <button className="btn btn-sm btn-gold" style={{marginTop:8}} onClick={onClose}>Ir al comprobante</button>
+                </div>
+              </div>
+        )}
+
+        {!dupAlert&&(
+          <>
+            <div className="fg">
+              <label className="fl">Archivo (JPG, PNG, PDF — máx 10MB)</label>
+              <input ref={fileRef} type="file" accept="image/*,.pdf" className="fi" onChange={handleFile}/>
+            </div>
+
+            {preview&&(
+              <div style={{marginBottom:14,borderRadius:"var(--r)",overflow:"hidden",border:"1px solid var(--b1)"}}>
+                <img src={preview} style={{width:"100%",maxHeight:200,objectFit:"contain",display:"block",background:"#111"}}/>
+              </div>
+            )}
+            {fileType==="pdf"&&file&&(
+              <div className="al al-info" style={{marginBottom:14}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <span>PDF: {file.name}</span>
+              </div>
+            )}
+
+            <div className="fi2">
+              <div className="fg">
+                <label className="fl">Fecha del pago *</label>
+                <input className="fi" type="date" value={payDate} onChange={e=>setPayDate(e.target.value)}/>
+              </div>
+              <div className="fg">
+                <label className="fl">Hora del pago</label>
+                <input className="fi" type="time" value={payTime} onChange={e=>setPayTime(e.target.value)}/>
+              </div>
+            </div>
+            <div className="fg">
+              <label className="fl">Monto en Bs. *</label>
+              <input className="fi" type="number" inputMode="decimal" value={amount}
+                onChange={e=>setAmount(e.target.value)} placeholder="0.00"/>
+            </div>
+            <div className="fg">
+              <label className="fl">Nro. de comprobante (últimos dígitos)</label>
+              <input className="fi" value={reference} onChange={e=>setReference(e.target.value)} placeholder="Ej: 004821"/>
+            </div>
+            <div className="fi2">
+              <div className="fg">
+                <label className="fl">Nombre del titular</label>
+                <input className="fi" value={holderName} onChange={e=>setHolderName(e.target.value)} placeholder="Nombre en comprobante"/>
+              </div>
+              <div className="fg">
+                <label className="fl">Banco o billetera</label>
+                <select className="fs" value={bank} onChange={e=>setBank(e.target.value)}>
+                  {BANKS.map(b=><option key={b}>{b}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="fg">
+              <label className="fl">Notas</label>
+              <textarea className="fta" value={notes} onChange={e=>setNotes(e.target.value)}
+                placeholder="Ej: dijo Ana y Luis, cliente María García"/>
+            </div>
+
+            <div className="row mt12">
+              <button className="btn btn-out" onClick={onClose}>Cancelar</button>
+              <button className="btn btn-out" disabled={!file||!amount||!payDate||saving}
+                onClick={()=>handleSave(false)} style={{flex:1}}>
+                Solo guardar
+              </button>
+              <button className="btn btn-gold" disabled={!file||!amount||!payDate||saving}
+                onClick={()=>handleSave(true)} style={{flex:1.5}}>
+                {saving?"Guardando...":"Guardar y asignar"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+//  MODAL: ASIGNAR COMPROBANTE
+// ============================================================
+function AsignarComprobante({voucher, sales, onClose, onConfirm}) {
+  const [search,     setSearch]     = useState("");
+  const [selected,   setSelected]   = useState(null);
+  const [showAll,    setShowAll]     = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
+  // Ventas sin voucher asignado, no eliminadas
+  const candidates = useMemo(()=>
+    sales.filter(s=>!s.deleted&&!s.voucherId).sort((a,b)=>b.date-a.date),
+  [sales]);
+
+  // Coincidencias exactas por monto
+  const exactMatches = useMemo(()=>
+    candidates.filter(s=>s.clientPrice===voucher.amount),
+  [candidates,voucher.amount]);
+
+  // Filtro de búsqueda
+  const filtered = useMemo(()=>{
+    const q = search.toLowerCase().trim();
+    if (!q) return showAll ? candidates : candidates.slice(0,20);
+    return candidates.filter(s=>
+      s.productName.toLowerCase().includes(q)||
+      (s.clientName||"").toLowerCase().includes(q)||
+      (s.promoterName||"").toLowerCase().includes(q)||
+      String(s.clientPrice).includes(q)
+    );
+  },[candidates,search,showAll]);
+
+  const handleConfirm = async () => {
+    if (!selected) return;
+    setConfirming(true);
+    await onConfirm(voucher.id, selected.id);
+    setConfirming(false);
+  };
+
+  return (
+    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="sheet">
+        <div className="sh-hd"/>
+        <div className="sh-title">Asignar comprobante a venta</div>
+
+        {/* Datos del comprobante */}
+        <div className="pb" style={{marginBottom:14}}>
+          <div className="pbr"><span className="pbk">Monto</span><span className="pbv pbv-gold">{fmt(voucher.amount)}</span></div>
+          <div className="pbr"><span className="pbk">Fecha/Hora</span><span className="pbv">{voucher.paymentDate}{voucher.paymentTime&&" "+voucher.paymentTime}</span></div>
+          {voucher.holderName&&<div className="pbr"><span className="pbk">Titular</span><span className="pbv">{voucher.holderName}</span></div>}
+          {voucher.bank&&<div className="pbr"><span className="pbk">Banco</span><span className="pbv">{voucher.bank}</span></div>}
+          {voucher.reference&&<div className="pbr"><span className="pbk">Nro.</span><span className="pbv">···{voucher.reference.slice(-4)}</span></div>}
+        </div>
+
+        {/* Sugerencia automática */}
+        {exactMatches.length>0&&!selected&&(
+          <div style={{background:"rgba(224,198,17,.07)",border:"1px solid var(--gd)",borderRadius:"var(--r)",padding:13,marginBottom:14}}>
+            <div style={{fontSize:".76rem",fontWeight:800,color:"var(--gold)",textTransform:"uppercase",letterSpacing:.4,marginBottom:8}}>
+              Posible coincidencia — {fmt(voucher.amount)}
+            </div>
+            {exactMatches.slice(0,3).map(s=>(
+              <button key={s.id}
+                style={{width:"100%",background:"var(--s2)",border:"1px solid var(--b1)",borderRadius:"var(--rsm)",padding:"10px 12px",marginBottom:6,cursor:"pointer",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}
+                onClick={()=>setSelected(s)}>
+                <div>
+                  <div style={{fontWeight:700,fontSize:".86rem"}}>{s.productName}</div>
+                  <div style={{fontSize:".72rem",color:"var(--muted)",marginTop:2}}>{fmtDate(s.date)} · {s.promoterName?.split(" ")[0]}{s.clientName&&" · "+s.clientName}</div>
+                </div>
+                <span style={{color:"var(--gold)",fontWeight:800}}>{fmt(s.clientPrice)}</span>
+              </button>
+            ))}
+            {exactMatches.length>3&&<div style={{fontSize:".72rem",color:"var(--muted)",textAlign:"center"}}>Y {exactMatches.length-3} más con el mismo monto</div>}
+            <button className="btn btn-sm btn-out" style={{marginTop:8}} onClick={()=>setShowAll(true)}>
+              Elegir otra venta
+            </button>
+          </div>
+        )}
+
+        {/* Confirmación de la venta seleccionada */}
+        {selected&&(
+          <div style={{background:"rgba(46,204,113,.08)",border:"1px solid var(--grd)",borderRadius:"var(--r)",padding:13,marginBottom:14}}>
+            <div style={{fontSize:".76rem",fontWeight:800,color:"var(--grn)",marginBottom:6}}>Venta seleccionada</div>
+            <div style={{fontWeight:700}}>{selected.productName}</div>
+            <div style={{fontSize:".76rem",color:"var(--muted)",marginTop:2}}>{fmtDate(selected.date)} · {fmt(selected.clientPrice)}</div>
+            <button className="btn btn-sm btn-out" style={{marginTop:8}} onClick={()=>setSelected(null)}>Cambiar</button>
+          </div>
+        )}
+
+        {/* Buscador de ventas */}
+        {(showAll||exactMatches.length===0||selected===null)&&(
+          <>
+            {!selected&&(
+              <div className="fg">
+                <input className="fi" placeholder="Buscar producto, cliente, monto..."
+                  value={search} onChange={e=>setSearch(e.target.value)}/>
+              </div>
+            )}
+            {!selected&&filtered.length>0&&(
+              <div style={{maxHeight:240,overflowY:"auto",border:"1px solid var(--b1)",borderRadius:"var(--rsm)",marginBottom:14}}>
+                {filtered.map(s=>(
+                  <button key={s.id}
+                    style={{width:"100%",background:selected?.id===s.id?"rgba(224,198,17,.1)":"none",border:"none",borderBottom:"1px solid var(--b1)",padding:"10px 12px",cursor:"pointer",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}
+                    onClick={()=>setSelected(s)}>
+                    <div style={{minWidth:0}}>
+                      <div style={{fontWeight:700,fontSize:".86rem",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{s.productName}</div>
+                      <div style={{fontSize:".72rem",color:"var(--muted)",marginTop:1}}>{fmtDate(s.date)} · {s.promoterName?.split(" ")[0]}</div>
+                    </div>
+                    <span style={{color:"var(--gold)",fontWeight:800,flexShrink:0,marginLeft:8}}>{fmt(s.clientPrice)}</span>
+                  </button>
+                ))}
+                {!search&&candidates.length>20&&!showAll&&(
+                  <button style={{width:"100%",padding:"10px",background:"none",border:"none",color:"var(--muted)",fontSize:".76rem",cursor:"pointer"}} onClick={()=>setShowAll(true)}>
+                    Mostrar todas ({candidates.length})
+                  </button>
+                )}
+              </div>
+            )}
+            {!selected&&filtered.length===0&&<div className="empty" style={{padding:"20px 0"}}><p>Sin resultados</p></div>}
+          </>
+        )}
+
+        <div className="row mt12">
+          <button className="btn btn-out" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-gold" disabled={!selected||confirming} onClick={handleConfirm} style={{flex:2}}>
+            {confirming?"Guardando...":"Confirmar asignación"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+//  MODAL: VER COMPROBANTE (fullscreen)
+// ============================================================
+function VerComprobante({voucher, sales, onClose, onAssign, onUnassign}) {
+  const sale = voucher.saleId ? sales.find(s=>s.id===voucher.saleId) : null;
+
+  return (
+    <div className="vc-fs" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="vc-fs-top">
+        {!voucher.saleId&&onAssign&&(
+          <button className="vc-fs-btn" style={{width:"auto",padding:"0 12px",borderRadius:20,fontSize:".76rem",fontWeight:700,gap:5,display:"flex",alignItems:"center"}} onClick={onAssign}>
+            <Ic n="clip" s={13}/> Asignar
+          </button>
+        )}
+        <button className="vc-fs-btn" onClick={onClose} title="Cerrar">✕</button>
+      </div>
+
+      <div className="vc-fs-img">
+        {voucher.fileType==="image"&&voucher.image
+          ? <img src={voucher.image} alt="Comprobante" style={{maxWidth:"100%",maxHeight:"100%",objectFit:"contain"}}/>
+          : voucher.fileType==="pdf"&&voucher.image
+            ? <iframe src={voucher.image} style={{width:"100%",height:"100%",border:"none"}} title="PDF"/>
+            : <div style={{color:"var(--muted)",textAlign:"center",padding:40}}>
+                <Ic n="clip" s={48}/>
+                <p style={{marginTop:12,fontSize:".86rem"}}>
+                  {voucher.fileType==="pdf"?"PDF sin previsualización local":"Sin imagen disponible"}
+                </p>
+              </div>
+        }
+      </div>
+
+      <div className="vc-fs-info">
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px 14px",marginBottom:12}}>
+          <div><div className="vc-lbl">Monto</div><div className="vc-val" style={{color:"var(--gold)",fontSize:"1.1rem"}}>{fmt(voucher.amount)}</div></div>
+          <div><div className="vc-lbl">Banco</div><div className="vc-val">{voucher.bank||"—"}</div></div>
+          <div><div className="vc-lbl">Fecha / Hora</div><div className="vc-val">{voucher.paymentDate||"—"}{voucher.paymentTime&&" "+voucher.paymentTime}</div></div>
+          <div><div className="vc-lbl">Nro. comprobante</div><div className="vc-val">{voucher.reference?"···"+voucher.reference.slice(-4):"—"}</div></div>
+          <div><div className="vc-lbl">Titular</div><div className="vc-val">{voucher.holderName||"—"}</div></div>
+          <div><div className="vc-lbl">Subido por</div><div className="vc-val">{voucher.uploadedBy||"—"}</div></div>
+        </div>
+        {sale&&(
+          <div style={{borderTop:"1px solid var(--b1)",paddingTop:10}}>
+            <span className="chip ch-grn" style={{marginBottom:6}}>Asignado</span>
+            <div style={{fontWeight:700,marginTop:4}}>{sale.productName}</div>
+            <div style={{fontSize:".76rem",color:"var(--muted)",marginTop:2}}>{fmtDate(sale.date)} · {fmt(sale.clientPrice)}</div>
+            {onUnassign&&(
+              <button className="btn btn-sm btn-out" style={{marginTop:8}} onClick={onUnassign}>
+                Remover asignación
+              </button>
+            )}
+          </div>
+        )}
+        {!sale&&voucher.saleId&&(
+          <div style={{borderTop:"1px solid var(--b1)",paddingTop:10}}>
+            <span className="chip ch-grn">Asignado a venta #{voucher.saleId.slice(-6)}</span>
+          </div>
+        )}
+        {voucher.notes&&(
+          <div style={{marginTop:10,fontSize:".76rem",color:"var(--muted)",fontStyle:"italic"}}>{voucher.notes}</div>
+        )}
+      </div>
     </div>
   );
 }
