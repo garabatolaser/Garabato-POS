@@ -3640,6 +3640,7 @@ function UserForm({user, promoters, onClose, onSave}) {
 //  NEW SALE MODAL
 // ============================================================
 function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}) {
+  const BANKS = ["Tigo Money","BNB","Banco Unión","Banco Mercantil","Banco Bisa","Banco Nacional","Otro"];
   const [step,setStep]= useState(1);
   const [done,setDone]= useState(null);
   const [f,setF]= useState({
@@ -3654,6 +3655,51 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
     variantId:"",variantName:"",
   });
   const set=(k,v)=>setF(x=>({...x,[k]:v}));
+
+  // Estado del comprobante (opcional, solo para QR/transferencia)
+  const [vcOpen,    setVcOpen]    = useState(false);
+  const [vcFile,    setVcFile]    = useState(null);
+  const [vcPreview, setVcPreview] = useState(null);
+  const [vcType,    setVcType]    = useState("");
+  const [vcHash,    setVcHash]    = useState("");
+  const [vcRef,     setVcRef]     = useState("");
+  const [vcHolder,  setVcHolder]  = useState("");
+  const [vcBank,    setVcBank]    = useState("Tigo Money");
+  const [vcDate,    setVcDate]    = useState(todayISO());
+  const [vcTime,    setVcTime]    = useState("");
+  const [vcLoading, setVcLoading] = useState(false);
+
+  const handleVcFile = async e => {
+    const file = e.target.files?.[0]; if (!file) return;
+    if (file.size > 10*1024*1024) { alert("El archivo supera los 10MB."); return; }
+    const isPDF = file.type==="application/pdf";
+    const isImg = file.type.startsWith("image/");
+    if (!isPDF&&!isImg) { alert("Solo JPG, PNG o PDF."); return; }
+    setVcLoading(true);
+    const h = await fileHash(file);
+    setVcHash(h); setVcFile(file); setVcType(isPDF?"pdf":"image");
+    if (isImg) {
+      let b64 = await compressImage(file);
+      if (b64.length > 2*1024*1024) b64 = await new Promise(res=>{
+        const reader=new FileReader(); reader.onload=ev=>{
+          const img=new Image(); img.onload=()=>{
+            const c=document.createElement("canvas");
+            const MAX=800; const ratio=Math.min(MAX/img.width,MAX/img.height,1);
+            c.width=img.width*ratio; c.height=img.height*ratio;
+            c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+            res(c.toDataURL("image/jpeg",0.5));
+          }; img.src=ev.target.result;
+        }; reader.readAsDataURL(file);
+      });
+      setVcPreview(b64);
+    } else {
+      const b64 = await new Promise(res=>{const r=new FileReader();r.onload=ev=>res(ev.target.result);r.readAsDataURL(file);});
+      setVcPreview(b64);
+    }
+    setVcLoading(false);
+  };
+
+  const needsVoucher = f.paymentMethod==="qr" || f.paymentMethod==="transferencia";
 
   const selProd = products.find(p=>p.id===f.productId);
   const selProm = promoters.find(p=>p.id===f.promoterId);
@@ -3693,6 +3739,7 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
 
   const handleSubmit = async()=>{
     const saleDate = isHistoric ? new Date(f.saleDate).getTime() : Date.now();
+    const vcId = (vcOpen && vcFile) ? uid("vc") : null;
     const sale = {
       id:uid("V"),productId:f.productId,productName:f.productName,
       customization:f.customization.trim(),
@@ -3709,7 +3756,31 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
       date:saleDate,isHistoric:!!isHistoric,
       variantId: f.variantId||null,
       variantName: f.variantName||null,
+      voucherId: vcId,
     };
+    // Si hay comprobante, guardarlo ANTES del onSubmit para que el reload lo incluya
+    if (vcId && vcFile) {
+      const voucher = {
+        id: vcId,
+        hash: vcHash,
+        image: vcPreview,
+        fileType: vcType,
+        fileName: vcFile.name,
+        amount: cp,
+        reference: vcRef.trim(),
+        holderName: vcHolder.trim(),
+        bank: vcBank,
+        paymentDate: vcDate || new Date(saleDate).toISOString().slice(0,10),
+        paymentTime: vcTime,
+        uploadedAt: Date.now(),
+        uploadedBy: user?.name||"",
+        saleId: sale.id,
+        saleSummary: f.productName+" · "+fmtDate(saleDate),
+        notes: "",
+        synced: false,
+      };
+      await dbPut("vouchers", voucher);
+    }
     setDone(sale); await onSubmit(sale);
   };
 
@@ -3728,6 +3799,7 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
               <div className="pbr"><span className="pbk">Fecha</span><span className="pbv">{fmtDate(done.date)}</span></div>
               <div className="pbr"><span className="pbk">Origen</span><span className="pbv">{done.promoterName}</span></div>
               {done.clientName&&<div className="pbr"><span className="pbk">Cliente</span><span className="pbv">{done.clientName}{done.clientPhone?" - "+done.clientPhone:""}</span></div>}
+              {done.voucherId&&<div className="pbr"><span className="pbk">Comprobante</span><span className="pbv" style={{color:"var(--grn)"}}><Ic n="clip" s={11}/> Adjunto</span></div>}
               <div className="pbr sep"><span className="pbk">Precio al cliente</span><span className="pbv pbv-gold">{fmt(done.clientPrice)}</span></div>
               {done.isDirectSale?(
                 <div className="pbr"><span className="pbk">Ingreso total tienda</span><span className="pbv pbv-teal">{fmt(done.clientPrice)}</span></div>
@@ -3944,10 +4016,81 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                   <label className="fl">Método de pago</label>
                   <div className="pills">
                     {PM_OPTS.map(([v,l])=>(
-                      <button key={v} className={"pill"+(f.paymentMethod===v?" act":"")} onClick={()=>set("paymentMethod",v)}>{l}</button>
+                      <button key={v} className={"pill"+(f.paymentMethod===v?" act":"")} onClick={()=>{set("paymentMethod",v);if(v!=="qr"&&v!=="transferencia")setVcOpen(false);}}>{l}</button>
                     ))}
                   </div>
                 </div>
+
+                {/* SECCIÓN COMPROBANTE — aparece solo para QR/Transferencia */}
+                {needsVoucher&&(
+                  <div style={{border:"1px solid var(--b1)",borderRadius:"var(--r)",marginBottom:14,overflow:"hidden"}}>
+                    <button
+                      style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 13px",background:vcOpen?"rgba(224,198,17,.07)":"var(--s2)",border:"none",cursor:"pointer",gap:8,WebkitAppearance:"none",outline:"none"}}
+                      onClick={()=>setVcOpen(v=>!v)}>
+                      <div style={{display:"flex",alignItems:"center",gap:7}}>
+                        <Ic n="clip" s={14} c={vcFile?"var(--grn)":"var(--muted)"}/>
+                        <span style={{fontSize:".82rem",fontWeight:700,color:vcFile?"var(--grn)":"var(--muted)"}}>
+                          {vcFile?"Comprobante adjunto ✓":"Adjuntar comprobante de pago (opcional)"}
+                        </span>
+                      </div>
+                      <span style={{fontSize:".76rem",color:"var(--dim)"}}>{vcOpen?"▲":"▼"}</span>
+                    </button>
+
+                    {vcOpen&&(
+                      <div style={{padding:"12px 13px",borderTop:"1px solid var(--b1)"}}>
+                        <div className="fg">
+                          <label className="fl">Archivo (JPG, PNG, PDF — máx 10MB)</label>
+                          <input type="file" accept="image/*,.pdf" className="fi"
+                            onChange={handleVcFile} disabled={vcLoading}/>
+                        </div>
+                        {vcLoading&&<div style={{textAlign:"center",padding:"8px 0",fontSize:".76rem",color:"var(--muted)"}}>Procesando archivo...</div>}
+                        {vcPreview&&vcType==="image"&&(
+                          <div style={{marginBottom:10,borderRadius:"var(--rsm)",overflow:"hidden",border:"1px solid var(--b1)"}}>
+                            <img src={vcPreview} style={{width:"100%",maxHeight:140,objectFit:"contain",display:"block",background:"#111"}}/>
+                          </div>
+                        )}
+                        {vcFile&&vcType==="pdf"&&(
+                          <div className="al al-ok" style={{marginBottom:10}}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            <span style={{fontSize:".76rem"}}>{vcFile.name}</span>
+                          </div>
+                        )}
+                        <div className="fi2">
+                          <div className="fg">
+                            <label className="fl">Fecha del pago</label>
+                            <input className="fi" type="date" value={vcDate} onChange={e=>setVcDate(e.target.value)}/>
+                          </div>
+                          <div className="fg">
+                            <label className="fl">Hora</label>
+                            <input className="fi" type="time" value={vcTime} onChange={e=>setVcTime(e.target.value)}/>
+                          </div>
+                        </div>
+                        <div className="fi2">
+                          <div className="fg">
+                            <label className="fl">Nro. comprobante</label>
+                            <input className="fi" value={vcRef} onChange={e=>setVcRef(e.target.value)} placeholder="Últimos dígitos"/>
+                          </div>
+                          <div className="fg">
+                            <label className="fl">Banco / Billetera</label>
+                            <select className="fs" value={vcBank} onChange={e=>setVcBank(e.target.value)}>
+                              {BANKS.map(b=><option key={b}>{b}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                        <div className="fg">
+                          <label className="fl">Nombre del titular</label>
+                          <input className="fi" value={vcHolder} onChange={e=>setVcHolder(e.target.value)} placeholder="Nombre en el comprobante"/>
+                        </div>
+                        {vcFile&&(
+                          <button className="btn btn-sm btn-out" style={{width:"auto"}} onClick={()=>{setVcFile(null);setVcPreview(null);setVcHash("");setVcType("");}}>
+                            Quitar comprobante
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {step2valid&&(
                   <div className="pb" style={{marginBottom:13}}>
                     <div style={{fontSize:".68rem",color:"var(--muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:.4,marginBottom:8}}>
@@ -3991,6 +4134,7 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                   <div className="pbr"><span className="pbk">Método de pago</span><span className="pbv" style={{textTransform:"capitalize"}}>{f.paymentMethod}</span></div>
                   {f.clientName&&<div className="pbr"><span className="pbk">Cliente</span><span className="pbv">{f.clientName}</span></div>}
                   {isHistoric&&<div className="pbr"><span className="pbk">Tipo</span><span className="pbv hist-tag">Histórica</span></div>}
+                  {vcFile&&<div className="pbr"><span className="pbk">Comprobante</span><span className="pbv" style={{color:"var(--grn)"}}><Ic n="clip" s={11}/> {vcFile.name}</span></div>}
                   <div className="pbr sep"><span className="pbk">Precio al cliente</span><span className="pbv pbv-gold">{fmt(cp)}</span></div>
                   {f.isDirectSale?(
                     <div className="pbr"><span className="pbk">Ingreso total tienda</span><span className="pbv pbv-teal">{fmt(cp)}</span></div>
