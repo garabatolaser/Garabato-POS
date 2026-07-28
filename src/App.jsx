@@ -1405,9 +1405,9 @@ export default function App() {
   };
 
   const handleBackup = async ()=>{
-    const [pr,prm,sl,ex,pay,usr]=await Promise.all([
+    const [pr,prm,sl,ex,pay,usr,vch]=await Promise.all([
       dbAll("products"),dbAll("promoters"),dbAll("sales"),dbAll("expenses"),
-      dbAll("commissionPayments"),dbAll("users"),
+      dbAll("commissionPayments"),dbAll("users"),dbAll("vouchers"),
     ]);
     exportBackup({
       version:"garabato-v12",
@@ -1417,7 +1417,8 @@ export default function App() {
       sales:sl,
       expenses:ex,
       commissionPayments:pay,
-      users:usr.map(u=>({...u,pin:"[OCULTO]"})), // no exportar PINs reales
+      users:usr.map(u=>({...u,pin:"[OCULTO]"})),
+      vouchers:vch.map(v=>({...v,image:null})), // omitir imágenes base64 del backup
     });
     toast("✓ Backup descargado","ok");
   };
@@ -2012,6 +2013,7 @@ function SalesPage({sales, role, user, promoters, vouchers, onMarkPaid, onEdit, 
   const [hideHist,    setHideHist]    = useState(false);
   const [editSale,    setEditSale]    = useState(null);
   const [qrSinRef,           setQrSinRef]           = useState(false);
+  const [showDeleted,        setShowDeleted]        = useState(false);
   const [showImport,         setShowImport]         = useState(false);
   const [viewVoucher,        setViewVoucher]        = useState(null);
   const [assignVoucherForSale,setAssignVoucherForSale] = useState(null);
@@ -2045,8 +2047,20 @@ function SalesPage({sales, role, user, promoters, vouchers, onMarkPaid, onEdit, 
     return list;
   },[sales,role,user,filter,period,search,hideHist,qrSinRef]);
 
+  const deletedList = useMemo(()=>{
+    if (!showDeleted) return [];
+    const now = Date.now();
+    let list = sales.filter(s=>s.deleted);
+    if (role==="promoter") list=list.filter(s=>s.promoterId===user.promoterId);
+    if (period==="today")  list=list.filter(s=>s.date>=todayMs());
+    if (period==="week")   list=list.filter(s=>s.date>=now-7*86400000);
+    if (period==="month")  list=list.filter(s=>s.date>=now-30*86400000);
+    return list.sort((a,b)=>b.date-a.date);
+  },[sales,role,user,period,showDeleted]);
+
   const total   = visible.reduce((a,s)=>a+s.clientPrice,0);
   const profit  = visible.reduce((a,s)=>a+s.profit,0);
+  const deletedCount = useMemo(()=>sales.filter(s=>s.deleted).length,[sales]);
 
   const handleExport = ()=>{
     const header=["ID","Fecha","Producto","Personalizacion","Promotora","Cliente","Telefono","Metodo Pago","Ref Pago","Precio Cliente","Precio Neto","Costo","Comision","Ganancia","Historica","Notas"];
@@ -2108,6 +2122,11 @@ function SalesPage({sales, role, user, promoters, vouchers, onMarkPaid, onEdit, 
           <button className={"pill"+(qrSinRef?" act-red":"")} onClick={()=>setQrSinRef(v=>!v)}>
             QR sin comprobante
           </button>
+          {role==="admin"&&deletedCount>0&&(
+            <button className={"pill"+(showDeleted?" act-red":"")} onClick={()=>setShowDeleted(v=>!v)}>
+              {showDeleted?"Ocultar eliminadas":`Eliminadas (${deletedCount})`}
+            </button>
+          )}
         </div>
       )}
       {visible.length===0
@@ -2180,6 +2199,27 @@ function SalesPage({sales, role, user, promoters, vouchers, onMarkPaid, onEdit, 
             if(onReload) await onReload();
           }}
         />
+      )}
+
+      {showDeleted&&deletedList.length>0&&(
+        <div style={{marginTop:18}}>
+          <div style={{fontSize:".76rem",fontWeight:800,color:"var(--red)",textTransform:"uppercase",letterSpacing:.5,marginBottom:10,display:"flex",alignItems:"center",gap:7}}>
+            <Ic n="trash" s={13} c="var(--red)"/> Ventas eliminadas — solo auditoría
+          </div>
+          {deletedList.map(s=>(
+            <div key={s.id} style={{position:"relative",opacity:.65}}>
+              <SaleRow sale={s} role={role} showActions={false}/>
+              <div style={{position:"absolute",top:7,right:26,background:"var(--red)",color:"#fff",
+                fontSize:".65rem",fontWeight:800,padding:"2px 8px",borderRadius:8,pointerEvents:"none",
+                maxWidth:180,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                ELIMINADA{s.deletedReason?" · "+s.deletedReason:""}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {showDeleted&&deletedList.length===0&&(
+        <div className="empty" style={{marginTop:12,opacity:.6}}><p>No hay ventas eliminadas en este período.</p></div>
       )}
 
     </div>
@@ -4362,7 +4402,7 @@ function VouchersPage({vouchers, sales, user, onSave, onAssign, onUnassign}) {
 
   const getMatches = v => {
     if (v.saleId) return [];
-    return sales.filter(s=>!s.deleted&&!s.voucherId&&s.clientPrice===v.amount);
+    return sales.filter(s=>!s.deleted&&!s.voucherId&&Math.abs(s.clientPrice-v.amount)<=1);
   };
 
   const pendingTotal = unassigned.reduce((a,v)=>a+(v.amount||0),0);
@@ -4695,9 +4735,9 @@ function AsignarComprobante({voucher, sales, onClose, onConfirm}) {
     sales.filter(s=>!s.deleted&&!s.voucherId).sort((a,b)=>b.date-a.date),
   [sales]);
 
-  // Coincidencias exactas por monto
+  // Coincidencias por monto con tolerancia ±1 Bs (redondeos de QR)
   const exactMatches = useMemo(()=>
-    candidates.filter(s=>s.clientPrice===voucher.amount),
+    candidates.filter(s=>Math.abs(s.clientPrice-voucher.amount)<=1),
   [candidates,voucher.amount]);
 
   // Filtro de búsqueda
