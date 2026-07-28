@@ -823,7 +823,8 @@ function startRealtime(onReload) {
         // Mapear tabla → store
         const storeMap = {
           users:"users", products:"products", promoters:"promoters",
-          sales:"sales", expenses:"expenses", commission_payments:"commissionPayments", orders:"orders",
+          sales:"sales", expenses:"expenses", commission_payments:"commissionPayments",
+          vouchers:"vouchers",
         };
         const store = storeMap[table];
         if (!store) return;
@@ -2018,18 +2019,19 @@ function SalesPage({sales, role, user, promoters, vouchers, onMarkPaid, onEdit, 
 
   const visible = useMemo(()=>{
     const now = Date.now();
+    const base = sales.filter(s=>!s.deleted);
     let list = role==="promoter"
-      ? sales.filter(s=>s.promoterId===user.promoterId)
-      : filter==="all" ? sales
-      : filter==="DIRECTO" ? sales.filter(s=>s.isDirectSale)
-      : sales.filter(s=>s.promoterId===filter);
+      ? base.filter(s=>s.promoterId===user.promoterId)
+      : filter==="all" ? base
+      : filter==="DIRECTO" ? base.filter(s=>s.isDirectSale)
+      : base.filter(s=>s.promoterId===filter);
     if (period==="today")  list=list.filter(s=>s.date>=todayMs());
     if (period==="week")   list=list.filter(s=>s.date>=now-7*86400000);
     if (period==="month")  list=list.filter(s=>s.date>=now-30*86400000);
     if (hideHist) list=list.filter(s=>!s.isHistoric);
     if (qrSinRef) list=list.filter(s=>
       (s.paymentMethod==="qr"||s.paymentMethod==="transferencia")&&
-      (!s.paymentRef||!s.paymentRef.trim())
+      (!s.paymentRef||!s.paymentRef.trim())&&!s.voucherId
     );
     if (search.trim()){
       const q=search.toLowerCase();
@@ -2041,7 +2043,7 @@ function SalesPage({sales, role, user, promoters, vouchers, onMarkPaid, onEdit, 
       );
     }
     return list;
-  },[sales,role,user,filter,search,hideHist,qrSinRef]);
+  },[sales,role,user,filter,period,search,hideHist,qrSinRef]);
 
   const total   = visible.reduce((a,s)=>a+s.clientPrice,0);
   const profit  = visible.reduce((a,s)=>a+s.profit,0);
@@ -2177,7 +2179,6 @@ function SalesPage({sales, role, user, promoters, vouchers, onMarkPaid, onEdit, 
             setAssignSaleForVoucher(null);
             if(onReload) await onReload();
           }}
-          reload={reload}
         />
       )}
 
@@ -4317,13 +4318,15 @@ function DeleteSaleModal({sale, onClose, onConfirm}) {
               <button key={m} className={"pill"+(motivo===m?" act":"")} onClick={()=>setMotivo(m)}>{m}</button>
             ))}
           </div>
-          {motivo==="Otro"&&(
-            <input className="fi" placeholder="Especifica el motivo..." onChange={e=>setMotivo(e.target.value==="Otro"?"":e.target.value)}/>
+          {(motivo==="Otro"||(!["Devolucion al cliente","Error de registro","Pedido cancelado","Otro"].includes(motivo)&&motivo))&&(
+            <input className="fi" value={motivo==="Otro"?"":motivo}
+              placeholder="Especifica el motivo..."
+              onChange={e=>setMotivo(e.target.value||"Otro")}/>
           )}
         </div>
         <div className="row mt12">
           <button className="btn btn-out" onClick={onClose}>Cancelar</button>
-          <button className="btn btn-red" disabled={!motivo} onClick={()=>onConfirm(sale.id,motivo)} style={{flex:2}}>
+          <button className="btn btn-red" disabled={!motivo||motivo==="Otro"} onClick={()=>onConfirm(sale.id,motivo)} style={{flex:2}}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
             Eliminar venta
           </button>
