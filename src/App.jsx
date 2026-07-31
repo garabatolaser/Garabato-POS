@@ -1365,9 +1365,9 @@ export default function App() {
   },[]);
 
   const pendingSync = useMemo(()=>
-    [...sales,...expenses,...products,...promoters]
+    [...sales,...expenses,...products,...promoters,...vouchers]
       .filter(r=>r.synced===false).length + _qDel().length,
-  [sales,expenses,products,promoters]);
+  [sales,expenses,products,promoters,vouchers]);
 
   const role = user?.role;
 
