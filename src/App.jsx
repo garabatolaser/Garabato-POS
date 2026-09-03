@@ -1898,15 +1898,16 @@ function TopBar({user, online, pendingSync, syncing, onSync, onLogout, onBackup}
 // ============================================================
 function HomePage({sales, products, promoters, expenses, role, user}) {
   const td = todayMs();
-  const mySales  = role==="promoter" ? sales.filter(s=>s.promoterId===user.promoterId) : sales;
+  const activeSales = sales.filter(s=>!s.deleted);
+  const mySales  = role==="promoter" ? activeSales.filter(s=>s.promoterId===user.promoterId) : activeSales;
 
   const todaySales = mySales.filter(s=>s.date>=td);
   const totalToday = todaySales.reduce((a,s)=>a+s.clientPrice,0);
   const commToday  = todaySales.reduce((a,s)=>a+s.commission,0);
   const totalAll   = mySales.reduce((a,s)=>a+s.clientPrice,0);
-  const netAll     = sales.reduce((a,s)=>a+s.profit,0);
-  const ownerAll   = sales.reduce((a,s)=>a+s.profitOwner,0);
-  const pendComm   = sales.filter(s=>s.commissionStatus==="pendiente").reduce((a,s)=>a+s.commission,0);
+  const netAll     = activeSales.reduce((a,s)=>a+s.profit,0);
+  const ownerAll   = activeSales.reduce((a,s)=>a+s.profitOwner,0);
+  const pendComm   = activeSales.filter(s=>s.commissionStatus==="pendiente").reduce((a,s)=>a+s.commission,0);
   const myPendComm = mySales.filter(s=>s.commissionStatus==="pendiente").reduce((a,s)=>a+s.commission,0);
   const lowStock   = products.filter(p=>p.stock<=p.lowStockAlert);
 
@@ -1988,7 +1989,7 @@ function HomePage({sales, products, promoters, expenses, role, user}) {
       {CAN.seeReports(role)&&(
         <>
           <div className="g2">
-            <div className="sc hg"><div className="sl">Total vendido</div><div className="sv gold">{fmt(totalAll)}</div><div className="ss">{sales.length} ventas</div></div>
+            <div className="sc hg"><div className="sl">Total vendido</div><div className="sv gold">{fmt(totalAll)}</div><div className="ss">{activeSales.length} ventas</div></div>
             <div className="sc ht"><div className="sl">Ganancia tienda</div><div className="sv teal">{fmt(netAll)}</div><div className="ss">Antes de gastos fijos</div></div>
           </div>
           <div className="g2">
@@ -2004,7 +2005,7 @@ function HomePage({sales, products, promoters, expenses, role, user}) {
       {role==="socio"&&(
         <>
           <div className="g2">
-            <div className="sc hg"><div className="sl">Total vendido</div><div className="sv gold">{fmt(totalAll)}</div><div className="ss">{sales.length} ventas</div></div>
+            <div className="sc hg"><div className="sl">Total vendido</div><div className="sv gold">{fmt(totalAll)}</div><div className="ss">{activeSales.length} ventas</div></div>
             <div className="sc ht"><div className="sl">Ganancia neta</div><div className="sv teal">{fmt(netAll)}</div><div className="ss">Antes de gastos</div></div>
           </div>
           <div className="g2">
@@ -2012,7 +2013,7 @@ function HomePage({sales, products, promoters, expenses, role, user}) {
             <div className="sc hr"><div className="sl">Com. pendientes</div><div className="sv red">{fmt(pendComm)}</div><div className="ss">Por liquidar a promotoras</div></div>
           </div>
           <div className="shd mt12"><div className="shd-l">Ventas recientes</div></div>
-          {sales.slice(0,5).map(s=><SaleRow key={s.id} sale={s} role={role}/>)}
+          {activeSales.slice(0,5).map(s=><SaleRow key={s.id} sale={s} role={role}/>)}
         </>
       )}
       {role==="promoter"&&(
