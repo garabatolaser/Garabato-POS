@@ -693,6 +693,17 @@ let _db = null;
 const SB_URL = "https://ekdtpgsxlwerdfvshqpj.supabase.co";
 const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVrZHRwZ3N4bHdlcmRmdnNocXBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTc0MDIsImV4cCI6MjA5MDQ3MzQwMn0.rg2hXvFOfSqxinktz_Y1XDdSfdUpeaIVlupkMMUN9pg";
 
+async function uploadVoucherImage(vcId, fileOrBlob, contentType) {
+  const ext = contentType==="application/pdf" ? "pdf" : "jpg";
+  const res = await fetch(`${SB_URL}/storage/v1/object/vouchers/${vcId}.${ext}`, {
+    method: "POST",
+    headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}`, "Content-Type": contentType },
+    body: fileOrBlob,
+  });
+  if (!res.ok) { const e = await res.text(); throw new Error(e); }
+  return `${SB_URL}/storage/v1/object/public/vouchers/${vcId}.${ext}`;
+}
+
 async function sbFetch(path, options={}) {
   const res = await fetch(SB_URL + "/rest/v1/" + path, {
     ...options,
@@ -722,7 +733,7 @@ const SB_MAP = {
   sales:              { table:"sales",              toSB: r=>({id:r.id,product_id:r.productId,product_name:r.productName,customization:r.customization||null,client_price:r.clientPrice,promoter_price:r.promoterPrice,cost:r.cost,commission:r.commission,profit:r.profit,profit_owner:r.profitOwner,profit_partner:r.profitPartner,payment_method:r.paymentMethod,promoter_id:r.promoterId||null,promoter_name:r.promoterName||null,is_direct_sale:r.isDirectSale||false,client_name:r.clientName||null,client_phone:r.clientPhone||null,notes:r.notes||null,commission_status:r.commissionStatus,date:r.date,is_historic:r.isHistoric||false,deleted:r.deleted||false,deleted_at:r.deletedAt||null,deleted_reason:r.deletedReason||null,order_id:r.orderId||null,variant_id:r.variantId||null,variant_name:r.variantName||null,voucher_id:r.voucherId||null}), fromSB: r=>({id:r.id,productId:r.product_id,productName:r.product_name,customization:r.customization,clientPrice:r.client_price,promoterPrice:r.promoter_price,cost:r.cost,commission:r.commission,profit:r.profit,profitOwner:r.profit_owner,profitPartner:r.profit_partner,paymentMethod:r.payment_method,promoterId:r.promoter_id,promoterName:r.promoter_name,isDirectSale:r.is_direct_sale,clientName:r.client_name,clientPhone:r.client_phone,notes:r.notes,commissionStatus:r.commission_status,date:r.date,isHistoric:r.is_historic,deleted:r.deleted,deletedAt:r.deleted_at,deletedReason:r.deleted_reason,orderId:r.order_id,variantId:r.variant_id,variantName:r.variant_name,voucherId:r.voucher_id||null,synced:true}) },
   expenses:           { table:"expenses",           toSB: r=>({id:r.id,type:r.type,amount:r.amount,description:r.description||null,date:r.date,afecta_sociedad:r.afectaSociedad!==false}), fromSB: r=>({id:r.id,type:r.type,amount:r.amount,description:r.description,date:r.date,afectaSociedad:r.afecta_sociedad,synced:true}) },
   commissionPayments: { table:"commission_payments", toSB: r=>({id:r.id,promoter_id:r.promoterId,amount:r.amount,sales_ids:r.salesIds||[],date:r.date}), fromSB: r=>({id:r.id,promoterId:r.promoter_id,amount:r.amount,salesIds:r.sales_ids||[],date:r.date}) },
-  vouchers:           { table:"vouchers",           toSB: r=>({id:r.id,hash:r.hash||null,file_type:r.fileType||null,file_name:r.fileName||null,amount:r.amount||0,reference:r.reference||null,holder_name:r.holderName||null,bank:r.bank||null,payment_date:r.paymentDate||null,payment_time:r.paymentTime||null,uploaded_at:r.uploadedAt||null,uploaded_by:r.uploadedBy||null,sale_id:r.saleId||null,sale_summary:r.saleSummary||null,notes:r.notes||null}), fromSB: r=>({id:r.id,hash:r.hash,image:null,fileType:r.file_type,fileName:r.file_name,amount:r.amount,reference:r.reference,holderName:r.holder_name,bank:r.bank,paymentDate:r.payment_date,paymentTime:r.payment_time,uploadedAt:r.uploaded_at,uploadedBy:r.uploaded_by,saleId:r.sale_id,saleSummary:r.sale_summary,notes:r.notes,synced:true}) }
+  vouchers:           { table:"vouchers",           toSB: r=>({id:r.id,hash:r.hash||null,file_type:r.fileType||null,file_name:r.fileName||null,amount:r.amount||0,reference:r.reference||null,holder_name:r.holderName||null,bank:r.bank||null,payment_date:r.paymentDate||null,payment_time:r.paymentTime||null,uploaded_at:r.uploadedAt||null,uploaded_by:r.uploadedBy||null,sale_id:r.saleId||null,sale_summary:r.saleSummary||null,notes:r.notes||null,image_url:r.imageUrl||null}), fromSB: r=>({id:r.id,hash:r.hash,image:null,imageUrl:r.image_url||null,fileType:r.file_type,fileName:r.file_name,amount:r.amount,reference:r.reference,holderName:r.holder_name,bank:r.bank,paymentDate:r.payment_date,paymentTime:r.payment_time,uploadedAt:r.uploaded_at,uploadedBy:r.uploaded_by,saleId:r.sale_id,saleSummary:r.sale_summary,notes:r.notes,synced:true}) }
 };
 
 async function sbPull(store) {
@@ -3908,8 +3919,20 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
         synced: false,
       };
       if (vcId && vcFile) {
+        let vcImageUrl = null;
+        try {
+          let uploadBlob = vcFile, uploadType = vcFile.type;
+          if (vcType !== "pdf" && vcPreview) {
+            const byteStr = atob(vcPreview.split(',')[1]);
+            const buf = new ArrayBuffer(byteStr.length);
+            const arr = new Uint8Array(buf);
+            for (let i=0;i<byteStr.length;i++) arr[i]=byteStr.charCodeAt(i);
+            uploadBlob = new Blob([buf], {type:'image/jpeg'}); uploadType='image/jpeg';
+          }
+          vcImageUrl = await uploadVoucherImage(vcId, uploadBlob, uploadType);
+        } catch(e) { console.warn("Storage upload failed:", e); }
         const voucher = {
-          id:vcId, hash:vcHash, image:vcPreview, fileType:vcType, fileName:vcFile.name,
+          id:vcId, hash:vcHash, image:vcPreview, imageUrl:vcImageUrl, fileType:vcType, fileName:vcFile.name,
           amount:cp2, reference:vcRef.trim(), holderName:vcHolder.trim(), bank:vcBank,
           paymentDate:vcDate||new Date(saleDate).toISOString().slice(0,10), paymentTime:vcTime,
           uploadedAt:Date.now(), uploadedBy:user?.name||"",
@@ -3945,10 +3968,23 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
     };
     // Si hay comprobante, guardarlo ANTES del onSubmit para que el reload lo incluya
     if (vcId && vcFile) {
+      let vcImageUrl = null;
+      try {
+        let uploadBlob = vcFile, uploadType = vcFile.type;
+        if (vcType !== "pdf" && vcPreview) {
+          const byteStr = atob(vcPreview.split(',')[1]);
+          const buf = new ArrayBuffer(byteStr.length);
+          const arr = new Uint8Array(buf);
+          for (let i=0;i<byteStr.length;i++) arr[i]=byteStr.charCodeAt(i);
+          uploadBlob = new Blob([buf], {type:'image/jpeg'}); uploadType='image/jpeg';
+        }
+        vcImageUrl = await uploadVoucherImage(vcId, uploadBlob, uploadType);
+      } catch(e) { console.warn("Storage upload failed:", e); }
       const voucher = {
         id: vcId,
         hash: vcHash,
         image: vcPreview,
+        imageUrl: vcImageUrl,
         fileType: vcType,
         fileName: vcFile.name,
         amount: cp,
@@ -4984,8 +5020,8 @@ function VoucherRow({voucher, matches, sales, onView, onAssign}) {
     <div className="vc-row">
       <div className={"vc-bar "+(assigned?"vc-bar-ok":"vc-bar-no")}/>
       <button className="vc-thumb" onClick={onView} title="Ver comprobante">
-        {voucher.fileType==="image"&&voucher.image
-          ? <img src={voucher.image} alt="comprobante"/>
+        {voucher.fileType==="image"&&(voucher.image||voucher.imageUrl)
+          ? <img src={voucher.image||voucher.imageUrl} alt="comprobante"/>
           : voucher.fileType==="pdf"
             ? <div className="vc-thumb-pdf">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -5107,24 +5143,37 @@ function SubirComprobante({vouchers, user, onClose, onSave, onSaveAndAssign, pre
   const handleSave = async (andAssign=false) => {
     if (!file||!amount||!payDate) return;
     setSaving(true);
-    let image = preview;
-    if (!image && fileType==="pdf") {
-      // Convertir PDF a base64
-      image = await new Promise(res=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.readAsDataURL(file);});
+    try {
+      const vcId = uid("vc");
+      // Subir a Supabase Storage
+      let uploadBlob = file;
+      let uploadType = file.type;
+      if (fileType !== "pdf" && preview) {
+        const byteStr = atob(preview.split(',')[1]);
+        const buf = new ArrayBuffer(byteStr.length);
+        const arr = new Uint8Array(buf);
+        for (let i=0;i<byteStr.length;i++) arr[i]=byteStr.charCodeAt(i);
+        uploadBlob = new Blob([buf], {type:'image/jpeg'});
+        uploadType = 'image/jpeg';
+      }
+      const imageUrl = await uploadVoucherImage(vcId, uploadBlob, uploadType);
+      const v = {
+        id: vcId, hash, image: preview, imageUrl, fileType,
+        fileName: file.name,
+        amount: parseFloat(amount)||0,
+        reference: reference.trim(),
+        holderName: holderName.trim(),
+        bank, paymentDate: payDate, paymentTime: payTime,
+        uploadedAt: Date.now(), uploadedBy: user?.name||"",
+        saleId: null, saleSummary: "", notes: notes.trim(),
+      };
+      if (andAssign) await onSaveAndAssign(v);
+      else await onSave(v);
+    } catch(e) {
+      alert("No se pudo subir el comprobante. Verifica tu conexión a internet.");
+    } finally {
+      setSaving(false);
     }
-    const v = {
-      id: uid("vc"), hash, image, fileType,
-      fileName: file.name,
-      amount: parseFloat(amount)||0,
-      reference: reference.trim(),
-      holderName: holderName.trim(),
-      bank, paymentDate: payDate, paymentTime: payTime,
-      uploadedAt: Date.now(), uploadedBy: user?.name||"",
-      saleId: null, saleSummary: "", notes: notes.trim(),
-    };
-    setSaving(false);
-    if (andAssign) await onSaveAndAssign(v);
-    else await onSave(v);
   };
 
   return (
@@ -5376,10 +5425,10 @@ function VerComprobante({voucher, sales, onClose, onAssign, onUnassign}) {
       </div>
 
       <div className="vc-fs-img">
-        {voucher.fileType==="image"&&voucher.image
-          ? <img src={voucher.image} alt="Comprobante" style={{maxWidth:"100%",maxHeight:"100%",objectFit:"contain"}}/>
-          : voucher.fileType==="pdf"&&voucher.image
-            ? <iframe src={voucher.image} style={{width:"100%",height:"100%",border:"none"}} title="PDF"/>
+        {voucher.fileType==="image"&&(voucher.image||voucher.imageUrl)
+          ? <img src={voucher.image||voucher.imageUrl} alt="Comprobante" style={{maxWidth:"100%",maxHeight:"100%",objectFit:"contain"}}/>
+          : voucher.fileType==="pdf"&&(voucher.image||voucher.imageUrl)
+            ? <iframe src={voucher.image||voucher.imageUrl} style={{width:"100%",height:"100%",border:"none"}} title="PDF"/>
             : <div style={{color:"var(--muted)",textAlign:"center",padding:40}}>
                 <Ic n="clip" s={48}/>
                 <p style={{marginTop:12,fontSize:".86rem"}}>
