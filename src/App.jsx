@@ -2253,7 +2253,7 @@ function SaleEditModal({sale, role, onClose, onSave}) {
   };
 
   return (
-    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+    <div className="overlay" onMouseDown={e=>{e.currentTarget.dataset.own=e.target===e.currentTarget?'1':'';}} onClick={e=>e.target===e.currentTarget&&e.currentTarget.dataset.own==='1'&&onClose()}>
       <div className="sheet">
         <div className="sh-hd"/>
         <div className="sh-title">Editar venta</div>
@@ -2513,7 +2513,7 @@ function ProductForm({product, onClose, onSave}) {
   };
 
   return (
-    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+    <div className="overlay" onMouseDown={e=>{e.currentTarget.dataset.own=e.target===e.currentTarget?'1':'';}} onClick={e=>e.target===e.currentTarget&&e.currentTarget.dataset.own==='1'&&onClose()}>
       <div className="sheet">
         <div className="sh-hd"/>
         <div className="sh-title">{product?"Editar producto":"Nuevo producto"}</div>
@@ -2823,7 +2823,7 @@ function PromotersPage({promoters, sales, role, payments, onPay, onSave, user}) 
       {showForm&&<PromoterForm promoter={editPr} onClose={()=>setShowForm(false)} onSave={async p=>{await onSave(p);setShowForm(false);}}/>}
 
       {payingPr&&(
-        <div className="overlay" onClick={e=>e.target===e.currentTarget&&setPayingPr(null)}>
+        <div className="overlay" onMouseDown={e=>{e.currentTarget.dataset.own=e.target===e.currentTarget?'1':'';}} onClick={e=>e.target===e.currentTarget&&e.currentTarget.dataset.own==='1'&&setPayingPr(null)}>
           <div className="sheet">
             <div className="sh-hd"/>
             <div className="sh-title">Confirmar pago</div>
@@ -2856,7 +2856,7 @@ function PromoterForm({promoter, onClose, onSave}) {
   const set=(k,v)=>setF(x=>({...x,[k]:v}));
   const hasCustom=f.customPromoterPrice!=null;
   return (
-    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+    <div className="overlay" onMouseDown={e=>{e.currentTarget.dataset.own=e.target===e.currentTarget?'1':'';}} onClick={e=>e.target===e.currentTarget&&e.currentTarget.dataset.own==='1'&&onClose()}>
       <div className="sheet">
         <div className="sh-hd"/>
         <div className="sh-title">{promoter?"Editar promotora":"Nueva promotora"}</div>
@@ -2958,7 +2958,7 @@ function ExpensesPage({expenses, onAdd, onDelete}) {
         ))
       }
       {showForm&&(
-        <div className="overlay" onClick={e=>e.target===e.currentTarget&&setShowForm(false)}>
+        <div className="overlay" onMouseDown={e=>{e.currentTarget.dataset.own=e.target===e.currentTarget?'1':'';}} onClick={e=>e.target===e.currentTarget&&e.currentTarget.dataset.own==='1'&&setShowForm(false)}>
           <div className="sheet">
             <div className="sh-hd"/>
             <div className="sh-title">Nuevo gasto</div>
@@ -3629,7 +3629,7 @@ function UserForm({user, promoters, onClose, onSave}) {
   const set=(k,v)=>setF(x=>({...x,[k]:v}));
   const valid=f.name&&f.pin&&f.pin.length>=4;
   return (
-    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+    <div className="overlay" onMouseDown={e=>{e.currentTarget.dataset.own=e.target===e.currentTarget?'1':'';}} onClick={e=>e.target===e.currentTarget&&e.currentTarget.dataset.own==='1'&&onClose()}>
       <div className="sheet">
         <div className="sh-hd"/>
         <div className="sh-title">{user?"Editar usuario":"Nuevo usuario"}</div>
@@ -3826,7 +3826,7 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
   };
 
   return (
-    <div className="overlay" onClick={e=>e.target===e.currentTarget&&!done&&onClose()}>
+    <div className="overlay" onMouseDown={e=>{e.currentTarget.dataset.own=e.target===e.currentTarget?'1':'';}} onClick={e=>e.target===e.currentTarget&&e.currentTarget.dataset.own==='1'&&!done&&onClose()}>
       <div className="sheet">
         <div className="sh-hd"/>
         {done?(
@@ -4291,7 +4291,7 @@ function CSVImportModal({promoters, onClose, onImport}) {
   };
 
   return (
-    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+    <div className="overlay" onMouseDown={e=>{e.currentTarget.dataset.own=e.target===e.currentTarget?'1':'';}} onClick={e=>e.target===e.currentTarget&&e.currentTarget.dataset.own==='1'&&onClose()}>
       <div className="sheet">
         <div className="sh-hd"/>
         <div className="sh-title">Importar ventas desde CSV</div>
@@ -4338,7 +4338,7 @@ function DeleteSaleModal({sale, onClose, onConfirm}) {
   const [motivo, setMotivo] = useState("");
   const motivos = ["Devolucion al cliente","Error de registro","Pedido cancelado","Otro"];
   return (
-    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+    <div className="overlay" onMouseDown={e=>{e.currentTarget.dataset.own=e.target===e.currentTarget?'1':'';}} onClick={e=>e.target===e.currentTarget&&e.currentTarget.dataset.own==='1'&&onClose()}>
       <div className="sheet">
         <div className="sh-hd"/>
         <div className="sh-title">Eliminar venta</div>
@@ -4622,7 +4622,7 @@ function SubirComprobante({vouchers, user, onClose, onSave, onSaveAndAssign, pre
   };
 
   return (
-    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+    <div className="overlay" onMouseDown={e=>{e.currentTarget.dataset.own=e.target===e.currentTarget?'1':'';}} onClick={e=>e.target===e.currentTarget&&e.currentTarget.dataset.own==='1'&&onClose()}>
       <div className="sheet">
         <div className="sh-hd"/>
         <div className="sh-title">Subir comprobante de pago</div>
@@ -4760,7 +4760,7 @@ function AsignarComprobante({voucher, sales, onClose, onConfirm}) {
   };
 
   return (
-    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+    <div className="overlay" onMouseDown={e=>{e.currentTarget.dataset.own=e.target===e.currentTarget?'1':'';}} onClick={e=>e.target===e.currentTarget&&e.currentTarget.dataset.own==='1'&&onClose()}>
       <div className="sheet">
         <div className="sh-hd"/>
         <div className="sh-title">Asignar comprobante a venta</div>
@@ -4859,7 +4859,7 @@ function VerComprobante({voucher, sales, onClose, onAssign, onUnassign}) {
   const sale = voucher.saleId ? sales.find(s=>s.id===voucher.saleId) : null;
 
   return (
-    <div className="vc-fs" onClick={e=>e.target===e.currentTarget&&onClose()}>
+    <div className="vc-fs" onMouseDown={e=>{e.currentTarget.dataset.own=e.target===e.currentTarget?'1':'';}} onClick={e=>e.target===e.currentTarget&&e.currentTarget.dataset.own==='1'&&onClose()}>
       <div className="vc-fs-top">
         {!voucher.saleId&&onAssign&&(
           <button className="vc-fs-btn" style={{width:"auto",padding:"0 12px",borderRadius:20,fontSize:".76rem",fontWeight:700,gap:5,display:"flex",alignItems:"center"}} onClick={onAssign}>
