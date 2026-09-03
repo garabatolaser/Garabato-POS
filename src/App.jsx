@@ -3873,13 +3873,15 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
       : f.productId && (f.productId!=="custom" || f.productName.trim()) && (!selProdHasVariants || f.variantId);
   const step2valid = multiMode || f.isDirectSale||f.promoterId;
 
+  const parseLocalDate = iso => { const [y,m,d]=iso.split("-"); return new Date(+y,+m-1,+d).getTime(); };
+
   const handleSubmit = async()=>{
-    const saleDate = isHistoric ? new Date(f.saleDate).getTime() : Date.now();
+    const saleDate = isHistoric ? parseLocalDate(f.saleDate) : Date.now();
     const vcId = (vcOpen && vcFile) ? uid("vc") : null;
     const soloGrabado = !!f.soloGrabado;
 
     if (multiMode) {
-      const saleDate = isHistoric ? new Date(f.saleDate).getTime() : Date.now();
+      const saleDate = isHistoric ? parseLocalDate(f.saleDate) : Date.now();
       const vcId = (vcOpen && vcFile) ? uid("vc") : null;
       const cp2  = r2(cartTotalPrice);
       const pp2  = r2(f.isDirectSale ? cartTotalPrice : cartTotalPromoterPrice);
@@ -4689,7 +4691,7 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                       {f.customization&&<div className="pbr"><span className="pbk">Grabado</span><span className="pbv pbv-gold" style={{fontStyle:"italic"}}>"{f.customization}"</span></div>}
                     </>
                   )}
-                  {isHistoric&&<div className="pbr"><span className="pbk">Fecha real</span><span className="pbv">{fmtDate(new Date(f.saleDate).getTime())}</span></div>}
+                  {isHistoric&&<div className="pbr"><span className="pbk">Fecha real</span><span className="pbv">{fmtDate(parseLocalDate(f.saleDate))}</span></div>}
                   <div className="pbr"><span className="pbk">Origen</span><span className="pbv">{multiMode?"Tienda directa":f.soloGrabado?"Solo grabado":f.isDirectSale?"Tienda directa":f.promoterName}</span></div>
                   <div className="pbr"><span className="pbk">Método de pago</span><span className="pbv" style={{textTransform:"capitalize"}}>{f.paymentMethod}</span></div>
                   {f.clientName&&<div className="pbr"><span className="pbk">Cliente</span><span className="pbv">{f.clientName}</span></div>}
