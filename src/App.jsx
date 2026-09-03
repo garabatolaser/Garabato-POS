@@ -4308,6 +4308,18 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                 {f.soloGrabado?(
                   /* ── FORMULARIO SOLO GRABADO ── */
                   <>
+                    {(user.role==="admin"||user.role==="employee")&&(
+                      <div className="fi2" style={{marginBottom:14}}>
+                        <div className="fg">
+                          <label className="fl">Nombre cliente (opcional)</label>
+                          <input className="fi" value={f.clientName} onChange={e=>set("clientName",e.target.value)} placeholder="Nombre del cliente"/>
+                        </div>
+                        <div className="fg">
+                          <label className="fl">Teléfono (opcional)</label>
+                          <input className="fi" type="tel" value={f.clientPhone} onChange={e=>set("clientPhone",e.target.value)} placeholder="70012345"/>
+                        </div>
+                      </div>
+                    )}
                     <div className="fg">
                       <label className="fl">Descripción de la pieza (opcional)</label>
                       <input className="fi" value={f.grabadoDesc}
