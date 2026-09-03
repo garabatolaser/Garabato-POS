@@ -779,7 +779,14 @@ async function syncFromSupabase() {
           .forEach(r => st.delete(r.id));
       }
       // 2. Upsert todos los registros de Supabase (con synced:true)
-      rows.forEach(r => st.put({...r, synced:true}));
+      //    Para vouchers: preservar imagen base64 local que no viaja a Supabase
+      const localById = store==="vouchers" ? Object.fromEntries(localAll.map(r=>[r.id,r])) : {};
+      rows.forEach(r => {
+        const base = store==="vouchers" && localById[r.id]?.image
+          ? {...r, image:localById[r.id].image, synced:true}
+          : {...r, synced:true};
+        st.put(base);
+      });
       // 3. Re-guardar registros locales no sincronizados que NO están en Supabase todavía
       unsynced.filter(r => !sbIds.has(r.id)).forEach(r => st.put(r));
       tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error);
@@ -840,6 +847,11 @@ function startRealtime(onReload) {
           if (id) await new Promise((r)=>{ const q=db.transaction(store,"readwrite").objectStore(store).delete(id); q.onsuccess=r; });
         } else if (record) {
           const localRecord = map.fromSB(record);
+          // Para vouchers: preservar imagen base64 local que no viaja a Supabase
+          if (store==="vouchers" && !localRecord.image) {
+            const existing = await new Promise(r=>{ const q=db.transaction(store,"readonly").objectStore(store).get(localRecord.id); q.onsuccess=()=>r(q.result); });
+            if (existing?.image) localRecord.image = existing.image;
+          }
           await new Promise((r)=>{ const q=db.transaction(store,"readwrite").objectStore(store).put(localRecord); q.onsuccess=r; });
         }
         // Notificar a React que recargue
@@ -1428,15 +1440,17 @@ export default function App() {
   const handleNewSale = async data=>{
     await dbPut("sales",{...data,synced:false});
     if (!data.isHistoric) {
-      const prod=products.find(p=>p.id===data.productId);
-      if (prod) {
-        if (data.variantId && prod.hasVariants && prod.variants?.length) {
-          // Decrementar stock de la variante específica
-          const variants = prod.variants.map(v=>v.id===data.variantId&&v.stock>0?{...v,stock:v.stock-1}:v);
+      const lines = data.items || [{productId:data.productId,qty:1,variantId:data.variantId}];
+      for (const line of lines) {
+        const prod = products.find(p=>p.id===line.productId);
+        if (!prod) continue;
+        const qty = line.qty||1;
+        if (line.variantId && prod.hasVariants && prod.variants?.length) {
+          const variants = prod.variants.map(v=>v.id===line.variantId&&v.stock>0?{...v,stock:Math.max(0,v.stock-qty)}:v);
           const totalStock = variants.reduce((a,v)=>a+(v.stock||0),0);
           await dbPut("products",{...prod,variants,stock:totalStock,synced:false});
         } else if (prod.stock>0) {
-          await dbPut("products",{...prod,stock:prod.stock-1,synced:false});
+          await dbPut("products",{...prod,stock:Math.max(0,prod.stock-qty),synced:false});
         }
       }
     }
@@ -1454,14 +1468,18 @@ export default function App() {
     if (s && motivo) {
       await dbPut("sales",{...s,deleted:true,deletedAt:Date.now(),deletedReason:motivo});
       // Devolver stock al inventario (solo ventas no históricas)
-      if (!s.isHistoric && s.productId) {
-        const prod = await dbGet("products", s.productId);
-        if (prod) {
-          if (s.variantId && prod.hasVariants && prod.variants?.length) {
-            const variants = prod.variants.map(v=>v.id===s.variantId?{...v,stock:(v.stock||0)+1}:v);
-            await dbPut("products",{...prod,variants,synced:false});
-          } else {
-            await dbPut("products",{...prod,stock:(prod.stock||0)+1,synced:false});
+      if (!s.isHistoric) {
+        const lines = s.items || (s.productId?[{productId:s.productId,qty:1,variantId:s.variantId}]:[]);
+        for (const line of lines) {
+          const prod = await dbGet("products", line.productId);
+          if (!prod) continue;
+          const qty = line.qty||1;
+          if (line.variantId && prod.hasVariants && prod.variants?.length) {
+            const variants = prod.variants.map(v=>v.id===line.variantId?{...v,stock:(v.stock||0)+qty}:v);
+            const totalStock = variants.reduce((a,v)=>a+(v.stock||0),0);
+            await dbPut("products",{...prod,variants,stock:totalStock,synced:false});
+          } else if (prod.stock!=null) {
+            await dbPut("products",{...prod,stock:(prod.stock||0)+qty,synced:false});
           }
         }
       }
@@ -2331,8 +2349,20 @@ function SaleRow({sale, role, showActions, onMarkPaid, onEdit, onDelete, voucher
     <div className="si">
       <div className="si-ico"><Ic n={sale.isHistoric?"history":"laser"} s={16}/></div>
       <div className="si-body">
-        <div className="si-prod">{sale.productName}</div>
-        {sale.customization&&<div className="si-cust">"{sale.customization}"</div>}
+        {sale.items?(
+          <div className="si-prod">
+            {sale.items.map((it,i)=>(
+              <div key={i} style={{fontSize:i===0?".86rem":".76rem",color:i===0?"var(--txt)":"var(--muted)",fontWeight:i===0?700:500,lineHeight:1.4}}>
+                {it.qty>1&&<span style={{color:"var(--gold)",fontWeight:800}}>{it.qty}× </span>}
+                {it.isSoloGrabado?(it.grabadoDesc||"Servicio de grabado"):(it.productName||"Artículo")}
+                {it.customization&&<span style={{color:"var(--gold)",fontStyle:"italic"}}> · "{it.customization}"</span>}
+              </div>
+            ))}
+          </div>
+        ):(
+          <div className="si-prod">{sale.productName}</div>
+        )}
+        {!sale.items&&sale.customization&&<div className="si-cust">"{sale.customization}"</div>}
         <div className="si-meta">
           <span>{fmtDate(sale.date)}{!sale.isHistoric&&" "+fmtHora(sale.date)}</span>
           <span style={{display:"inline-flex",alignItems:"center",gap:3}}>
@@ -3762,6 +3792,36 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
 
   const needsVoucher = f.paymentMethod==="qr" || f.paymentMethod==="transferencia";
 
+  // ── MODO CARRITO ──
+  const [multiMode, setMultiMode] = useState(false);
+  const [cartItems, setCartItems] = useState([]);
+  const [pickingFor, setPickingFor] = useState(null); // índice del item al que se asigna producto
+
+  const newCartItem = (type='product') => ({
+    _id: uid('ci'),
+    type,
+    productId: type==='grabado'?'solo-grabado':'',
+    productName: '',
+    qty: 1,
+    unitPrice: '',
+    unitCost: 0,
+    unitPromoterPrice: '',
+    isSoloGrabado: type==='grabado',
+    grabadoDesc: '',
+    customization: '',
+    variantId: '',
+    variantName: '',
+  });
+  const addCartItem = type => setCartItems(p=>[...p, newCartItem(type)]);
+  const updCartItem = (idx, patch) => setCartItems(p=>p.map((it,i)=>i===idx?{...it,...patch}:it));
+  const remCartItem = idx => setCartItems(p=>p.filter((_,i)=>i!==idx));
+
+  const cartTotalPrice = cartItems.reduce((s,it)=>s+(parseFloat(it.unitPrice)||0)*(it.qty||1),0);
+  const cartTotalCost  = cartItems.reduce((s,it)=>s+(it.unitCost||0)*(it.qty||1),0);
+  const cartTotalPromoterPrice = cartItems.reduce((s,it)=>s+(parseFloat(it.unitPromoterPrice)||0)*(it.qty||1),0);
+  const {commission:cartCommission,profit:cartProfit,profitOwner:cartProfitOwner,profitPartner:cartProfitPartner}
+    = calcSale(cartTotalPrice, cartTotalPromoterPrice, cartTotalCost);
+
   const selProd = products.find(p=>p.id===f.productId);
   const selProm = promoters.find(p=>p.id===f.promoterId);
 
@@ -3795,15 +3855,73 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
   const {commission,profit,profitOwner,profitPartner} = calcSale(cp,pp,cst);
   const ss  = s => step>s?"s-done":step===s?"s-cur":"s-fut";
   const selProdHasVariants = selProd?.hasVariants && selProd?.variants?.length>0;
-  const step1valid = f.soloGrabado
-    ? cp > 0
-    : f.productId && (f.productId!=="custom" || f.productName.trim()) && (!selProdHasVariants || f.variantId);
-  const step2valid = f.isDirectSale||f.promoterId;
+  const step1valid = multiMode
+    ? cartItems.length>0 && cartItems.every(it=>(parseFloat(it.unitPrice)||0)>0 && (it.isSoloGrabado||it.productId))
+    : f.soloGrabado
+      ? cp > 0
+      : f.productId && (f.productId!=="custom" || f.productName.trim()) && (!selProdHasVariants || f.variantId);
+  const step2valid = multiMode || f.isDirectSale||f.promoterId;
 
   const handleSubmit = async()=>{
     const saleDate = isHistoric ? new Date(f.saleDate).getTime() : Date.now();
     const vcId = (vcOpen && vcFile) ? uid("vc") : null;
     const soloGrabado = !!f.soloGrabado;
+
+    if (multiMode) {
+      const saleDate = isHistoric ? new Date(f.saleDate).getTime() : Date.now();
+      const vcId = (vcOpen && vcFile) ? uid("vc") : null;
+      const cp2  = r2(cartTotalPrice);
+      const pp2  = r2(f.isDirectSale ? cartTotalPrice : cartTotalPromoterPrice);
+      const {commission:cm,profit:pf,profitOwner:po,profitPartner:pp3} = calcSale(cp2,pp2,r2(cartTotalCost));
+      const names = cartItems.map(it=>(it.qty>1?it.qty+"× ":"")+(it.isSoloGrabado?(it.grabadoDesc||"Grabado"):(it.productName||"?")));
+      const multiSale = {
+        id:uid("V"),
+        productId: "multi",
+        productName: names.join(" · "),
+        customization: "",
+        clientPrice:cp2, promoterPrice:pp2, cost:r2(cartTotalCost),
+        commission:cm, profit:pf, profitOwner:po, profitPartner:pp3,
+        paymentMethod:f.paymentMethod,
+        promoterId: f.isDirectSale?null:f.promoterId,
+        promoterName: f.isDirectSale?"Tienda directa":f.promoterName,
+        isDirectSale: !!f.isDirectSale,
+        isSoloGrabado: false,
+        isMultiItem: true,
+        items: cartItems.map(it=>({
+          productId: it.isSoloGrabado?"solo-grabado":it.productId,
+          productName: it.isSoloGrabado?(it.grabadoDesc||"Servicio de grabado"):it.productName,
+          qty: it.qty||1,
+          unitPrice: parseFloat(it.unitPrice)||0,
+          unitCost: it.unitCost||0,
+          unitPromoterPrice: parseFloat(it.unitPromoterPrice)||0,
+          isSoloGrabado: !!it.isSoloGrabado,
+          customization: it.customization||"",
+          variantId: it.variantId||null,
+          variantName: it.variantName||null,
+        })),
+        clientName: f.clientName.trim(),
+        clientPhone: f.clientPhone.trim(),
+        notes: "",
+        commissionStatus: f.isDirectSale?"pagado":"pendiente",
+        date: saleDate, isHistoric: !!isHistoric,
+        voucherId: vcId,
+        synced: false,
+      };
+      if (vcId && vcFile) {
+        const voucher = {
+          id:vcId, hash:vcHash, image:vcPreview, fileType:vcType, fileName:vcFile.name,
+          amount:cp2, reference:vcRef.trim(), holderName:vcHolder.trim(), bank:vcBank,
+          paymentDate:vcDate||new Date(saleDate).toISOString().slice(0,10), paymentTime:vcTime,
+          uploadedAt:Date.now(), uploadedBy:user?.name||"",
+          saleId:multiSale.id, saleSummary:names[0]+" · "+fmtDate(saleDate),
+          notes:"", synced:false,
+        };
+        await dbPut("vouchers", voucher);
+      }
+      setDone(multiSale); await onSubmit(multiSale);
+      return;
+    }
+
     const sale = {
       id:uid("V"),
       productId: soloGrabado?"solo-grabado":f.productId,
@@ -3861,8 +3979,19 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
             <div className="suc-title">{isHistoric?"Cargada!":"Venta registrada!"}</div>
             <div className="id-tag" style={{marginBottom:16}}>{done.id}</div>
             <div className="pb" style={{width:"100%",marginBottom:16}}>
-              <div className="pbr"><span className="pbk">{done.isSoloGrabado?"Pieza":"Producto"}</span><span className="pbv">{done.productName}</span></div>
-              {done.customization&&<div className="pbr"><span className="pbk">Grabado</span><span className="pbv pbv-gold" style={{fontStyle:"italic"}}>"{done.customization}"</span></div>}
+              {done.isMultiItem?(
+                done.items.map((it,i)=>(
+                  <div key={i} className="pbr">
+                    <span className="pbk">{it.qty>1?it.qty+"× ":""}{it.isSoloGrabado?(it.grabadoDesc||"Grabado"):(it.productName||"?")}{it.customization?` · "${it.customization}"`:""}</span>
+                    <span className="pbv pbv-gold">{fmt((it.unitPrice||0)*(it.qty||1))}</span>
+                  </div>
+                ))
+              ):(
+                <>
+                  <div className="pbr"><span className="pbk">{done.isSoloGrabado?"Pieza":"Producto"}</span><span className="pbv">{done.productName}</span></div>
+                  {done.customization&&<div className="pbr"><span className="pbk">Grabado</span><span className="pbv pbv-gold" style={{fontStyle:"italic"}}>"{done.customization}"</span></div>}
+                </>
+              )}
               <div className="pbr"><span className="pbk">Fecha</span><span className="pbv">{fmtDate(done.date)}</span></div>
               <div className="pbr"><span className="pbk">Origen</span><span className="pbv">{done.isSoloGrabado?"Solo grabado":done.promoterName}</span></div>
               {done.clientName&&<div className="pbr"><span className="pbk">Cliente</span><span className="pbv">{done.clientName}{done.clientPhone?" - "+done.clientPhone:""}</span></div>}
@@ -3918,9 +4047,40 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
             {step===1&&(
               <div className="pe">
                 <div style={{fontSize:"1rem",fontWeight:700,marginBottom:14,color:"var(--muted)"}}>
-                  Paso 1 - <span style={{color:"var(--txt)"}}>{f.soloGrabado?"Servicio de grabado":"Producto y grabado"}</span>
+                  Paso 1 - <span style={{color:"var(--txt)"}}>{multiMode?"Artículos (carrito)":f.soloGrabado?"Servicio de grabado":"Producto y grabado"}</span>
                 </div>
+
+                {/* Toggle venta múltiple */}
+                {!f.soloGrabado&&(
+                  <div className="price-box" style={{marginBottom:14,cursor:"pointer"}}
+                    onClick={()=>{setMultiMode(v=>!v);if(!multiMode&&cartItems.length===0)addCartItem('product');}}>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
+                      <div>
+                        <div style={{fontWeight:700,fontSize:".86rem",display:"flex",alignItems:"center",gap:6}}>
+                          <span style={{fontSize:"1rem"}}>🛒</span>
+                          <span style={{color:multiMode?"var(--teal)":"var(--txt)"}}>Venta múltiple</span>
+                        </div>
+                        <div style={{fontSize:".72rem",color:"var(--muted)",marginTop:2}}>Vendés varios artículos distintos en una sola operación</div>
+                      </div>
+                      <div style={{
+                        width:42,height:24,borderRadius:12,
+                        background:multiMode?"rgba(41,184,168,.35)":"var(--s3)",
+                        position:"relative",flexShrink:0,transition:".2s",
+                      }}>
+                        <div style={{
+                          width:18,height:18,borderRadius:"50%",
+                          background:multiMode?"var(--teal)":"var(--muted)",
+                          position:"absolute",top:3,
+                          left:multiMode?20:3,
+                          transition:".2s",
+                        }}/>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Toggle solo grabado */}
+                {!multiMode&&(
                 <div className="price-box" style={{marginBottom:14,cursor:"pointer"}} onClick={()=>toggleSoloGrabado(!f.soloGrabado)}>
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
                     <div>
@@ -3945,6 +4105,161 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                     </div>
                   </div>
                 </div>
+                )} {/* fin !multiMode → toggle solo grabado */}
+
+                {/* ══ MODO CARRITO ══ */}
+                {multiMode&&(
+                  <>
+                    {isHistoric&&(
+                      <div className="fg">
+                        <label className="fl">Fecha real de la venta</label>
+                        <input className="fi" type="date" value={f.saleDate} onChange={e=>set("saleDate",e.target.value)} max={todayISO()}/>
+                      </div>
+                    )}
+                    {(user.role==="admin"||user.role==="employee")&&(
+                      <div className="price-box" style={{marginBottom:14}}>
+                        <div style={{fontSize:".76rem",color:"var(--muted)",fontWeight:800,textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>
+                          Datos del cliente (opcional)
+                        </div>
+                        <div className="fi2">
+                          <div className="fg">
+                            <label className="fl">Nombre</label>
+                            <input className="fi" value={f.clientName} onChange={e=>set("clientName",e.target.value)} placeholder="Nombre del cliente"/>
+                          </div>
+                          <div className="fg">
+                            <label className="fl">Teléfono</label>
+                            <input className="fi" type="tel" value={f.clientPhone} onChange={e=>set("clientPhone",e.target.value)} placeholder="70012345"/>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {/* Líneas del carrito */}
+                    {cartItems.map((it,idx)=>(
+                      <div key={it._id} style={{border:"1px solid var(--b1)",borderRadius:"var(--r)",padding:"12px 13px",marginBottom:10,background:"var(--s2)"}}>
+                        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                          <div style={{fontWeight:700,fontSize:".82rem",color:"var(--muted)",textTransform:"uppercase",letterSpacing:.4}}>
+                            {it.isSoloGrabado?"Solo grabado":it.type==="custom"?"Personalizado":"Artículo "+(idx+1)}
+                          </div>
+                          <button style={{background:"none",border:"none",cursor:"pointer",color:"var(--red)",fontSize:"1rem",padding:0}} onClick={()=>remCartItem(idx)}>×</button>
+                        </div>
+                        {it.isSoloGrabado?(
+                          <>
+                            <div className="fg" style={{marginBottom:8}}>
+                              <input className="fi" value={it.grabadoDesc} onChange={e=>updCartItem(idx,{grabadoDesc:e.target.value})} placeholder="Descripción de la pieza (opcional)"/>
+                            </div>
+                            <div className="fg" style={{marginBottom:8}}>
+                              <input className="fi" value={it.customization} onChange={e=>updCartItem(idx,{customization:e.target.value})} placeholder="Texto del grabado (opcional)"/>
+                            </div>
+                          </>
+                        ):(
+                          <>
+                            {it.productId?(
+                              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                                <div style={{flex:1,fontWeight:700,fontSize:".86rem",color:"var(--gold)"}}>{it.productName}</div>
+                                <button className="btn btn-sm btn-out" style={{padding:"4px 8px",fontSize:".7rem"}} onClick={()=>setPickingFor(idx)}>Cambiar</button>
+                              </div>
+                            ):(
+                              <button className="btn btn-out" style={{width:"100%",marginBottom:8}} onClick={()=>setPickingFor(idx)}>
+                                Seleccionar producto del catálogo →
+                              </button>
+                            )}
+                            {it.type==="custom"&&(
+                              <div className="fg" style={{marginBottom:8}}>
+                                <input className="fi" value={it.productName} onChange={e=>updCartItem(idx,{productId:e.target.value?"custom":"",productName:e.target.value})} placeholder="Nombre del artículo"/>
+                              </div>
+                            )}
+                            <div className="fg" style={{marginBottom:8}}>
+                              <input className="fi" value={it.customization} onChange={e=>updCartItem(idx,{customization:e.target.value})} placeholder="Texto del grabado (opcional)"/>
+                            </div>
+                          </>
+                        )}
+                        <div className="fi2">
+                          <div className="fg">
+                            <label className="fl">Precio unitario (Bs)</label>
+                            <input className="fi" type="number" inputMode="decimal" value={it.unitPrice}
+                              onChange={e=>{
+                                const v=e.target.value;
+                                updCartItem(idx,{unitPrice:v, unitPromoterPrice:v});
+                              }} placeholder="0" min="0"/>
+                          </div>
+                          <div className="fg">
+                            <label className="fl">Costo unitario (Bs)</label>
+                            <input className="fi" type="number" inputMode="decimal" value={it.unitCost}
+                              onChange={e=>updCartItem(idx,{unitCost:parseFloat(e.target.value)||0})} placeholder="0" min="0"/>
+                          </div>
+                        </div>
+                        <div className="fg">
+                          <label className="fl">Cantidad</label>
+                          <div style={{display:"flex",alignItems:"center",gap:8}}>
+                            <button className="btn btn-sm btn-out" style={{padding:"5px 12px",fontSize:"1rem"}}
+                              onClick={()=>updCartItem(idx,{qty:Math.max(1,(it.qty||1)-1)})}>−</button>
+                            <span style={{fontWeight:800,fontSize:"1rem",minWidth:28,textAlign:"center"}}>{it.qty||1}</span>
+                            <button className="btn btn-sm btn-out" style={{padding:"5px 12px",fontSize:"1rem"}}
+                              onClick={()=>updCartItem(idx,{qty:(it.qty||1)+1})}>+</button>
+                            <span style={{fontSize:".76rem",color:"var(--muted)",marginLeft:4}}>
+                              = {fmt((parseFloat(it.unitPrice)||0)*(it.qty||1))}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {/* Botones añadir línea */}
+                    <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>
+                      <button className="btn btn-sm btn-out" onClick={()=>addCartItem('product')}>+ Del catálogo</button>
+                      <button className="btn btn-sm btn-out" onClick={()=>addCartItem('custom')}>+ Personalizado</button>
+                      <button className="btn btn-sm btn-out" style={{color:"#b47fff",borderColor:"rgba(180,120,255,.3)"}} onClick={()=>addCartItem('grabado')}>+ Solo grabado</button>
+                    </div>
+                    {/* Total del carrito */}
+                    {cartItems.length>0&&cartTotalPrice>0&&(
+                      <div className="pb" style={{marginBottom:14}}>
+                        <div className="pbr"><span className="pbk">Total a cobrar</span><span className="pbv pbv-gold">{fmt(cartTotalPrice)}</span></div>
+                        <div className="pbr"><span className="pbk">Costo total materiales</span><span className="pbv pbv-red">{fmt(cartTotalCost)}</span></div>
+                        {user.role==="admin"&&(
+                          <>
+                            <div className="pbr sep"><span className="pbk">Ganancia bruta</span><span className="pbv pbv-grn">{fmt(cartProfit+(cartTotalPrice-cartTotalPromoterPrice))}</span></div>
+                            <div className="pbr"><span className="pbk">Tu parte (50%)</span><span className="pbv pbv-teal">{fmt(cartProfitOwner+(cartTotalPrice-cartTotalPromoterPrice)/2)}</span></div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                    {/* Picker de producto de catálogo */}
+                    {pickingFor!==null&&(
+                      <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.85)",zIndex:900,overflowY:"auto",padding:"20px 16px",display:"flex",flexDirection:"column"}}>
+                        <div style={{maxWidth:560,margin:"0 auto",width:"100%"}}>
+                          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+                            <div style={{fontWeight:700,fontSize:"1rem"}}>Seleccionar producto</div>
+                            <button style={{background:"none",border:"none",cursor:"pointer",color:"var(--txt)",fontSize:"1.3rem"}} onClick={()=>setPickingFor(null)}>✕</button>
+                          </div>
+                          <div className="prod-grid">
+                            {products.map(p=>(
+                              <div key={p.id} className="prod-card" onClick={()=>{
+                                updCartItem(pickingFor,{
+                                  productId:p.id, productName:p.name,
+                                  unitPrice:p.clientPrice.toString(),
+                                  unitCost:p.cost,
+                                  unitPromoterPrice:p.promoterPrice.toString(),
+                                  type:'product',
+                                });
+                                setPickingFor(null);
+                              }}>
+                                {p.photo?<img src={p.photo} alt={p.name} className="prod-card-img"/>:<div className="prod-card-ph">{p.name.charAt(0)}</div>}
+                                <div className="prod-card-info">
+                                  <div className="prod-card-name">{p.name}</div>
+                                  <div className="prod-card-price">{fmt(p.clientPrice)}</div>
+                                  <div className="prod-card-sub">Costo: {fmt(p.cost)}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* ══ MODO SIMPLE (existente) ══ */}
+                {!multiMode&&(
+                <>
                 {isHistoric&&(
                   <div className="fg">
                     <label className="fl">Fecha real de la venta</label>
@@ -4100,6 +4415,17 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                   onClick={()=>step1valid&&setStep(2)}>
                   Continuar
                 </button>
+                </> /* fin !multiMode */
+                )} {/* fin !multiMode wrapper */}
+
+                {/* Botón Continuar del carrito */}
+                {multiMode&&(
+                  <button className="btn btn-gold"
+                    disabled={!step1valid}
+                    onClick={()=>step1valid&&setStep(2)}>
+                    Continuar — {cartItems.length} artículo{cartItems.length!==1?"s":""} · {fmt(cartTotalPrice)}
+                  </button>
+                )}
               </div>
             )}
 
@@ -4108,13 +4434,19 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                 <div style={{fontSize:"1rem",fontWeight:700,marginBottom:14,color:"var(--muted)"}}>
                   Paso 2 - <span style={{color:"var(--txt)"}}>Origen de la venta</span>
                 </div>
+                {multiMode&&(
+                  <div className="al al-ok" style={{marginBottom:14}}>
+                    <span>🛒</span>
+                    <span>Venta múltiple · {cartItems.length} artículo{cartItems.length!==1?"s":""} · total {fmt(cartTotalPrice)}</span>
+                  </div>
+                )}
                 {f.soloGrabado&&(
                   <div className="al al-ok" style={{marginBottom:14}}>
                     <Ic n="laser" s={14}/>
                     <span>Solo grabado · pieza del cliente · sin promotora · split 50/50</span>
                   </div>
                 )}
-                {!f.soloGrabado&&user.role!=="promoter"&&(
+                {!f.soloGrabado&&!multiMode&&user.role!=="promoter"&&(
                   <div className="fg">
                     <label className="fl">Tipo de venta</label>
                     <div className="pills" style={{marginBottom:12}}>
@@ -4129,7 +4461,7 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                     )}
                   </div>
                 )}
-                {!f.isDirectSale&&!f.soloGrabado&&(
+                {!f.isDirectSale&&!f.soloGrabado&&!multiMode&&(
                   <div className="fg">
                     <label className="fl">¿Quién hizo la venta?</label>
                     {promoters.filter(p=>p.active).map(pr=>{
@@ -4248,7 +4580,22 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                     <div style={{fontSize:".68rem",color:"var(--muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:.4,marginBottom:8}}>
                       {isHistoric?"Resumen histórico":"Resumen de la venta"}
                     </div>
-                    <div className="pbr"><span className="pbk">Precio cobrado</span><span className="pbv pbv-gold">{fmt(cp)}</span></div>
+                    {multiMode?(
+                      <>
+                        {cartItems.map((it,i)=>(
+                          <div key={i} className="pbr">
+                            <span className="pbk">{it.qty>1?it.qty+"× ":""}{it.isSoloGrabado?(it.grabadoDesc||"Grabado"):(it.productName||"Artículo")}</span>
+                            <span className="pbv pbv-gold">{fmt((parseFloat(it.unitPrice)||0)*(it.qty||1))}</span>
+                          </div>
+                        ))}
+                        <div className="pbr sep"><span className="pbk">TOTAL</span><span className="pbv pbv-gold">{fmt(cartTotalPrice)}</span></div>
+                        <div className="pbr"><span className="pbk">(-) Costo total</span><span className="pbv pbv-red">{fmt(cartTotalCost)}</span></div>
+                        {user.role==="admin"&&(
+                          <div className="pbr"><span className="pbk">= Ganancia bruta</span><span className="pbv pbv-grn">{fmt(cartTotalPrice-cartTotalCost)}</span></div>
+                        )}
+                      </>
+                    ):null}
+                    {!multiMode&&<div className="pbr"><span className="pbk">Precio cobrado</span><span className="pbv pbv-gold">{fmt(cp)}</span></div>}
                     {f.soloGrabado?(
                       user.role==="admin"&&(
                         <>
@@ -4291,25 +4638,48 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                   Paso 3 - <span style={{color:"var(--txt)"}}>Confirmar</span>
                 </div>
                 <div className="pb" style={{marginBottom:14}}>
+                  {multiMode&&<div className="pbr"><span className="pbk">Tipo</span><span className="pbv"><span className="chip ch-teal">🛒 Venta múltiple</span></span></div>}
                   {f.soloGrabado&&<div className="pbr"><span className="pbk">Tipo</span><span className="pbv"><span className="chip ch-laser">Solo Grabado</span></span></div>}
-                  <div className="pbr"><span className="pbk">{f.soloGrabado?"Pieza":"Producto"}</span><span className="pbv">{f.soloGrabado?(f.grabadoDesc||"Servicio de grabado"):f.productName}</span></div>
-                  {f.customization&&<div className="pbr"><span className="pbk">Grabado</span><span className="pbv pbv-gold" style={{fontStyle:"italic"}}>"{f.customization}"</span></div>}
+                  {multiMode?(
+                    cartItems.map((it,i)=>(
+                      <div key={i} className="pbr">
+                        <span className="pbk">{it.qty>1?it.qty+"× ":""}{it.isSoloGrabado?(it.grabadoDesc||"Grabado"):(it.productName||"?")}{it.customization?` · "${it.customization}"`:""}</span>
+                        <span className="pbv pbv-gold">{fmt((parseFloat(it.unitPrice)||0)*(it.qty||1))}</span>
+                      </div>
+                    ))
+                  ):(
+                    <>
+                      <div className="pbr"><span className="pbk">{f.soloGrabado?"Pieza":"Producto"}</span><span className="pbv">{f.soloGrabado?(f.grabadoDesc||"Servicio de grabado"):f.productName}</span></div>
+                      {f.customization&&<div className="pbr"><span className="pbk">Grabado</span><span className="pbv pbv-gold" style={{fontStyle:"italic"}}>"{f.customization}"</span></div>}
+                    </>
+                  )}
                   {isHistoric&&<div className="pbr"><span className="pbk">Fecha real</span><span className="pbv">{fmtDate(new Date(f.saleDate).getTime())}</span></div>}
-                  <div className="pbr"><span className="pbk">Origen</span><span className="pbv">{f.soloGrabado?"Solo grabado":f.isDirectSale?"Tienda directa":f.promoterName}</span></div>
+                  <div className="pbr"><span className="pbk">Origen</span><span className="pbv">{multiMode?"Tienda directa":f.soloGrabado?"Solo grabado":f.isDirectSale?"Tienda directa":f.promoterName}</span></div>
                   <div className="pbr"><span className="pbk">Método de pago</span><span className="pbv" style={{textTransform:"capitalize"}}>{f.paymentMethod}</span></div>
                   {f.clientName&&<div className="pbr"><span className="pbk">Cliente</span><span className="pbv">{f.clientName}</span></div>}
                   {isHistoric&&<div className="pbr"><span className="pbk">Tipo</span><span className="pbv hist-tag">Histórica</span></div>}
                   {vcFile&&<div className="pbr"><span className="pbk">Comprobante</span><span className="pbv" style={{color:"var(--grn)"}}><Ic n="clip" s={11}/> {vcFile.name}</span></div>}
-                  <div className="pbr sep"><span className="pbk">Precio cobrado</span><span className="pbv pbv-gold">{fmt(cp)}</span></div>
-                  {f.soloGrabado?(
-                    user.role==="admin"&&(
-                      <>
-                        <div className="pbr"><span className="pbk">Ganancia bruta (servicio puro)</span><span className="pbv pbv-grn">{fmt(cp)}</span></div>
-                        <div className="pbr"><span className="pbk">Tu parte (50%)</span><span className="pbv" style={{color:"#b47fff",fontWeight:800}}>{fmt(cp/2)}</span></div>
-                        <div className="pbr"><span className="pbk">Socio (50%)</span><span className="pbv" style={{color:"#b47fff",fontWeight:800}}>{fmt(cp/2)}</span></div>
-                      </>
-                    )
-                  ):(
+                  <div className="pbr sep"><span className="pbk">{multiMode?"TOTAL":"Precio cobrado"}</span><span className="pbv pbv-gold">{fmt(multiMode?cartTotalPrice:cp)}</span></div>
+                  {multiMode?(
+                    <>
+                      <div className="pbr"><span className="pbk">(-) Costo total</span><span className="pbv pbv-red">{fmt(cartTotalCost)}</span></div>
+                      {user.role==="admin"&&(
+                        <>
+                          <div className="pbr"><span className="pbk">= Ganancia bruta</span><span className="pbv pbv-grn">{fmt(cartTotalPrice-cartTotalCost)}</span></div>
+                          <div className="pbr"><span className="pbk">Tu parte (50%)</span><span className="pbv pbv-teal">{fmt((cartTotalPrice-cartTotalCost)/2)}</span></div>
+                          <div className="pbr"><span className="pbk">Socio (50%)</span><span className="pbv pbv-teal">{fmt((cartTotalPrice-cartTotalCost)/2)}</span></div>
+                        </>
+                      )}
+                    </>
+                  ):null}
+                  {!multiMode&&f.soloGrabado&&user.role==="admin"&&(
+                    <>
+                      <div className="pbr"><span className="pbk">Ganancia bruta (servicio puro)</span><span className="pbv pbv-grn">{fmt(cp)}</span></div>
+                      <div className="pbr"><span className="pbk">Tu parte (50%)</span><span className="pbv" style={{color:"#b47fff",fontWeight:800}}>{fmt(cp/2)}</span></div>
+                      <div className="pbr"><span className="pbk">Socio (50%)</span><span className="pbv" style={{color:"#b47fff",fontWeight:800}}>{fmt(cp/2)}</span></div>
+                    </>
+                  )}
+                  {!multiMode&&!f.soloGrabado&&(
                     <>
                       {f.isDirectSale?(
                         <div className="pbr"><span className="pbk">Ingreso total tienda</span><span className="pbv pbv-teal">{fmt(cp)}</span></div>
