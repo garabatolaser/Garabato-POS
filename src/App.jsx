@@ -2356,7 +2356,7 @@ function SaleEditModal({sale, role, onClose, onSave}) {
 // ============================================================
 function SaleRow({sale, role, showActions, onMarkPaid, onEdit, onDelete, voucher, onVoucherAssign, onVoucherView}) {
   const pm={efectivo:"Efectivo",transferencia:"Transferencia",qr:"QR"};
-  const needsVoucher = (sale.paymentMethod==="qr"||sale.paymentMethod==="transferencia") && !sale.voucherId && !sale.isDirectSale;
+  const needsVoucher = (sale.paymentMethod==="qr"||sale.paymentMethod==="transferencia") && !sale.voucherId;
   return (
     <div className="si">
       <div className="si-ico"><Ic n={sale.isHistoric?"history":"laser"} s={16}/></div>
