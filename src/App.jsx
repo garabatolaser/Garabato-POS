@@ -393,6 +393,8 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 .ch-teal{background:rgba(41,184,168,.12);color:var(--teal)}
 .ch-blu{background:rgba(91,139,232,.12);color:var(--blu)}
 .ch-dim{background:rgba(255,255,255,.06);color:var(--muted)}
+.ch-laser{background:rgba(180,120,255,.15);color:#b47fff}
+.app-light .chip.ch-laser{background:#f3eaff;color:#7c28c8}
 .hist-tag{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:8px;
   font-size:.68rem;font-weight:800;background:rgba(91,139,232,.15);color:var(--blu)}
 
@@ -2349,7 +2351,8 @@ function SaleRow({sale, role, showActions, onMarkPaid, onEdit, onDelete, voucher
           <span>{sale.promoterName?.split(" ")[0]}</span>
           {sale.clientName&&<span style={{color:"var(--muted)"}}>{sale.clientName}</span>}
           {sale.isHistoric&&<span className="hist-tag">Histórica</span>}
-          {sale.isDirectSale&&<span className="chip ch-blu">Tienda directa</span>}
+          {sale.isSoloGrabado&&<span className="chip ch-laser">Solo Grabado</span>}
+          {sale.isDirectSale&&!sale.isSoloGrabado&&<span className="chip ch-blu">Tienda directa</span>}
         </div>
         {sale.notes&&<div style={{fontSize:".76rem",color:"var(--dim)",marginTop:4,fontStyle:"italic"}}>{sale.notes}</div>}
         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8}}>
@@ -2386,7 +2389,10 @@ function SaleRow({sale, role, showActions, onMarkPaid, onEdit, onDelete, voucher
               {sale.commissionStatus==="pagado"?"Com. pagada":"Com. pendiente"}
             </span>
           )}
-          {sale.isDirectSale&&(
+          {sale.isSoloGrabado&&(
+            <span className="chip ch-laser">Solo Grabado 50/50</span>
+          )}
+          {sale.isDirectSale&&!sale.isSoloGrabado&&(
             <span className="chip ch-blu">Tienda directa</span>
           )}
         </div>
@@ -3694,8 +3700,22 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
     clientName:"",clientPhone:"",
     saleDate:todayISO(),
     variantId:"",variantName:"",
+    soloGrabado:false, grabadoDesc:"",
   });
   const set=(k,v)=>setF(x=>({...x,[k]:v}));
+  const setSoloPrice=v=>setF(x=>({...x,clientPrice:v,promoterPrice:v}));
+  const toggleSoloGrabado=on=>setF(x=>({...x,soloGrabado:on,
+    ...(on?{
+      productId:"solo-grabado",productName:"Servicio de grabado",
+      isDirectSale:true,promoterId:"DIRECTO",promoterName:"Tienda directa",
+      cost:0,clientPrice:"",promoterPrice:"",grabadoDesc:"",customization:"",
+    }:{
+      productId:"",productName:"",isDirectSale:false,
+      promoterId:user.role==="promoter"?user.promoterId:"",
+      promoterName:user.role==="promoter"?(promoters.find(p=>p.id===user.promoterId)?.name||""):"",
+      clientPrice:"",promoterPrice:"",
+    }),
+  }));
 
   // Estado del comprobante (opcional, solo para QR/transferencia)
   const [vcOpen,    setVcOpen]    = useState(false);
@@ -3775,14 +3795,19 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
   const {commission,profit,profitOwner,profitPartner} = calcSale(cp,pp,cst);
   const ss  = s => step>s?"s-done":step===s?"s-cur":"s-fut";
   const selProdHasVariants = selProd?.hasVariants && selProd?.variants?.length>0;
-  const step1valid = f.productId && (f.productId!=="custom" || f.productName.trim()) && (!selProdHasVariants || f.variantId);
+  const step1valid = f.soloGrabado
+    ? cp > 0
+    : f.productId && (f.productId!=="custom" || f.productName.trim()) && (!selProdHasVariants || f.variantId);
   const step2valid = f.isDirectSale||f.promoterId;
 
   const handleSubmit = async()=>{
     const saleDate = isHistoric ? new Date(f.saleDate).getTime() : Date.now();
     const vcId = (vcOpen && vcFile) ? uid("vc") : null;
+    const soloGrabado = !!f.soloGrabado;
     const sale = {
-      id:uid("V"),productId:f.productId,productName:f.productName,
+      id:uid("V"),
+      productId: soloGrabado?"solo-grabado":f.productId,
+      productName: soloGrabado?(f.grabadoDesc.trim()||"Servicio de grabado"):f.productName,
       customization:f.customization.trim(),
       clientPrice:cp,promoterPrice:pp,cost:cst,
       commission,profit,profitOwner,profitPartner,
@@ -3790,6 +3815,7 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
       promoterId:   f.isDirectSale?null:f.promoterId,
       promoterName: f.isDirectSale?"Tienda directa":f.promoterName,
       isDirectSale: !!f.isDirectSale,
+      isSoloGrabado: soloGrabado,
       clientName:   f.clientName.trim(),
       clientPhone:  f.clientPhone.trim(),
       notes:"",
@@ -3835,26 +3861,38 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
             <div className="suc-title">{isHistoric?"Cargada!":"Venta registrada!"}</div>
             <div className="id-tag" style={{marginBottom:16}}>{done.id}</div>
             <div className="pb" style={{width:"100%",marginBottom:16}}>
-              <div className="pbr"><span className="pbk">Producto</span><span className="pbv">{done.productName}</span></div>
+              <div className="pbr"><span className="pbk">{done.isSoloGrabado?"Pieza":"Producto"}</span><span className="pbv">{done.productName}</span></div>
               {done.customization&&<div className="pbr"><span className="pbk">Grabado</span><span className="pbv pbv-gold" style={{fontStyle:"italic"}}>"{done.customization}"</span></div>}
               <div className="pbr"><span className="pbk">Fecha</span><span className="pbv">{fmtDate(done.date)}</span></div>
-              <div className="pbr"><span className="pbk">Origen</span><span className="pbv">{done.promoterName}</span></div>
+              <div className="pbr"><span className="pbk">Origen</span><span className="pbv">{done.isSoloGrabado?"Solo grabado":done.promoterName}</span></div>
               {done.clientName&&<div className="pbr"><span className="pbk">Cliente</span><span className="pbv">{done.clientName}{done.clientPhone?" - "+done.clientPhone:""}</span></div>}
               {done.voucherId&&<div className="pbr"><span className="pbk">Comprobante</span><span className="pbv" style={{color:"var(--grn)"}}><Ic n="clip" s={11}/> Adjunto</span></div>}
-              <div className="pbr sep"><span className="pbk">Precio al cliente</span><span className="pbv pbv-gold">{fmt(done.clientPrice)}</span></div>
-              {done.isDirectSale?(
-                <div className="pbr"><span className="pbk">Ingreso total tienda</span><span className="pbv pbv-teal">{fmt(done.clientPrice)}</span></div>
+              <div className="pbr sep"><span className="pbk">Precio cobrado</span><span className="pbv pbv-gold">{fmt(done.clientPrice)}</span></div>
+              {done.isSoloGrabado?(
+                user.role==="admin"&&(
+                  <>
+                    <div className="pbr"><span className="pbk">Ganancia bruta (servicio puro)</span><span className="pbv pbv-grn">{fmt(done.profit)}</span></div>
+                    <div className="pbr"><span className="pbk">Tu parte (50%)</span><span className="pbv" style={{color:"#b47fff",fontWeight:800}}>{fmt(done.profitOwner)}</span></div>
+                    <div className="pbr"><span className="pbk">Socio (50%)</span><span className="pbv" style={{color:"#b47fff",fontWeight:800}}>{fmt(done.profitPartner)}</span></div>
+                  </>
+                )
               ):(
                 <>
-                  <div className="pbr"><span className="pbk">Comisión promotora</span><span className="pbv pbv-gold">{fmt(done.commission)}</span></div>
-                  <div className="pbr"><span className="pbk">Monto a entregar a tienda</span><span className="pbv pbv-teal">{fmt(done.promoterPrice)}</span></div>
-                </>
-              )}
-              {user.role==="admin"&&(
-                <>
-                  <div className="pbr"><span className="pbk">(-) Costo material</span><span className="pbv pbv-red">{fmt(done.cost)}</span></div>
-                  <div className="pbr"><span className="pbk">= Ganancia bruta</span><span className="pbv pbv-grn">{fmt(done.profit)}</span></div>
-                  <div className="pbr"><span className="pbk">Socio administrador (50%)</span><span className="pbv pbv-teal">{fmt(done.profitOwner)}</span></div>
+                  {done.isDirectSale?(
+                    <div className="pbr"><span className="pbk">Ingreso total tienda</span><span className="pbv pbv-teal">{fmt(done.clientPrice)}</span></div>
+                  ):(
+                    <>
+                      <div className="pbr"><span className="pbk">Comisión promotora</span><span className="pbv pbv-gold">{fmt(done.commission)}</span></div>
+                      <div className="pbr"><span className="pbk">Monto a entregar a tienda</span><span className="pbv pbv-teal">{fmt(done.promoterPrice)}</span></div>
+                    </>
+                  )}
+                  {user.role==="admin"&&(
+                    <>
+                      <div className="pbr"><span className="pbk">(-) Costo material</span><span className="pbv pbv-red">{fmt(done.cost)}</span></div>
+                      <div className="pbr"><span className="pbk">= Ganancia bruta</span><span className="pbv pbv-grn">{fmt(done.profit)}</span></div>
+                      <div className="pbr"><span className="pbk">Socio administrador (50%)</span><span className="pbv pbv-teal">{fmt(done.profitOwner)}</span></div>
+                    </>
+                  )}
                 </>
               )}
             </div>
@@ -3880,7 +3918,32 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
             {step===1&&(
               <div className="pe">
                 <div style={{fontSize:"1rem",fontWeight:700,marginBottom:14,color:"var(--muted)"}}>
-                  Paso 1 - <span style={{color:"var(--txt)"}}>Producto y grabado</span>
+                  Paso 1 - <span style={{color:"var(--txt)"}}>{f.soloGrabado?"Servicio de grabado":"Producto y grabado"}</span>
+                </div>
+                {/* Toggle solo grabado */}
+                <div className="price-box" style={{marginBottom:14,cursor:"pointer"}} onClick={()=>toggleSoloGrabado(!f.soloGrabado)}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
+                    <div>
+                      <div style={{fontWeight:700,fontSize:".86rem",display:"flex",alignItems:"center",gap:6}}>
+                        <Ic n="laser" s={14} c={f.soloGrabado?"#b47fff":"var(--muted)"}/>
+                        <span style={{color:f.soloGrabado?"#b47fff":"var(--txt)"}}>Solo grabado</span>
+                      </div>
+                      <div style={{fontSize:".72rem",color:"var(--muted)",marginTop:2}}>El cliente trae su pieza · solo cobras el servicio</div>
+                    </div>
+                    <div style={{
+                      width:42,height:24,borderRadius:12,
+                      background:f.soloGrabado?"rgba(180,120,255,.4)":"var(--s3)",
+                      position:"relative",flexShrink:0,transition:".2s",
+                    }}>
+                      <div style={{
+                        width:18,height:18,borderRadius:"50%",
+                        background:f.soloGrabado?"#b47fff":"var(--muted)",
+                        position:"absolute",top:3,
+                        left:f.soloGrabado?20:3,
+                        transition:".2s",
+                      }}/>
+                    </div>
+                  </div>
                 </div>
                 {isHistoric&&(
                   <div className="fg">
@@ -3888,111 +3951,153 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                     <input className="fi" type="date" value={f.saleDate} onChange={e=>set("saleDate",e.target.value)} max={todayISO()}/>
                   </div>
                 )}
-                {/* Datos del cliente - solo tienda y admin */}
-                {(user.role==="admin"||user.role==="employee")&&(
-                  <div className="price-box">
-                    <div style={{fontSize:".76rem",color:"var(--muted)",fontWeight:800,textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>
-                      Datos del cliente (opcional)
-                    </div>
-                    <div className="fi2">
-                      <div className="fg">
-                        <label className="fl">Nombre</label>
-                        <input className="fi" value={f.clientName} onChange={e=>set("clientName",e.target.value)} autoComplete="name" placeholder="Nombre del cliente"/>
-                      </div>
-                      <div className="fg">
-                        <label className="fl">Teléfono</label>
-                        <input className="fi" type="tel" autoComplete="tel" value={f.clientPhone} onChange={e=>set("clientPhone",e.target.value)} placeholder="Ej: 70012345 (sin prefijo 591)"/>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                <div className="fg">
-                  <label className="fl">Producto</label>
-                  <button className={"prod-card"+(f.productId==="custom"?" sel":"")}
-                    style={{width:"100%",textAlign:"left",padding:"10px 12px",display:"flex",alignItems:"center",gap:8,marginBottom:8,borderRadius:"var(--r)"}}
-                    onClick={()=>{set("productId","custom");set("productName","");set("clientPrice","");set("promoterPrice","");set("cost",0);set("isDirectSale",true);}}>
-                    <div style={{width:32,height:32,borderRadius:8,background:"var(--s3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"1.2rem",flexShrink:0}}>✏️</div>
-                    <div>
-                      <div style={{fontWeight:700,fontSize:".86rem"}}>Producto personalizado</div>
-                      <div style={{fontSize:".68rem",color:"var(--muted)",marginTop:1}}>Para productos fuera del catálogo</div>
-                    </div>
-                  </button>
-                  <div className="prod-grid">
-                    {products.map(p=>(
-                      <div key={p.id} className={"prod-card"+(f.productId===p.id?" sel":"")} onClick={()=>pickProduct(p)}>
-                        {p.photo?<img src={p.photo} alt={p.name} className="prod-card-img"/>:<div className="prod-card-ph">{p.name.charAt(0)}</div>}
-                        <div className="prod-card-info">
-                          <div className="prod-card-name" style={{color:f.productId===p.id?"var(--gold)":"var(--txt)"}}>{p.name}</div>
-                          <div className="prod-card-price">{fmt(p.clientPrice)}</div>
-                          <div className="prod-card-sub">Neto: {fmt(p.promoterPrice)}</div>
-                          {p.hasVariants?(
-                            <div style={{fontSize:".68rem",color:"var(--muted)",marginTop:2}}>{(p.variants||[]).length} variantes · stock: {p.stock}</div>
-                          ):(
-                            p.stock<=p.lowStockAlert&&<div style={{fontSize:".68rem",color:"var(--red)",marginTop:2}}>Stock bajo: {p.stock}</div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                {isHistoric&&f.productId&&(
-                  <div className="price-box">
-                    <div style={{fontSize:".76rem",color:"var(--muted)",fontWeight:800,textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>
-                      Ajusta si los precios eran diferentes en esa epoca
-                    </div>
-                    <div className="fi2">
-                      <div className="fg">
-                        <label className="fl">Precio al cliente</label>
-                        <input className="fi" type="number" inputMode="decimal" value={f.clientPrice} onChange={e=>set("clientPrice",e.target.value)}/>
-                      </div>
-                      <div className="fg">
-                        <label className="fl">Precio neto recibido</label>
-                        <input className="fi" type="number" inputMode="decimal" value={f.promoterPrice} onChange={e=>set("promoterPrice",e.target.value)}/>
-                      </div>
+                {f.soloGrabado?(
+                  /* ── FORMULARIO SOLO GRABADO ── */
+                  <>
+                    <div className="fg">
+                      <label className="fl">Descripción de la pieza (opcional)</label>
+                      <input className="fi" value={f.grabadoDesc}
+                        onChange={e=>set("grabadoDesc",e.target.value)}
+                        placeholder="Ej: Taza del cliente, llavero, gafas..."/>
                     </div>
                     <div className="fg">
-                      <label className="fl">Costo material (en ese momento)</label>
-                      <input className="fi" type="number" inputMode="decimal" value={f.cost} onChange={e=>set("cost",parseFloat(e.target.value)||0)}/>
+                      <label className="fl">Texto del grabado (opcional)</label>
+                      {f.customization&&(
+                        <div className="lp">
+                          <div style={{fontSize:".68rem",color:"var(--dim)",textTransform:"uppercase",letterSpacing:1,marginBottom:7}}>Vista previa laser</div>
+                          <div className="lp-txt">{f.customization.toUpperCase()}</div>
+                        </div>
+                      )}
+                      <input className="fi" placeholder="Ej: Ana y Luis 2024" value={f.customization} onChange={e=>set("customization",e.target.value)}/>
                     </div>
-                  </div>
-                )}
-                {selProd?.hasVariants&&selProd?.variants?.length>0&&(
-                  <div className="fg">
-                    <label className="fl">Variante</label>
-                    <div className="var-grid">
-                      {selProd.variants.map(v=>(
-                        <button key={v.id} className={"var-btn"+(f.variantId===v.id?" sel":"")}
-                          onClick={()=>{set("variantId",v.id);set("variantName",v.name);}}>
-                          <div className="var-btn-name">{v.name}</div>
-                          <div className="var-btn-stock">Stock: {v.stock||0}</div>
-                        </button>
-                      ))}
+                    <div className="fg">
+                      <label className="fl">Precio del servicio (Bs)</label>
+                      <input className="fi" type="number" inputMode="decimal"
+                        value={f.clientPrice} onChange={e=>setSoloPrice(e.target.value)}
+                        placeholder="0" min="0"/>
                     </div>
-                  </div>
-                )}
-                {f.productId&&cp>0&&pp>0&&(
-                  <div style={{marginBottom:13,fontSize:".76rem",display:"flex",gap:14,flexWrap:"wrap"}}>
-                    <span style={{color:"var(--muted)"}}>Comision promotora: <b style={{color:"var(--gold)"}}>{fmt(commission)}</b></span>
-                    {user.role==="admin"&&<span style={{color:"var(--muted)"}}>Ganancia: <b style={{color:"var(--teal)"}}>{fmt(profit)}</b></span>}
-                  </div>
-                )}
-                <div className="fg">
-                  <label className="fl">Texto del grabado (opcional)</label>
-                  {f.customization&&(
-                    <div className="lp">
-                      <div style={{fontSize:".68rem",color:"var(--dim)",textTransform:"uppercase",letterSpacing:1,marginBottom:7}}>Vista previa laser</div>
-                      <div className="lp-txt">{f.customization.toUpperCase()}</div>
+                    {cp>0&&user.role==="admin"&&(
+                      <div className="pb" style={{marginBottom:14}}>
+                        <div className="pbr"><span className="pbk">Precio cobrado</span><span className="pbv pbv-gold">{fmt(cp)}</span></div>
+                        <div className="pbr"><span className="pbk">Costo material</span><span className="pbv pbv-red">Bs 0 (solo servicio)</span></div>
+                        <div className="pbr sep"><span className="pbk">Ganancia bruta</span><span className="pbv pbv-grn">{fmt(cp)}</span></div>
+                        <div className="pbr"><span className="pbk">Tu parte (50%)</span><span className="pbv" style={{color:"#b47fff",fontWeight:800}}>{fmt(cp/2)}</span></div>
+                        <div className="pbr"><span className="pbk">Socio (50%)</span><span className="pbv" style={{color:"#b47fff",fontWeight:800}}>{fmt(cp/2)}</span></div>
+                      </div>
+                    )}
+                  </>
+                ):(
+                  /* ── FORMULARIO NORMAL ── */
+                  <>
+                    {/* Datos del cliente - solo tienda y admin */}
+                    {(user.role==="admin"||user.role==="employee")&&(
+                      <div className="price-box">
+                        <div style={{fontSize:".76rem",color:"var(--muted)",fontWeight:800,textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>
+                          Datos del cliente (opcional)
+                        </div>
+                        <div className="fi2">
+                          <div className="fg">
+                            <label className="fl">Nombre</label>
+                            <input className="fi" value={f.clientName} onChange={e=>set("clientName",e.target.value)} autoComplete="name" placeholder="Nombre del cliente"/>
+                          </div>
+                          <div className="fg">
+                            <label className="fl">Teléfono</label>
+                            <input className="fi" type="tel" autoComplete="tel" value={f.clientPhone} onChange={e=>set("clientPhone",e.target.value)} placeholder="Ej: 70012345 (sin prefijo 591)"/>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div className="fg">
+                      <label className="fl">Producto</label>
+                      <button className={"prod-card"+(f.productId==="custom"?" sel":"")}
+                        style={{width:"100%",textAlign:"left",padding:"10px 12px",display:"flex",alignItems:"center",gap:8,marginBottom:8,borderRadius:"var(--r)"}}
+                        onClick={()=>{set("productId","custom");set("productName","");set("clientPrice","");set("promoterPrice","");set("cost",0);set("isDirectSale",true);}}>
+                        <div style={{width:32,height:32,borderRadius:8,background:"var(--s3)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"1.2rem",flexShrink:0}}>✏️</div>
+                        <div>
+                          <div style={{fontWeight:700,fontSize:".86rem"}}>Producto personalizado</div>
+                          <div style={{fontSize:".68rem",color:"var(--muted)",marginTop:1}}>Para productos fuera del catálogo</div>
+                        </div>
+                      </button>
+                      <div className="prod-grid">
+                        {products.map(p=>(
+                          <div key={p.id} className={"prod-card"+(f.productId===p.id?" sel":"")} onClick={()=>pickProduct(p)}>
+                            {p.photo?<img src={p.photo} alt={p.name} className="prod-card-img"/>:<div className="prod-card-ph">{p.name.charAt(0)}</div>}
+                            <div className="prod-card-info">
+                              <div className="prod-card-name" style={{color:f.productId===p.id?"var(--gold)":"var(--txt)"}}>{p.name}</div>
+                              <div className="prod-card-price">{fmt(p.clientPrice)}</div>
+                              <div className="prod-card-sub">Neto: {fmt(p.promoterPrice)}</div>
+                              {p.hasVariants?(
+                                <div style={{fontSize:".68rem",color:"var(--muted)",marginTop:2}}>{(p.variants||[]).length} variantes · stock: {p.stock}</div>
+                              ):(
+                                p.stock<=p.lowStockAlert&&<div style={{fontSize:".68rem",color:"var(--red)",marginTop:2}}>Stock bajo: {p.stock}</div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  )}
-                  <input className="fi" placeholder="Ej: Ana y Luis 2024" value={f.customization} onChange={e=>set("customization",e.target.value)}/>
-                </div>
-                {selProdLowStock&&(
-                  <div className="al al-warn" style={{marginTop:8,marginBottom:8}}>
-                    <Ic n="warn" s={13}/>
-                    <span>Stock bajo: solo quedan <b>{selProd.stock}</b> unidades</span>
-                  </div>
+                    {isHistoric&&f.productId&&(
+                      <div className="price-box">
+                        <div style={{fontSize:".76rem",color:"var(--muted)",fontWeight:800,textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>
+                          Ajusta si los precios eran diferentes en esa epoca
+                        </div>
+                        <div className="fi2">
+                          <div className="fg">
+                            <label className="fl">Precio al cliente</label>
+                            <input className="fi" type="number" inputMode="decimal" value={f.clientPrice} onChange={e=>set("clientPrice",e.target.value)}/>
+                          </div>
+                          <div className="fg">
+                            <label className="fl">Precio neto recibido</label>
+                            <input className="fi" type="number" inputMode="decimal" value={f.promoterPrice} onChange={e=>set("promoterPrice",e.target.value)}/>
+                          </div>
+                        </div>
+                        <div className="fg">
+                          <label className="fl">Costo material (en ese momento)</label>
+                          <input className="fi" type="number" inputMode="decimal" value={f.cost} onChange={e=>set("cost",parseFloat(e.target.value)||0)}/>
+                        </div>
+                      </div>
+                    )}
+                    {selProd?.hasVariants&&selProd?.variants?.length>0&&(
+                      <div className="fg">
+                        <label className="fl">Variante</label>
+                        <div className="var-grid">
+                          {selProd.variants.map(v=>(
+                            <button key={v.id} className={"var-btn"+(f.variantId===v.id?" sel":"")}
+                              onClick={()=>{set("variantId",v.id);set("variantName",v.name);}}>
+                              <div className="var-btn-name">{v.name}</div>
+                              <div className="var-btn-stock">Stock: {v.stock||0}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {f.productId&&cp>0&&pp>0&&(
+                      <div style={{marginBottom:13,fontSize:".76rem",display:"flex",gap:14,flexWrap:"wrap"}}>
+                        <span style={{color:"var(--muted)"}}>Comision promotora: <b style={{color:"var(--gold)"}}>{fmt(commission)}</b></span>
+                        {user.role==="admin"&&<span style={{color:"var(--muted)"}}>Ganancia: <b style={{color:"var(--teal)"}}>{fmt(profit)}</b></span>}
+                      </div>
+                    )}
+                    <div className="fg">
+                      <label className="fl">Texto del grabado (opcional)</label>
+                      {f.customization&&(
+                        <div className="lp">
+                          <div style={{fontSize:".68rem",color:"var(--dim)",textTransform:"uppercase",letterSpacing:1,marginBottom:7}}>Vista previa laser</div>
+                          <div className="lp-txt">{f.customization.toUpperCase()}</div>
+                        </div>
+                      )}
+                      <input className="fi" placeholder="Ej: Ana y Luis 2024" value={f.customization} onChange={e=>set("customization",e.target.value)}/>
+                    </div>
+                    {selProdLowStock&&(
+                      <div className="al al-warn" style={{marginTop:8,marginBottom:8}}>
+                        <Ic n="warn" s={13}/>
+                        <span>Stock bajo: solo quedan <b>{selProd.stock}</b> unidades</span>
+                      </div>
+                    )}
+                  </>
                 )}
-                <button className="btn btn-gold" disabled={!f.productId||!f.clientPrice||!f.promoterPrice} onClick={()=>step1valid&&setStep(2)}>
+                <button className="btn btn-gold"
+                  disabled={f.soloGrabado?!cp:(!f.productId||!f.clientPrice||!f.promoterPrice)}
+                  onClick={()=>step1valid&&setStep(2)}>
                   Continuar
                 </button>
               </div>
@@ -4003,7 +4108,13 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                 <div style={{fontSize:"1rem",fontWeight:700,marginBottom:14,color:"var(--muted)"}}>
                   Paso 2 - <span style={{color:"var(--txt)"}}>Origen de la venta</span>
                 </div>
-                {user.role!=="promoter"&&(
+                {f.soloGrabado&&(
+                  <div className="al al-ok" style={{marginBottom:14}}>
+                    <Ic n="laser" s={14}/>
+                    <span>Solo grabado · pieza del cliente · sin promotora · split 50/50</span>
+                  </div>
+                )}
+                {!f.soloGrabado&&user.role!=="promoter"&&(
                   <div className="fg">
                     <label className="fl">Tipo de venta</label>
                     <div className="pills" style={{marginBottom:12}}>
@@ -4018,7 +4129,7 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                     )}
                   </div>
                 )}
-                {!f.isDirectSale&&(
+                {!f.isDirectSale&&!f.soloGrabado&&(
                   <div className="fg">
                     <label className="fl">¿Quién hizo la venta?</label>
                     {promoters.filter(p=>p.active).map(pr=>{
@@ -4137,20 +4248,32 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                     <div style={{fontSize:".68rem",color:"var(--muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:.4,marginBottom:8}}>
                       {isHistoric?"Resumen histórico":"Resumen de la venta"}
                     </div>
-                    <div className="pbr"><span className="pbk">Precio al cliente</span><span className="pbv pbv-gold">{fmt(cp)}</span></div>
-                    {f.isDirectSale?(
-                      <div className="pbr"><span className="pbk">Ingreso total tienda</span><span className="pbv pbv-teal">{fmt(cp)}</span></div>
+                    <div className="pbr"><span className="pbk">Precio cobrado</span><span className="pbv pbv-gold">{fmt(cp)}</span></div>
+                    {f.soloGrabado?(
+                      user.role==="admin"&&(
+                        <>
+                          <div className="pbr"><span className="pbk">Ganancia bruta (servicio puro)</span><span className="pbv pbv-grn">{fmt(cp)}</span></div>
+                          <div className="pbr"><span className="pbk">Tu parte (50%)</span><span className="pbv" style={{color:"#b47fff",fontWeight:800}}>{fmt(cp/2)}</span></div>
+                          <div className="pbr"><span className="pbk">Socio (50%)</span><span className="pbv" style={{color:"#b47fff",fontWeight:800}}>{fmt(cp/2)}</span></div>
+                        </>
+                      )
                     ):(
                       <>
-                        <div className="pbr"><span className="pbk">Comisión promotora</span><span className="pbv pbv-gold">{fmt(commission)}</span></div>
-                        <div className="pbr"><span className="pbk">Monto a entregar a tienda</span><span className="pbv pbv-teal">{fmt(pp)}</span></div>
-                      </>
-                    )}
-                    {user.role==="admin"&&(
-                      <>
-                        <div className="pbr"><span className="pbk">(-) Costo material</span><span className="pbv pbv-red">{fmt(cst)}</span></div>
-                        <div className="pbr"><span className="pbk">= Ganancia bruta</span><span className="pbv pbv-grn">{fmt(profit)}</span></div>
-                        <div className="pbr"><span className="pbk">Socio administrador (50%)</span><span className="pbv pbv-teal">{fmt(profitOwner)}</span></div>
+                        {f.isDirectSale?(
+                          <div className="pbr"><span className="pbk">Ingreso total tienda</span><span className="pbv pbv-teal">{fmt(cp)}</span></div>
+                        ):(
+                          <>
+                            <div className="pbr"><span className="pbk">Comisión promotora</span><span className="pbv pbv-gold">{fmt(commission)}</span></div>
+                            <div className="pbr"><span className="pbk">Monto a entregar a tienda</span><span className="pbv pbv-teal">{fmt(pp)}</span></div>
+                          </>
+                        )}
+                        {user.role==="admin"&&(
+                          <>
+                            <div className="pbr"><span className="pbk">(-) Costo material</span><span className="pbv pbv-red">{fmt(cst)}</span></div>
+                            <div className="pbr"><span className="pbk">= Ganancia bruta</span><span className="pbv pbv-grn">{fmt(profit)}</span></div>
+                            <div className="pbr"><span className="pbk">Socio administrador (50%)</span><span className="pbv pbv-teal">{fmt(profitOwner)}</span></div>
+                          </>
+                        )}
                       </>
                     )}
                   </div>
@@ -4168,29 +4291,42 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                   Paso 3 - <span style={{color:"var(--txt)"}}>Confirmar</span>
                 </div>
                 <div className="pb" style={{marginBottom:14}}>
-                  <div className="pbr"><span className="pbk">Producto</span><span className="pbv">{f.productName}</span></div>
+                  {f.soloGrabado&&<div className="pbr"><span className="pbk">Tipo</span><span className="pbv"><span className="chip ch-laser">Solo Grabado</span></span></div>}
+                  <div className="pbr"><span className="pbk">{f.soloGrabado?"Pieza":"Producto"}</span><span className="pbv">{f.soloGrabado?(f.grabadoDesc||"Servicio de grabado"):f.productName}</span></div>
                   {f.customization&&<div className="pbr"><span className="pbk">Grabado</span><span className="pbv pbv-gold" style={{fontStyle:"italic"}}>"{f.customization}"</span></div>}
                   {isHistoric&&<div className="pbr"><span className="pbk">Fecha real</span><span className="pbv">{fmtDate(new Date(f.saleDate).getTime())}</span></div>}
-                  <div className="pbr"><span className="pbk">Origen</span><span className="pbv">{f.isDirectSale?"Tienda directa":f.promoterName}</span></div>
+                  <div className="pbr"><span className="pbk">Origen</span><span className="pbv">{f.soloGrabado?"Solo grabado":f.isDirectSale?"Tienda directa":f.promoterName}</span></div>
                   <div className="pbr"><span className="pbk">Método de pago</span><span className="pbv" style={{textTransform:"capitalize"}}>{f.paymentMethod}</span></div>
                   {f.clientName&&<div className="pbr"><span className="pbk">Cliente</span><span className="pbv">{f.clientName}</span></div>}
                   {isHistoric&&<div className="pbr"><span className="pbk">Tipo</span><span className="pbv hist-tag">Histórica</span></div>}
                   {vcFile&&<div className="pbr"><span className="pbk">Comprobante</span><span className="pbv" style={{color:"var(--grn)"}}><Ic n="clip" s={11}/> {vcFile.name}</span></div>}
-                  <div className="pbr sep"><span className="pbk">Precio al cliente</span><span className="pbv pbv-gold">{fmt(cp)}</span></div>
-                  {f.isDirectSale?(
-                    <div className="pbr"><span className="pbk">Ingreso total tienda</span><span className="pbv pbv-teal">{fmt(cp)}</span></div>
+                  <div className="pbr sep"><span className="pbk">Precio cobrado</span><span className="pbv pbv-gold">{fmt(cp)}</span></div>
+                  {f.soloGrabado?(
+                    user.role==="admin"&&(
+                      <>
+                        <div className="pbr"><span className="pbk">Ganancia bruta (servicio puro)</span><span className="pbv pbv-grn">{fmt(cp)}</span></div>
+                        <div className="pbr"><span className="pbk">Tu parte (50%)</span><span className="pbv" style={{color:"#b47fff",fontWeight:800}}>{fmt(cp/2)}</span></div>
+                        <div className="pbr"><span className="pbk">Socio (50%)</span><span className="pbv" style={{color:"#b47fff",fontWeight:800}}>{fmt(cp/2)}</span></div>
+                      </>
+                    )
                   ):(
                     <>
-                      <div className="pbr"><span className="pbk">Comisión promotora</span><span className="pbv pbv-gold">{fmt(commission)}</span></div>
-                      <div className="pbr"><span className="pbk">Monto a entregar a tienda</span><span className="pbv pbv-teal">{fmt(pp)}</span></div>
-                    </>
-                  )}
-                  {user.role==="admin"&&(
-                    <>
-                      <div className="pbr"><span className="pbk">(-) Costo material</span><span className="pbv pbv-red">{fmt(cst)}</span></div>
-                      <div className="pbr"><span className="pbk">= Ganancia bruta</span><span className="pbv pbv-grn">{fmt(profit)}</span></div>
-                      <div className="pbr"><span className="pbk">Socio administrador (50%)</span><span className="pbv pbv-teal">{fmt(profitOwner)}</span></div>
-                      <div className="pbr"><span className="pbk">Socio (50%)</span><span className="pbv pbv-teal">{fmt(profitPartner)}</span></div>
+                      {f.isDirectSale?(
+                        <div className="pbr"><span className="pbk">Ingreso total tienda</span><span className="pbv pbv-teal">{fmt(cp)}</span></div>
+                      ):(
+                        <>
+                          <div className="pbr"><span className="pbk">Comisión promotora</span><span className="pbv pbv-gold">{fmt(commission)}</span></div>
+                          <div className="pbr"><span className="pbk">Monto a entregar a tienda</span><span className="pbv pbv-teal">{fmt(pp)}</span></div>
+                        </>
+                      )}
+                      {user.role==="admin"&&(
+                        <>
+                          <div className="pbr"><span className="pbk">(-) Costo material</span><span className="pbv pbv-red">{fmt(cst)}</span></div>
+                          <div className="pbr"><span className="pbk">= Ganancia bruta</span><span className="pbv pbv-grn">{fmt(profit)}</span></div>
+                          <div className="pbr"><span className="pbk">Socio administrador (50%)</span><span className="pbv pbv-teal">{fmt(profitOwner)}</span></div>
+                          <div className="pbr"><span className="pbk">Socio (50%)</span><span className="pbv pbv-teal">{fmt(profitPartner)}</span></div>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
