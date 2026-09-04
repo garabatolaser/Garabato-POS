@@ -1378,6 +1378,16 @@ export default function App() {
         dbAll("products"),dbAll("promoters"),dbAll("sales"),
         dbAll("expenses"),dbAll("commissionPayments"),dbAll("users"),dbAll("vouchers"),
       ]);
+      // Reparar vínculos rotos voucher↔venta (si voucher.saleId apunta a una venta sin voucherId)
+      for (const vc of vch) {
+        if (!vc.saleId) continue;
+        const sale = sl.find(s=>s.id===vc.saleId);
+        if (sale && sale.voucherId !== vc.id) {
+          const fixed = {...sale, voucherId:vc.id, synced:false};
+          sl[sl.indexOf(sale)] = fixed;
+          dbPut("sales", fixed).catch(()=>{});
+        }
+      }
       setProducts(pr); setPromoters(prm);
       setSales(sl.sort((a,b)=>b.date-a.date));
       setExpenses(ex.sort((a,b)=>b.date-a.date));
@@ -5177,7 +5187,7 @@ function SubirComprobante({vouchers, sales, user, onClose, onSave, onSaveAndAssi
     setSaving(true);
     try {
       const vcId = uid("vc");
-      // Subir a Supabase Storage
+      // Subir a Supabase Storage (no bloqueante: si falla, igual se guarda local)
       let uploadBlob = file;
       let uploadType = file.type;
       if (fileType !== "pdf" && preview) {
@@ -5188,7 +5198,12 @@ function SubirComprobante({vouchers, sales, user, onClose, onSave, onSaveAndAssi
         uploadBlob = new Blob([buf], {type:'image/jpeg'});
         uploadType = 'image/jpeg';
       }
-      const imageUrl = await uploadVoucherImage(vcId, uploadBlob, uploadType);
+      let imageUrl = null;
+      try {
+        imageUrl = await uploadVoucherImage(vcId, uploadBlob, uploadType);
+      } catch(uploadErr) {
+        console.warn("Storage upload fallido, guardando solo local:", uploadErr);
+      }
       const v = {
         id: vcId, hash, image: preview, imageUrl, fileType,
         fileName: file.name,
@@ -5202,7 +5217,7 @@ function SubirComprobante({vouchers, sales, user, onClose, onSave, onSaveAndAssi
       if (andAssign) await onSaveAndAssign(v);
       else await onSave(v);
     } catch(e) {
-      alert("No se pudo subir el comprobante. Verifica tu conexión a internet.");
+      alert("Error al guardar el comprobante. Intenta nuevamente.");
     } finally {
       setSaving(false);
     }
