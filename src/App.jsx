@@ -5059,8 +5059,8 @@ function VoucherRow({voucher, matches, sales, onView, onAssign}) {
     <div className="vc-row">
       <div className={"vc-bar "+(assigned?"vc-bar-ok":"vc-bar-no")}/>
       <button className="vc-thumb" onClick={onView} title="Ver comprobante">
-        {voucher.fileType==="image"&&(voucher.image||voucher.imageUrl)
-          ? <img src={voucher.image||voucher.imageUrl} alt="comprobante"/>
+        {voucher.fileType==="image"&&(voucher.imageUrl||voucher.image)
+          ? <img src={voucher.imageUrl||voucher.image} alt="comprobante"/>
           : voucher.fileType==="pdf"
             ? <div className="vc-thumb-pdf">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -5198,12 +5198,7 @@ function SubirComprobante({vouchers, sales, user, onClose, onSave, onSaveAndAssi
         uploadBlob = new Blob([buf], {type:'image/jpeg'});
         uploadType = 'image/jpeg';
       }
-      let imageUrl = null;
-      try {
-        imageUrl = await uploadVoucherImage(vcId, uploadBlob, uploadType);
-      } catch(uploadErr) {
-        console.warn("Storage upload fallido, guardando solo local:", uploadErr);
-      }
+      const imageUrl = await uploadVoucherImage(vcId, uploadBlob, uploadType);
       const v = {
         id: vcId, hash, image: preview, imageUrl, fileType,
         fileName: file.name,
@@ -5217,7 +5212,7 @@ function SubirComprobante({vouchers, sales, user, onClose, onSave, onSaveAndAssi
       if (andAssign) await onSaveAndAssign(v);
       else await onSave(v);
     } catch(e) {
-      alert("Error al guardar el comprobante. Intenta nuevamente.");
+      alert("No se pudo subir el comprobante a la nube. Verifica tu conexión a internet e intenta nuevamente.");
     } finally {
       setSaving(false);
     }
@@ -5490,10 +5485,10 @@ function VerComprobante({voucher, sales, onClose, onAssign, onUnassign}) {
       </div>
 
       <div className="vc-fs-img">
-        {voucher.fileType==="image"&&(voucher.image||voucher.imageUrl)
-          ? <img src={voucher.image||voucher.imageUrl} alt="Comprobante" style={{maxWidth:"100%",maxHeight:"100%",objectFit:"contain"}}/>
-          : voucher.fileType==="pdf"&&(voucher.image||voucher.imageUrl)
-            ? <iframe src={voucher.image||voucher.imageUrl} style={{width:"100%",height:"100%",border:"none"}} title="PDF"/>
+        {voucher.fileType==="image"&&(voucher.imageUrl||voucher.image)
+          ? <img src={voucher.imageUrl||voucher.image} alt="Comprobante" style={{maxWidth:"100%",maxHeight:"100%",objectFit:"contain"}}/>
+          : voucher.fileType==="pdf"&&(voucher.imageUrl||voucher.image)
+            ? <iframe src={voucher.imageUrl||voucher.image} style={{width:"100%",height:"100%",border:"none"}} title="PDF"/>
             : <div style={{color:"var(--muted)",textAlign:"center",padding:40}}>
                 <Ic n="clip" s={48}/>
                 <p style={{marginTop:12,fontSize:".86rem"}}>
