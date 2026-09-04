@@ -2164,7 +2164,9 @@ function SalesPage({sales, role, user, promoters, vouchers, onMarkPaid, onEdit, 
       {visible.length===0
         ?<div className="empty"><Ic n="cart" s={38}/><p>Aún no hay ventas registradas.</p></div>
         :visible.map(s=>{
-          const saleVoucher = vouchers?.find(v=>v.id===s.voucherId)||null;
+          const saleVoucher = vouchers?.find(v=>v.id===s.voucherId)
+            || vouchers?.find(v=>v.saleId===s.id)
+            || null;
           return (
             <SaleRow key={s.id} sale={s} role={role}
               showActions={CAN.seeComms(role)}
@@ -2216,16 +2218,28 @@ function SalesPage({sales, role, user, promoters, vouchers, onMarkPaid, onEdit, 
           vouchers={vouchers||[]} user={user}
           prefillSale={assignSaleForVoucher}
           onClose={()=>setAssignSaleForVoucher(null)}
-          onSave={async v=>{
-            await dbPut("vouchers",{...v,synced:false});
+          onExistingVoucher={async existing=>{
+            // Repair: voucher already linked by saleId but sale.voucherId is missing
             const s2=await dbGet("sales",assignSaleForVoucher.id);
+            if(s2&&!s2.voucherId) await dbPut("sales",{...s2,voucherId:existing.id,synced:false});
+            setAssignSaleForVoucher(null);
+            if(onReload) await onReload();
+            setViewVoucher(existing);
+          }}
+          onSave={async v=>{
+            const sid=assignSaleForVoucher.id;
+            const summ=(assignSaleForVoucher.productName||"")+" · "+fmtDate(assignSaleForVoucher.date);
+            await dbPut("vouchers",{...v,saleId:sid,saleSummary:summ,synced:false});
+            const s2=await dbGet("sales",sid);
             if(s2) await dbPut("sales",{...s2,voucherId:v.id,synced:false});
             setAssignSaleForVoucher(null);
             if(onReload) await onReload();
           }}
           onSaveAndAssign={async v=>{
-            await dbPut("vouchers",{...v,synced:false});
-            const s2=await dbGet("sales",assignSaleForVoucher.id);
+            const sid=assignSaleForVoucher.id;
+            const summ=(assignSaleForVoucher.productName||"")+" · "+fmtDate(assignSaleForVoucher.date);
+            await dbPut("vouchers",{...v,saleId:sid,saleSummary:summ,synced:false});
+            const s2=await dbGet("sales",sid);
             if(s2) await dbPut("sales",{...s2,voucherId:v.id,synced:false});
             setAssignSaleForVoucher(null);
             if(onReload) await onReload();
@@ -5097,7 +5111,7 @@ function VoucherRow({voucher, matches, sales, onView, onAssign}) {
 // ============================================================
 //  MODAL: SUBIR COMPROBANTE
 // ============================================================
-function SubirComprobante({vouchers, user, onClose, onSave, onSaveAndAssign, prefillSale}) {
+function SubirComprobante({vouchers, user, onClose, onSave, onSaveAndAssign, onExistingVoucher, prefillSale}) {
   const BANKS = ["Tigo Money","BNB","Banco Unión","Banco Mercantil","Banco Bisa","Banco Nacional","Otro"];
   const [file,      setFile]      = useState(null);
   const [preview,   setPreview]   = useState(null);
@@ -5128,7 +5142,8 @@ function SubirComprobante({vouchers, user, onClose, onSave, onSaveAndAssign, pre
     // Verificar duplicados
     const existing = vouchers.find(v=>v.hash===h);
     if (existing) {
-      setDupAlert({assigned:!!existing.saleId, voucher:existing});
+      const isSameSale = !!(prefillSale && existing.saleId === prefillSale.id);
+      setDupAlert({assigned:!!existing.saleId && !isSameSale, isSameSale, voucher:existing});
       return;
     }
     setDupAlert(null);
@@ -5198,23 +5213,32 @@ function SubirComprobante({vouchers, user, onClose, onSave, onSaveAndAssign, pre
         <div className="sh-title">Subir comprobante de pago</div>
 
         {dupAlert&&(
-          dupAlert.assigned
-            ? <div className="al al-warn">
-                <Ic n="warn" s={14}/>
+          dupAlert.isSameSale
+            ? <div className="al al-ok">
+                <Ic n="check" s={14}/>
                 <div>
-                  <div style={{fontWeight:800}}>Este comprobante ya está asignado</div>
-                  <div style={{fontSize:".76rem",marginTop:2}}>{dupAlert.voucher.saleSummary}</div>
-                  <button className="btn btn-sm btn-out" style={{marginTop:8}} onClick={onClose}>Cerrar</button>
+                  <div style={{fontWeight:800}}>Comprobante ya registrado para esta venta</div>
+                  <div style={{fontSize:".76rem",marginTop:2}}>El archivo que subiste ya está guardado</div>
+                  <button className="btn btn-sm btn-gold" style={{marginTop:8}} onClick={()=>onExistingVoucher&&onExistingVoucher(dupAlert.voucher)}>Ver comprobante</button>
                 </div>
               </div>
-            : <div className="al al-info">
-                <Ic n="warn" s={14}/>
-                <div>
-                  <div style={{fontWeight:800}}>Este comprobante ya existe sin asignar</div>
-                  <div style={{fontSize:".76rem",marginTop:2}}>Bs. {dupAlert.voucher.amount}</div>
-                  <button className="btn btn-sm btn-gold" style={{marginTop:8}} onClick={onClose}>Ir al comprobante</button>
+            : dupAlert.assigned
+              ? <div className="al al-warn">
+                  <Ic n="warn" s={14}/>
+                  <div>
+                    <div style={{fontWeight:800}}>Este comprobante ya está asignado</div>
+                    <div style={{fontSize:".76rem",marginTop:2}}>{dupAlert.voucher.saleSummary}</div>
+                    <button className="btn btn-sm btn-out" style={{marginTop:8}} onClick={onClose}>Cerrar</button>
+                  </div>
                 </div>
-              </div>
+              : <div className="al al-info">
+                  <Ic n="warn" s={14}/>
+                  <div>
+                    <div style={{fontWeight:800}}>Este comprobante ya existe sin asignar</div>
+                    <div style={{fontSize:".76rem",marginTop:2}}>Bs. {dupAlert.voucher.amount}</div>
+                    <button className="btn btn-sm btn-gold" style={{marginTop:8}} onClick={onClose}>Ir al comprobante</button>
+                  </div>
+                </div>
         )}
 
         {!dupAlert&&(
