@@ -790,15 +790,17 @@ async function syncFromSupabase() {
         .forEach(r => st.delete(r.id));
       // 2. Upsert todos los registros de Supabase (con synced:true)
       //    Para vouchers: preservar imagen base64 local que no viaja a Supabase
-      const localById = store==="vouchers" ? Object.fromEntries(localAll.map(r=>[r.id,r])) : {};
+      //    Además: si el registro local tiene synced:false (cambios pendientes), NO sobreescribir
+      const localById = Object.fromEntries(localAll.map(r=>[r.id,r]));
+      const unsyncedIds = new Set(unsynced.map(r=>r.id));
       rows.forEach(r => {
-        const base = store==="vouchers" && localById[r.id]?.image
-          ? {...r, image:localById[r.id].image, synced:true}
-          : {...r, synced:true};
+        if (unsyncedIds.has(r.id)) return; // preservar cambios locales pendientes
+        const localImg = store==="vouchers" && localById[r.id]?.image;
+        const base = localImg ? {...r, image:localImg, synced:true} : {...r, synced:true};
         st.put(base);
       });
-      // 3. Re-guardar registros locales no sincronizados que NO están en Supabase todavía
-      unsynced.filter(r => !sbIds.has(r.id)).forEach(r => st.put(r));
+      // 3. Re-guardar registros locales no sincronizados (estén o no en Supabase)
+      unsynced.forEach(r => st.put(r));
       tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error);
     });
   }
@@ -856,12 +858,12 @@ function startRealtime(onReload) {
           const id = old_record?.id;
           if (id) await new Promise((r)=>{ const q=db.transaction(store,"readwrite").objectStore(store).delete(id); q.onsuccess=r; });
         } else if (record) {
+          // No sobreescribir cambios locales pendientes (synced:false)
+          const existing = await new Promise(r=>{ const q=db.transaction(store,"readonly").objectStore(store).get(record.id); q.onsuccess=()=>r(q.result); });
+          if (existing?.synced === false) { if (_reloadCallback) _reloadCallback(); return; }
           const localRecord = map.fromSB(record);
-          // Para vouchers: preservar imagen base64 local que no viaja a Supabase
-          if (store==="vouchers" && !localRecord.image) {
-            const existing = await new Promise(r=>{ const q=db.transaction(store,"readonly").objectStore(store).get(localRecord.id); q.onsuccess=()=>r(q.result); });
-            if (existing?.image) localRecord.image = existing.image;
-          }
+          // Para vouchers: preservar imagen base64 local
+          if (store==="vouchers" && existing?.image) localRecord.image = existing.image;
           await new Promise((r)=>{ const q=db.transaction(store,"readwrite").objectStore(store).put(localRecord); q.onsuccess=r; });
         }
         // Notificar a React que recargue
@@ -2173,8 +2175,8 @@ function SalesPage({sales, role, user, promoters, vouchers, onMarkPaid, onEdit, 
       {visible.length===0
         ?<div className="empty"><Ic n="cart" s={38}/><p>Aún no hay ventas registradas.</p></div>
         :visible.map(s=>{
-          const saleVoucher = vouchers?.find(v=>v.id===s.voucherId)
-            || vouchers?.find(v=>v.saleId===s.id)
+          const saleVoucher = vouchers?.find(v=>v.saleId===s.id)
+            || vouchers?.find(v=>v.id===s.voucherId)
             || null;
           return (
             <SaleRow key={s.id} sale={s} role={role}
@@ -2379,7 +2381,7 @@ function SaleEditModal({sale, role, onClose, onSave}) {
 // ============================================================
 function SaleRow({sale, role, showActions, onMarkPaid, onEdit, onDelete, voucher, onVoucherAssign, onVoucherView}) {
   const pm={efectivo:"Efectivo",transferencia:"Transferencia",qr:"QR"};
-  const needsVoucher = (sale.paymentMethod==="qr"||sale.paymentMethod==="transferencia") && (!sale.voucherId || !voucher);
+  const needsVoucher = (sale.paymentMethod==="qr"||sale.paymentMethod==="transferencia") && !voucher;
   return (
     <div className="si">
       <div className="si-ico"><Ic n={sale.isHistoric?"history":"laser"} s={16}/></div>
