@@ -1562,7 +1562,7 @@ export default function App() {
   const PageContent = ()=>(
     <>
       {page==="home"     && <HomePage sales={sales} products={products} promoters={promoters}
-        expenses={expenses} role={role} user={user}/>}
+        expenses={expenses} role={role} user={user} vouchers={vouchers}/>}
       {page==="sales"    && <SalesPage sales={sales} role={role} user={user} promoters={promoters}
         vouchers={vouchers}
         onMarkPaid={handleMarkPaid} onEdit={handleEditSale}
@@ -1907,7 +1907,8 @@ function TopBar({user, online, pendingSync, syncing, onSync, onLogout, onBackup}
 // ============================================================
 //  HOME PAGE
 // ============================================================
-function HomePage({sales, products, promoters, expenses, role, user}) {
+function HomePage({sales, products, promoters, expenses, role, user, vouchers}) {
+  const [viewVoucher, setViewVoucher] = useState(null);
   const td = todayMs();
   const activeSales = sales.filter(s=>!s.deleted);
   const mySales  = role==="promoter" ? activeSales.filter(s=>s.promoterId===user.promoterId) : activeSales;
@@ -2024,7 +2025,11 @@ function HomePage({sales, products, promoters, expenses, role, user}) {
             <div className="sc hr"><div className="sl">Com. pendientes</div><div className="sv red">{fmt(pendComm)}</div><div className="ss">Por liquidar a promotoras</div></div>
           </div>
           <div className="shd mt12"><div className="shd-l">Ventas recientes</div></div>
-          {activeSales.slice(0,5).map(s=><SaleRow key={s.id} sale={s} role={role}/>)}
+          {activeSales.slice(0,5).map(s=>{
+            const vc=vouchers?.find(v=>v.saleId===s.id)||vouchers?.find(v=>v.id===s.voucherId)||null;
+            return <SaleRow key={s.id} sale={s} role={role} voucher={vc}
+              onVoucherView={vc?()=>setViewVoucher(vc):undefined}/>;
+          })}
         </>
       )}
       {role==="promoter"&&(
@@ -2041,7 +2046,14 @@ function HomePage({sales, products, promoters, expenses, role, user}) {
       )}
 
       <div className="shd mt12"><div className="shd-l">{role==="promoter"?"Mis ventas recientes":"Ventas recientes"}</div></div>
-      {mySales.slice(0,5).map(s=><SaleRow key={s.id} sale={s} role={role}/>)}
+      {mySales.slice(0,5).map(s=>{
+        const vc=vouchers?.find(v=>v.saleId===s.id)||vouchers?.find(v=>v.id===s.voucherId)||null;
+        return <SaleRow key={s.id} sale={s} role={role} voucher={vc}
+          onVoucherView={vc?()=>setViewVoucher(vc):undefined}/>;
+      })}
+      {viewVoucher&&(
+        <VerComprobante voucher={viewVoucher} sales={sales} onClose={()=>setViewVoucher(null)}/>
+      )}
     </div>
   );
 }
