@@ -2215,7 +2215,7 @@ function SalesPage({sales, role, user, promoters, vouchers, onMarkPaid, onEdit, 
 
       {assignSaleForVoucher&&(
         <SubirComprobante
-          vouchers={vouchers||[]} user={user}
+          vouchers={vouchers||[]} sales={sales||[]} user={user}
           prefillSale={assignSaleForVoucher}
           onClose={()=>setAssignSaleForVoucher(null)}
           onExistingVoucher={async existing=>{
@@ -5111,7 +5111,7 @@ function VoucherRow({voucher, matches, sales, onView, onAssign}) {
 // ============================================================
 //  MODAL: SUBIR COMPROBANTE
 // ============================================================
-function SubirComprobante({vouchers, user, onClose, onSave, onSaveAndAssign, onExistingVoucher, prefillSale}) {
+function SubirComprobante({vouchers, sales, user, onClose, onSave, onSaveAndAssign, onExistingVoucher, prefillSale}) {
   const BANKS = ["Tigo Money","BNB","Banco Unión","Banco Mercantil","Banco Bisa","Banco Nacional","Otro"];
   const [file,      setFile]      = useState(null);
   const [preview,   setPreview]   = useState(null);
@@ -5143,7 +5143,9 @@ function SubirComprobante({vouchers, user, onClose, onSave, onSaveAndAssign, onE
     const existing = vouchers.find(v=>v.hash===h);
     if (existing) {
       const isSameSale = !!(prefillSale && existing.saleId === prefillSale.id);
-      setDupAlert({assigned:!!existing.saleId && !isSameSale, isSameSale, voucher:existing});
+      const assignedSale = existing.saleId ? (sales||[]).find(s=>s.id===existing.saleId) : null;
+      const assignedToDeleted = !!assignedSale?.deleted;
+      setDupAlert({assigned:!!existing.saleId && !isSameSale && !assignedToDeleted, isSameSale, assignedToDeleted, voucher:existing});
       return;
     }
     setDupAlert(null);
@@ -5222,6 +5224,15 @@ function SubirComprobante({vouchers, user, onClose, onSave, onSaveAndAssign, onE
                   <button className="btn btn-sm btn-gold" style={{marginTop:8}} onClick={()=>onExistingVoucher&&onExistingVoucher(dupAlert.voucher)}>Ver comprobante</button>
                 </div>
               </div>
+            : dupAlert.assignedToDeleted
+              ? <div className="al al-info">
+                  <Ic n="warn" s={14}/>
+                  <div>
+                    <div style={{fontWeight:800}}>Comprobante de una venta eliminada</div>
+                    <div style={{fontSize:".76rem",marginTop:2}}>Se puede reasignar a esta venta</div>
+                    <button className="btn btn-sm btn-gold" style={{marginTop:8}} onClick={()=>onSave&&onSave(dupAlert.voucher)}>Reasignar a esta venta</button>
+                  </div>
+                </div>
             : dupAlert.assigned
               ? <div className="al al-warn">
                   <Ic n="warn" s={14}/>
