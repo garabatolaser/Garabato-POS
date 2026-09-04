@@ -782,13 +782,12 @@ async function syncFromSupabase() {
     await new Promise((res,rej)=>{
       const tx = db.transaction(store,"readwrite");
       const st = tx.objectStore(store);
-      // 1. Eliminar registros locales que ya estaban en Supabase pero fueron borrados allá
-      //    Solo si Supabase devolvió datos (rows.length>0 = Supabase respondió correctamente)
-      if (rows.length > 0) {
-        localAll
-          .filter(r => r.synced !== false && !sbIds.has(r.id))
-          .forEach(r => st.delete(r.id));
-      }
+      // 1. Eliminar registros locales que ya no están en Supabase
+      //    rows!==null garantiza que Supabase respondió (null=error de red, se salta arriba)
+      //    rows===[] significa tabla vacía intencionalmente → limpiar local (salvo synced:false)
+      localAll
+        .filter(r => r.synced !== false && !sbIds.has(r.id))
+        .forEach(r => st.delete(r.id));
       // 2. Upsert todos los registros de Supabase (con synced:true)
       //    Para vouchers: preservar imagen base64 local que no viaja a Supabase
       const localById = store==="vouchers" ? Object.fromEntries(localAll.map(r=>[r.id,r])) : {};
