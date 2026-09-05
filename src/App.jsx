@@ -1627,8 +1627,14 @@ export default function App() {
             onUnassign={async(vid,sid)=>{
               const v=await dbGet("vouchers",vid); const s=sid?await dbGet("sales",sid):null;
               if(v) await dbPut("vouchers",{...v,saleId:null,saleSummary:"",synced:false});
-              if(s) await dbPut("sales",{...s,voucherId:null,synced:false});
+              if(s&&s.voucherId===vid) await dbPut("sales",{...s,voucherId:null,synced:false});
               await reload(); toast("Asignación removida","info");
+            }}
+            onDelete={async(vid)=>{
+              if(!window.confirm("¿Eliminar este comprobante?")) return;
+              const v=await dbGet("vouchers",vid);
+              if(v?.saleId){const s=await dbGet("sales",v.saleId);if(s&&s.voucherId===vid) await dbPut("sales",{...s,voucherId:null,synced:false});}
+              await dbDel("vouchers",vid); await reload(); toast("Comprobante eliminado","info");
             }}/>
         : <Locked/>)}
       {page==="inventory"&& (CAN.seeInventory(role)
@@ -5155,7 +5161,7 @@ function Locked() {
 // ============================================================
 //  VOUCHERS PAGE
 // ============================================================
-function VouchersPage({vouchers, sales, user, onSave, onAssign, onUnassign, initialFile, onInitialFileDone}) {
+function VouchersPage({vouchers, sales, user, onSave, onAssign, onUnassign, onDelete, initialFile, onInitialFileDone}) {
   const [tab,      setTab]      = useState("unassigned");
   const [showUpload,setShowUpload]= useState(!!initialFile);
 
@@ -5166,9 +5172,14 @@ function VouchersPage({vouchers, sales, user, onSave, onAssign, onUnassign, init
   const unassigned = vouchers.filter(v=>!v.saleId);
   const displayed  = tab==="unassigned" ? unassigned : vouchers;
 
+  const matchesAmount = (s, amt) => {
+    if (Math.abs(s.clientPrice - amt) <= 1) return true;
+    if (s.payments?.length) return s.payments.some(p=>Math.abs(p.amount-amt)<=1);
+    return false;
+  };
   const getMatches = v => {
     if (v.saleId) return [];
-    return sales.filter(s=>!s.deleted&&!s.voucherId&&Math.abs(s.clientPrice-v.amount)<=1);
+    return sales.filter(s=>!s.deleted&&matchesAmount(s,v.amount));
   };
 
   const pendingTotal = unassigned.reduce((a,v)=>a+(v.amount||0),0);
@@ -5195,6 +5206,7 @@ function VouchersPage({vouchers, sales, user, onSave, onAssign, onUnassign, init
           <VoucherRow key={v.id} voucher={v} matches={getMatches(v)} sales={sales}
             onView={()=>setViewVC(v)}
             onAssign={()=>setAssignVC(v)}
+            onDelete={onDelete?()=>onDelete(v.id):null}
             onViewSale={()=>{}}/>
         ))
       }
@@ -5235,7 +5247,7 @@ function VouchersPage({vouchers, sales, user, onSave, onAssign, onUnassign, init
 // ============================================================
 //  VOUCHER ROW
 // ============================================================
-function VoucherRow({voucher, matches, sales, onView, onAssign}) {
+function VoucherRow({voucher, matches, sales, onView, onAssign, onDelete}) {
   const assigned  = !!voucher.saleId;
   const hasMatch  = !assigned && matches && matches.length>0;
   const sale      = assigned ? sales.find(s=>s.id===voucher.saleId) : null;
@@ -5296,6 +5308,11 @@ function VoucherRow({voucher, matches, sales, onView, onAssign}) {
           {assigned&&(
             <button className="btn btn-sm btn-out" onClick={onView} style={{padding:"5px 9px"}}>
               Ver venta
+            </button>
+          )}
+          {onDelete&&(
+            <button className="btn btn-sm btn-out" onClick={onDelete} style={{padding:"5px 8px",color:"var(--red)",borderColor:"var(--red)"}}>
+              <Ic n="trash" s={11}/>
             </button>
           )}
         </div>
@@ -5552,14 +5569,16 @@ function AsignarComprobante({voucher, sales, onClose, onConfirm}) {
   const [showAll,    setShowAll]     = useState(false);
   const [confirming, setConfirming] = useState(false);
 
-  // Ventas sin voucher asignado, no eliminadas
+  const amtMatch = (s,amt)=>Math.abs(s.clientPrice-amt)<=1||(s.payments||[]).some(p=>Math.abs(p.amount-amt)<=1);
+
+  // Todas las ventas no eliminadas (permite múltiples comprobantes por venta)
   const candidates = useMemo(()=>
-    sales.filter(s=>!s.deleted&&!s.voucherId).sort((a,b)=>b.date-a.date),
+    sales.filter(s=>!s.deleted).sort((a,b)=>b.date-a.date),
   [sales]);
 
-  // Coincidencias por monto con tolerancia ±1 Bs (redondeos de QR)
+  // Coincidencias por monto total o monto parcial (pago dividido)
   const exactMatches = useMemo(()=>
-    candidates.filter(s=>Math.abs(s.clientPrice-voucher.amount)<=1),
+    candidates.filter(s=>amtMatch(s,voucher.amount)),
   [candidates,voucher.amount]);
 
   // Filtro de búsqueda
