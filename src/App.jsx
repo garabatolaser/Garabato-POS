@@ -4080,8 +4080,8 @@ function NewSaleModal({products, promoters, user, isHistoric, initialPrice, onCl
   const [vcTime,    setVcTime]    = useState("");
   const [vcLoading, setVcLoading] = useState(false);
 
-  const handleVcFile = async e => {
-    const file = e.target.files?.[0]; if (!file) return;
+  const processVcRaw = async file => {
+    if (!file) return;
     if (file.size > 10*1024*1024) { alert("El archivo supera los 10MB."); return; }
     const isPDF = file.type==="application/pdf";
     const isImg = file.type.startsWith("image/");
@@ -4108,6 +4108,12 @@ function NewSaleModal({products, promoters, user, isHistoric, initialPrice, onCl
       setVcPreview(b64);
     }
     setVcLoading(false);
+    setVcOpen(true);
+  };
+  const handleVcFile = e => processVcRaw(e.target.files?.[0]);
+  const handleVcPaste = e => {
+    const item = [...(e.clipboardData?.items||[])].find(i=>i.type.startsWith("image/"));
+    if (item) { e.preventDefault(); processVcRaw(item.getAsFile()); }
   };
 
   const [splitPayments, setSplitPayments] = useState([{method:"efectivo_s",amount:""},{method:"qr_a",amount:""}]);
@@ -4926,9 +4932,9 @@ function NewSaleModal({products, promoters, user, isHistoric, initialPrice, onCl
                     </button>
 
                     {vcOpen&&(
-                      <div style={{padding:"12px 13px",borderTop:"1px solid var(--b1)"}}>
+                      <div style={{padding:"12px 13px",borderTop:"1px solid var(--b1)"}} onPaste={handleVcPaste}>
                         <div className="fg">
-                          <label className="fl">Archivo (JPG, PNG, PDF — máx 10MB)</label>
+                          <label className="fl">Archivo (JPG, PNG, PDF — máx 10MB) · o pegá con Ctrl+V</label>
                           <input type="file" accept="image/*,.pdf" className="fi"
                             onChange={handleVcFile} disabled={vcLoading}/>
                         </div>
