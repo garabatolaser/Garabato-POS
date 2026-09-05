@@ -5297,8 +5297,8 @@ function SubirComprobante({vouchers, sales, user, onClose, onSave, onSaveAndAssi
   const [saving,    setSaving]    = useState(false);
   const fileRef = useRef();
 
-  const handleFile = async e => {
-    const f = e.target.files?.[0]; if (!f) return;
+  const processFile = async f => {
+    if (!f) return;
     if (f.size > 10*1024*1024) { alert("El archivo supera los 10MB."); return; }
     const isPDF = f.type==="application/pdf";
     const isImg = f.type.startsWith("image/");
@@ -5340,6 +5340,24 @@ function SubirComprobante({vouchers, sales, user, onClose, onSave, onSaveAndAssi
       setPreview(base64);
     }
   };
+
+  const handleFile = async e => processFile(e.target.files?.[0]);
+
+  useEffect(()=>{
+    const onPaste = e => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          e.preventDefault();
+          processFile(item.getAsFile());
+          return;
+        }
+      }
+    };
+    document.addEventListener("paste", onPaste);
+    return ()=>document.removeEventListener("paste", onPaste);
+  }, []);
 
   const handleSave = async (andAssign=false) => {
     if (!file||!amount||!payDate) return;
@@ -5426,6 +5444,7 @@ function SubirComprobante({vouchers, sales, user, onClose, onSave, onSaveAndAssi
             <div className="fg">
               <label className="fl">Archivo (JPG, PNG, PDF — máx 10MB)</label>
               <input ref={fileRef} type="file" accept="image/*,.pdf" className="fi" onChange={handleFile}/>
+              <div className="fi-hint">💡 También podés <strong>Ctrl+V</strong> para pegar una imagen copiada (ej: desde WhatsApp Web)</div>
             </div>
 
             {preview&&(
