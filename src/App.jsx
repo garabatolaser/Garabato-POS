@@ -1343,17 +1343,24 @@ export default function App() {
   useEffect(()=>{
     if (new URLSearchParams(window.location.search).get('share')==='1') {
       window.history.replaceState({},'','/');
-      caches.open('garabato-share-v1').then(cache=>
-        cache.match('shared-image').then(async res=>{
-          if (!res) return;
-          const blob = await res.blob();
-          setSharedFile(new File([blob],'comprobante.jpg',{type:blob.type||'image/jpeg'}));
-          cache.delete('shared-image');
-          setPage('vouchers');
-        })
-      ).catch(()=>{});
+      sessionStorage.setItem('pendingShare','1');
     }
   },[]);
+
+  // Cargar imagen compartida una vez logueado
+  useEffect(()=>{
+    if (!user || sessionStorage.getItem('pendingShare')!=='1') return;
+    sessionStorage.removeItem('pendingShare');
+    caches.open('garabato-share-v1').then(cache=>
+      cache.match('shared-image').then(async res=>{
+        if (!res) return;
+        const blob = await res.blob();
+        setSharedFile(new File([blob],'comprobante.jpg',{type:blob.type||'image/jpeg'}));
+        cache.delete('shared-image');
+        setPage('vouchers');
+      })
+    ).catch(()=>{});
+  },[user]);
 
   useEffect(()=>{
     const st=document.createElement("style"); st.textContent=CSS; document.head.appendChild(st);
