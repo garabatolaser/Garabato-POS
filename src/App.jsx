@@ -1446,6 +1446,12 @@ export default function App() {
         dbAll("products"),dbAll("promoters"),dbAll("sales"),
         dbAll("expenses"),dbAll("commissionPayments"),dbAll("users"),dbAll("vouchers"),
       ]);
+      // Auto-expirar ventas en papelera con más de 90 días
+      const TRASH_TTL = 90 * 24 * 60 * 60 * 1000;
+      const nowMs = Date.now();
+      for (const s of sl.filter(s=>s.deleted && s.deletedAt && (nowMs - s.deletedAt > TRASH_TTL))) {
+        await dbDel("sales", s.id).catch(()=>{});
+      }
       // Reparar vínculos rotos voucher↔venta (solo si la venta no tiene voucherId asignado)
       for (const vc of vch) {
         if (!vc.saleId) continue;
@@ -1581,7 +1587,37 @@ export default function App() {
     for (const vc of allVouchers) {
       if (vc.saleId===id) await dbPut("vouchers",{...vc,saleId:null,saleSummary:"",synced:false});
     }
-    await reload(); toast("Venta eliminada","info");
+    await reload(); toast("Venta movida a papelera","info");
+  };
+
+  const handleRestoreSale = async (id) => {
+    const s = await dbGet("sales", id);
+    if (s) {
+      await dbPut("sales",{...s,deleted:false,deletedAt:null,deletedReason:null,synced:false});
+      await reload(); toast("✓ Venta restaurada","ok");
+    }
+  };
+
+  const handlePermanentDelete = async (id) => {
+    await dbDel("sales", id);
+    const allVouchers = await dbAll("vouchers");
+    for (const vc of allVouchers) {
+      if (vc.saleId===id) await dbPut("vouchers",{...vc,saleId:null,saleSummary:"",synced:false});
+    }
+    await reload(); toast("Venta eliminada definitivamente","info");
+  };
+
+  const handleEmptyTrash = async () => {
+    const all = await dbAll("sales");
+    const deleted = all.filter(s=>s.deleted);
+    const allVouchers = await dbAll("vouchers");
+    for (const s of deleted) {
+      await dbDel("sales", s.id);
+      for (const vc of allVouchers) {
+        if (vc.saleId===s.id) await dbPut("vouchers",{...vc,saleId:null,saleSummary:"",synced:false});
+      }
+    }
+    await reload(); toast("Papelera vaciada","info");
   };
 
   const handleMarkPaid = async saleId=>{
@@ -1639,6 +1675,9 @@ export default function App() {
         vouchers={vouchers}
         onMarkPaid={handleMarkPaid} onEdit={handleEditSale}
         onDelete={role==="admin"?sale=>setDeleteSale(sale):null}
+        onRestore={role==="admin"?handleRestoreSale:null}
+        onPermanentDelete={role==="admin"?handlePermanentDelete:null}
+        onEmptyTrash={role==="admin"?handleEmptyTrash:null}
         onImport={role==="admin"?async rows=>{for(const s of rows){await dbPut("sales",s);}await reload();toast(`✓ ${rows.length} ventas importadas`,"ok");}:null}
         onReload={reload}/>}
       {page==="vouchers" && (CAN.seeReports(role)
@@ -2187,7 +2226,7 @@ function HomePage({sales, products, promoters, expenses, role, user, vouchers}) 
 // ============================================================
 //  SALESPAGE
 // ============================================================
-function SalesPage({sales, role, user, promoters, vouchers, onMarkPaid, onEdit, onDelete, onImport, onReload}) {
+function SalesPage({sales, role, user, promoters, vouchers, onMarkPaid, onEdit, onDelete, onRestore, onPermanentDelete, onEmptyTrash, onImport, onReload}) {
   const [filter,      setFilter]      = useState("all");
   const [period,      setPeriod]      = useState("all");
   const [search,      setSearch]      = useState("");
@@ -2396,23 +2435,55 @@ function SalesPage({sales, role, user, promoters, vouchers, onMarkPaid, onEdit, 
 
       {showDeleted&&deletedList.length>0&&(
         <div style={{marginTop:18}}>
-          <div style={{fontSize:".76rem",fontWeight:800,color:"var(--red)",textTransform:"uppercase",letterSpacing:.5,marginBottom:10,display:"flex",alignItems:"center",gap:7}}>
-            <Ic n="trash" s={13} c="var(--red)"/> Ventas eliminadas — solo auditoría
-          </div>
-          {deletedList.map(s=>(
-            <div key={s.id} style={{position:"relative",opacity:.65}}>
-              <SaleRow sale={s} role={role} showActions={false}/>
-              <div style={{position:"absolute",top:7,right:26,background:"var(--red)",color:"#fff",
-                fontSize:".65rem",fontWeight:800,padding:"2px 8px",borderRadius:8,pointerEvents:"none",
-                maxWidth:180,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                ELIMINADA{s.deletedReason?" · "+s.deletedReason:""}
-              </div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+            <div style={{fontSize:".76rem",fontWeight:800,color:"var(--red)",textTransform:"uppercase",letterSpacing:.5,display:"flex",alignItems:"center",gap:7}}>
+              <Ic n="trash" s={13} c="var(--red)"/> Papelera ({deletedList.length})
             </div>
-          ))}
+            {onEmptyTrash&&(
+              <button onClick={()=>{if(window.confirm("¿Eliminar todas las ventas de la papelera de forma permanente? Esta acción no se puede deshacer."))onEmptyTrash();}}
+                style={{fontSize:".72rem",fontWeight:700,color:"var(--red)",background:"none",border:"1px solid var(--red)",borderRadius:8,padding:"4px 10px",cursor:"pointer"}}>
+                Vaciar papelera
+              </button>
+            )}
+          </div>
+          {deletedList.map(s=>{
+            const daysLeft = s.deletedAt ? Math.max(0,90-Math.floor((Date.now()-s.deletedAt)/86400000)) : null;
+            return (
+              <div key={s.id} style={{position:"relative",opacity:.75,marginBottom:8}}>
+                <SaleRow sale={s} role={role} showActions={false}/>
+                <div style={{position:"absolute",top:7,right:10,display:"flex",alignItems:"center",gap:6}}>
+                  <div style={{background:"var(--red)",color:"#fff",fontSize:".6rem",fontWeight:800,padding:"2px 7px",borderRadius:8,maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                    {s.deletedReason||"Eliminada"}
+                  </div>
+                </div>
+                <div style={{display:"flex",gap:7,padding:"6px 12px 10px",justifyContent:"space-between",alignItems:"center"}}>
+                  {daysLeft!==null&&(
+                    <span style={{fontSize:".68rem",color:"var(--muted)"}}>
+                      Se elimina definitivamente en <b>{daysLeft}</b> día{daysLeft!==1?"s":""}
+                    </span>
+                  )}
+                  <div style={{display:"flex",gap:6,marginLeft:"auto"}}>
+                    {onRestore&&(
+                      <button onClick={()=>onRestore(s.id)}
+                        style={{fontSize:".72rem",fontWeight:700,color:"var(--teal)",background:"none",border:"1px solid var(--teal)",borderRadius:8,padding:"4px 10px",cursor:"pointer"}}>
+                        Restaurar
+                      </button>
+                    )}
+                    {onPermanentDelete&&(
+                      <button onClick={()=>{if(window.confirm("¿Eliminar esta venta de forma permanente?"))onPermanentDelete(s.id);}}
+                        style={{fontSize:".72rem",fontWeight:700,color:"var(--red)",background:"none",border:"1px solid var(--red)",borderRadius:8,padding:"4px 10px",cursor:"pointer"}}>
+                        Borrar
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
       {showDeleted&&deletedList.length===0&&(
-        <div className="empty" style={{marginTop:12,opacity:.6}}><p>No hay ventas eliminadas en este período.</p></div>
+        <div className="empty" style={{marginTop:12,opacity:.6}}><p>La papelera está vacía.</p></div>
       )}
 
     </div>
