@@ -2417,7 +2417,7 @@ function SalesPage({sales, role, user, promoters, vouchers, onMarkPaid, onEdit, 
             const summ=(assignSaleForVoucher.productName||"")+" · "+fmtDate(assignSaleForVoucher.date);
             await dbPut("vouchers",{...v,saleId:sid,saleSummary:summ,synced:false});
             const s2=await dbGet("sales",sid);
-            if(s2) await dbPut("sales",{...s2,voucherId:v.id,synced:false});
+            if(s2&&!s2.voucherId) await dbPut("sales",{...s2,voucherId:v.id,synced:false});
             setAssignSaleForVoucher(null);
             if(onReload) await onReload();
           }}
@@ -2426,7 +2426,7 @@ function SalesPage({sales, role, user, promoters, vouchers, onMarkPaid, onEdit, 
             const summ=(assignSaleForVoucher.productName||"")+" · "+fmtDate(assignSaleForVoucher.date);
             await dbPut("vouchers",{...v,saleId:sid,saleSummary:summ,synced:false});
             const s2=await dbGet("sales",sid);
-            if(s2) await dbPut("sales",{...s2,voucherId:v.id,synced:false});
+            if(s2&&!s2.voucherId) await dbPut("sales",{...s2,voucherId:v.id,synced:false});
             setAssignSaleForVoucher(null);
             if(onReload) await onReload();
           }}
@@ -2674,6 +2674,12 @@ function SaleRow({sale, role, showActions, onMarkPaid, onEdit, onDelete, voucher
             {needsVoucher&&onVoucherAssign&&(
               <button className="vc-missing" onClick={e=>{e.stopPropagation();onVoucherAssign();}}>
                 Sin comprobante
+              </button>
+            )}
+            {hasQRorTransf&&saleVouchers.length>0&&onVoucherAssign&&(
+              <button className="vc-has" onClick={e=>{e.stopPropagation();onVoucherAssign();}}
+                style={{background:"rgba(224,198,17,.12)",color:"var(--gold)",fontSize:".6rem"}}>
+                + Comprobante
               </button>
             )}
           </span>
