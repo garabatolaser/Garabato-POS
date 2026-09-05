@@ -3464,6 +3464,8 @@ function ReportsPage({sales, expenses, promoters, payments, role}) {
       {tab==="socios"&&(()=>{
         const allS    = sales;
         const tvHist  = allS.reduce((a,s)=>a+s.clientPrice,0);
+        const efecS   = allS.filter(s=>s.paymentMethod==="efectivo"||saleMethodAmount(s,"efectivo")>0);
+        const qrS     = allS.filter(s=>s.paymentMethod==="qr"||s.paymentMethod==="transferencia"||(s.paymentMethod==="mixto"&&saleMethodAmount(s,"qr")>0));
         const netEfec = allS.reduce((a,s)=>a+saleMethodAmount(s,"efectivo"),0);
         const netQR   = allS.reduce((a,s)=>a+saleMethodAmount(s,"qr"),0);
         const netOtros= 0;
