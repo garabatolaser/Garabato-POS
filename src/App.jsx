@@ -1106,9 +1106,10 @@ async function seed() {
 // ============================================================
 function generatePartnerReport(sales, expenses, promoters, period, periodLabel) {
   const now = Date.now();
-  const fs  = period==="week"  ? sales.filter(s=>s.date>=now-7*86400000)
-            : period==="month" ? sales.filter(s=>s.date>=now-30*86400000)
-            : sales;
+  const active = sales.filter(s=>!s.deleted);
+  const fs  = period==="week"  ? active.filter(s=>s.date>=now-7*86400000)
+            : period==="month" ? active.filter(s=>s.date>=now-30*86400000)
+            : active;
   const totalSales  = fs.reduce((a,s)=>a+s.clientPrice,0);
   const totalComm   = fs.reduce((a,s)=>a+s.commission,0);
   const totalCost   = fs.reduce((a,s)=>a+s.cost,0);
@@ -1445,11 +1446,11 @@ export default function App() {
         dbAll("products"),dbAll("promoters"),dbAll("sales"),
         dbAll("expenses"),dbAll("commissionPayments"),dbAll("users"),dbAll("vouchers"),
       ]);
-      // Reparar vínculos rotos voucher↔venta (si voucher.saleId apunta a una venta sin voucherId)
+      // Reparar vínculos rotos voucher↔venta (solo si la venta no tiene voucherId asignado)
       for (const vc of vch) {
         if (!vc.saleId) continue;
         const sale = sl.find(s=>s.id===vc.saleId);
-        if (sale && sale.voucherId !== vc.id) {
+        if (sale && !sale.voucherId) {
           const fixed = {...sale, voucherId:vc.id, synced:false};
           sl[sl.indexOf(sale)] = fixed;
           dbPut("sales", fixed).catch(()=>{});
@@ -3291,15 +3292,16 @@ function ReportsPage({sales, expenses, promoters, payments, role}) {
 
   const now = Date.now();
   const fs = useMemo(()=>{
-    if (period==="today") return sales.filter(s=>s.date>=todayMs());
-    if (period==="week")  return sales.filter(s=>s.date>=now-7*86400000);
-    if (period==="month") return sales.filter(s=>s.date>=now-30*86400000);
-    return sales;
+    const active = sales.filter(s=>!s.deleted);
+    if (period==="today") return active.filter(s=>s.date>=todayMs());
+    if (period==="week")  return active.filter(s=>s.date>=now-7*86400000);
+    if (period==="month") return active.filter(s=>s.date>=now-30*86400000);
+    return active;
   },[sales,period]);
 
   // Mes anterior para comparacion
   const prevMonth = useMemo(()=>
-    sales.filter(s=>s.date>=now-60*86400000&&s.date<now-30*86400000)
+    sales.filter(s=>!s.deleted&&s.date>=now-60*86400000&&s.date<now-30*86400000)
   ,[sales]);
 
   const totalSales  = fs.reduce((a,s)=>a+s.clientPrice,0);
@@ -3336,7 +3338,7 @@ function ReportsPage({sales, expenses, promoters, payments, role}) {
   // Ranking promotoras
   const ranking = promoters.map(pr=>{
     const ps=fs.filter(s=>s.promoterId===pr.id);
-    const pending=sales.filter(s=>s.promoterId===pr.id&&s.commissionStatus==="pendiente");
+    const pending=fs.filter(s=>s.promoterId===pr.id&&s.commissionStatus==="pendiente");
     return {
       name:pr.name,
       total:ps.reduce((a,s)=>a+s.clientPrice,0),
@@ -3596,7 +3598,7 @@ function ReportsPage({sales, expenses, promoters, payments, role}) {
       )}
 
       {tab==="socios"&&(()=>{
-        const allS    = sales;
+        const allS    = sales.filter(s=>!s.deleted);
         const tvHist  = allS.reduce((a,s)=>a+s.clientPrice,0);
         const netSergio = r2(allS.reduce((a,s)=>a+saleMethodAmount(s,"sergio"),0));
         const netSocio  = r2(allS.reduce((a,s)=>a+saleMethodAmount(s,"socio"),0));
