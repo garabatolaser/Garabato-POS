@@ -303,9 +303,11 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
 /* BOTTOM NAV */
 .bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;
   background:var(--s1);border-top:1px solid var(--b1);display:flex;
+  overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none;
   padding:6px 0 max(16px,env(safe-area-inset-bottom));z-index:200}
-.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 4px;
-  cursor:pointer;border:none;background:none;color:var(--dim);font-size:.68rem;font-weight:700;
+.bnav::-webkit-scrollbar{display:none}
+.ni{flex:0 0 auto;min-width:64px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 6px;
+  cursor:pointer;border:none;background:none;color:var(--dim);font-size:.62rem;font-weight:700;
   letter-spacing:.3px;text-transform:uppercase;transition:.2s;outline:none;-webkit-appearance:none}
 .ni.act{color:var(--gold)}
 .ni-w{position:relative}
