@@ -2102,9 +2102,10 @@ function HomePage({sales, products, promoters, expenses, role, user, vouchers}) 
           </div>
           <div className="shd mt12"><div className="shd-l">Ventas recientes</div></div>
           {activeSales.slice(0,5).map(s=>{
-            const vc=vouchers?.find(v=>v.saleId===s.id)||vouchers?.find(v=>v.id===s.voucherId)||null;
-            return <SaleRow key={s.id} sale={s} role={role} voucher={vc}
-              onVoucherView={vc?()=>setViewVoucher(vc):undefined}/>;
+            const vcs=(vouchers||[]).filter(v=>v.saleId===s.id||(v.id===s.voucherId&&v.saleId===s.id));
+            const allVcs=vcs.length?vcs:((vouchers||[]).filter(v=>v.id===s.voucherId));
+            return <SaleRow key={s.id} sale={s} role={role} vouchers={allVcs}
+              onVoucherView={vc=>setViewVoucher(vc)}/>;
           })}
         </>
       )}
@@ -2123,9 +2124,9 @@ function HomePage({sales, products, promoters, expenses, role, user, vouchers}) 
 
       <div className="shd mt12"><div className="shd-l">{role==="promoter"?"Mis ventas recientes":"Ventas recientes"}</div></div>
       {mySales.slice(0,5).map(s=>{
-        const vc=vouchers?.find(v=>v.saleId===s.id)||vouchers?.find(v=>v.id===s.voucherId)||null;
-        return <SaleRow key={s.id} sale={s} role={role} voucher={vc}
-          onVoucherView={vc?()=>setViewVoucher(vc):undefined}/>;
+        const allVcs=(vouchers||[]).filter(v=>v.saleId===s.id||(v.id===s.voucherId));
+        return <SaleRow key={s.id} sale={s} role={role} vouchers={allVcs}
+          onVoucherView={vc=>setViewVoucher(vc)}/>;
       })}
       {viewVoucher&&(
         <VerComprobante voucher={viewVoucher} sales={sales} onClose={()=>setViewVoucher(null)}/>
@@ -2263,17 +2264,15 @@ function SalesPage({sales, role, user, promoters, vouchers, onMarkPaid, onEdit, 
       {visible.length===0
         ?<div className="empty"><Ic n="cart" s={38}/><p>Aún no hay ventas registradas.</p></div>
         :visible.map(s=>{
-          const saleVoucher = vouchers?.find(v=>v.saleId===s.id)
-            || vouchers?.find(v=>v.id===s.voucherId)
-            || null;
+          const saleVouchers = (vouchers||[]).filter(v=>v.saleId===s.id||(v.id===s.voucherId));
           return (
             <SaleRow key={s.id} sale={s} role={role}
               showActions={CAN.seeComms(role)}
               onMarkPaid={s.commissionStatus==="pendiente"?()=>onMarkPaid(s.id):null}
               onEdit={()=>setEditSale(s)}
               onDelete={role==="admin"&&onDelete?()=>onDelete(s):null}
-              voucher={saleVoucher}
-              onVoucherView={saleVoucher?()=>setViewVoucher(saleVoucher):null}
+              vouchers={saleVouchers}
+              onVoucherView={vc=>setViewVoucher(vc)}
               onVoucherAssign={CAN.seeReports(role)?()=>setAssignSaleForVoucher(s):null}
             />
           );
@@ -2514,11 +2513,12 @@ function SaleEditModal({sale, role, onClose, onSave}) {
 // ============================================================
 //  SALEROW
 // ============================================================
-function SaleRow({sale, role, showActions, onMarkPaid, onEdit, onDelete, voucher, onVoucherAssign, onVoucherView}) {
+function SaleRow({sale, role, showActions, onMarkPaid, onEdit, onDelete, vouchers, onVoucherAssign, onVoucherView}) {
   const hasQRorTransf = sale.paymentMethod==="mixto"
     ? (sale.payments||[]).some(p=>isQRMethod(p.method))
     : isQRMethod(sale.paymentMethod);
-  const needsVoucher = hasQRorTransf && !voucher;
+  const saleVouchers = vouchers||[];
+  const needsVoucher = hasQRorTransf && saleVouchers.length===0;
   return (
     <div className="si">
       <div className="si-ico"><Ic n={sale.isHistoric?"history":"laser"} s={16}/></div>
@@ -2546,11 +2546,11 @@ function SaleRow({sale, role, showActions, onMarkPaid, onEdit, onDelete, voucher
                 ({sale.payments.map(p=>`${PM_LABEL[p.method]||p.method}: ${fmt(p.amount)}`).join(" + ")})
               </span>
             )}
-            {sale.voucherId&&onVoucherView&&(
-              <button className="vc-has" onClick={e=>{e.stopPropagation();onVoucherView();}}>
-                <Ic n="clip" s={9}/> Comprobante
+            {saleVouchers.map((vc,i)=>(
+              <button key={vc.id} className="vc-has" onClick={e=>{e.stopPropagation();onVoucherView&&onVoucherView(vc);}}>
+                <Ic n="clip" s={9}/> Comprobante{saleVouchers.length>1?` ${i+1}`:""}
               </button>
-            )}
+            ))}
             {needsVoucher&&onVoucherAssign&&(
               <button className="vc-missing" onClick={e=>{e.stopPropagation();onVoucherAssign();}}>
                 Sin comprobante
