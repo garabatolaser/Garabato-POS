@@ -731,7 +731,7 @@ const SB_MAP = {
   products:           { table:"products",           toSB: r=>({id:r.id,name:r.name,photo:r.photo||null,client_price:r.clientPrice,promoter_price:r.promoterPrice,cost:r.cost,stock:r.stock,low_stock_alert:r.lowStockAlert,client_price_usd:r.clientPriceUSD||null,grabado_types_allowed:r.grabadoTypesAllowed||[],has_variants:r.hasVariants||false,variants:r.variants||[],price_history:r.priceHistory||[]}), fromSB: r=>({id:r.id,name:r.name,photo:r.photo,clientPrice:r.client_price,promoterPrice:r.promoter_price,cost:r.cost,stock:r.stock,lowStockAlert:r.low_stock_alert,clientPriceUSD:r.client_price_usd,grabadoTypesAllowed:r.grabado_types_allowed||[],hasVariants:r.has_variants||false,variants:r.variants||[],priceHistory:r.price_history||[]}) },
   promoters:          { table:"promoters",          toSB: r=>({id:r.id,name:r.name,phone:r.phone,active:r.active,custom_promoter_price:r.customPromoterPrice||null}), fromSB: r=>({id:r.id,name:r.name,phone:r.phone,active:r.active,customPromoterPrice:r.custom_promoter_price||null}) },
   sales:              { table:"sales",              toSB: r=>({id:r.id,product_id:r.productId,product_name:r.productName,customization:r.customization||null,client_price:r.clientPrice,promoter_price:r.promoterPrice,cost:r.cost,empaque:r.empaque||0,cost_paid_by:r.costPaidBy||"socio",commission:r.commission,profit:r.profit,profit_owner:r.profitOwner,profit_partner:r.profitPartner,payment_method:r.paymentMethod,payments:r.payments||null,promoter_id:r.promoterId||null,promoter_name:r.promoterName||null,is_direct_sale:r.isDirectSale||false,client_name:r.clientName||null,client_phone:r.clientPhone||null,notes:r.notes||null,commission_status:r.commissionStatus,date:r.date,is_historic:r.isHistoric||false,deleted:r.deleted||false,deleted_at:r.deletedAt||null,deleted_reason:r.deletedReason||null,order_id:r.orderId||null,variant_id:r.variantId||null,variant_name:r.variantName||null,voucher_id:r.voucherId||null}), fromSB: r=>({id:r.id,productId:r.product_id,productName:r.product_name,customization:r.customization,clientPrice:r.client_price,promoterPrice:r.promoter_price,cost:r.cost,empaque:r.empaque||0,costPaidBy:r.cost_paid_by||"socio",commission:r.commission,profit:r.profit,profitOwner:r.profit_owner,profitPartner:r.profit_partner,paymentMethod:r.payment_method,payments:r.payments||null,promoterId:r.promoter_id,promoterName:r.promoter_name,isDirectSale:r.is_direct_sale,clientName:r.client_name,clientPhone:r.client_phone,notes:r.notes,commissionStatus:r.commission_status,date:r.date,isHistoric:r.is_historic,deleted:r.deleted,deletedAt:r.deleted_at,deletedReason:r.deleted_reason,orderId:r.order_id,variantId:r.variant_id,variantName:r.variant_name,voucherId:r.voucher_id||null,synced:true}) },
-  expenses:           { table:"expenses",           toSB: r=>({id:r.id,type:r.type,amount:r.amount,description:r.description||null,date:r.date,afecta_sociedad:r.afectaSociedad!==false}), fromSB: r=>({id:r.id,type:r.type,amount:r.amount,description:r.description,date:r.date,afectaSociedad:r.afecta_sociedad,synced:true}) },
+  expenses:           { table:"expenses",           toSB: r=>({id:r.id,type:r.type,amount:r.amount,description:r.description||null,date:r.date,afecta_sociedad:r.afectaSociedad!==false,paid_by:r.paidBy||"ambos"}), fromSB: r=>({id:r.id,type:r.type,amount:r.amount,description:r.description,date:r.date,afectaSociedad:r.afecta_sociedad,paidBy:r.paid_by||"ambos",synced:true}) },
   commissionPayments: { table:"commission_payments", toSB: r=>({id:r.id,promoter_id:r.promoterId,amount:r.amount,sales_ids:r.salesIds||[],date:r.date}), fromSB: r=>({id:r.id,promoterId:r.promoter_id,amount:r.amount,salesIds:r.sales_ids||[],date:r.date}) },
   vouchers:           { table:"vouchers",           toSB: r=>({id:r.id,hash:r.hash||null,file_type:r.fileType||null,file_name:r.fileName||null,amount:r.amount||0,reference:r.reference||null,holder_name:r.holderName||null,bank:r.bank||null,payment_date:r.paymentDate||null,payment_time:r.paymentTime||null,uploaded_at:r.uploadedAt||null,uploaded_by:r.uploadedBy||null,sale_id:r.saleId||null,sale_summary:r.saleSummary||null,notes:r.notes||null,image_url:r.imageUrl||null}), fromSB: r=>({id:r.id,hash:r.hash,image:null,imageUrl:r.image_url||null,fileType:r.file_type,fileName:r.file_name,amount:r.amount,reference:r.reference,holderName:r.holder_name,bank:r.bank,paymentDate:r.payment_date,paymentTime:r.payment_time,uploadedAt:r.uploaded_at,uploadedBy:r.uploaded_by,saleId:r.sale_id,saleSummary:r.sale_summary,notes:r.notes,synced:true}) }
 };
@@ -3060,7 +3060,7 @@ function PromoterForm({promoter, onClose, onSave}) {
 // ============================================================
 function ExpensesPage({expenses, onAdd, onDelete}) {
   const [showForm,setShowForm]=useState(false);
-  const [form,setForm]=useState({type:"Empaques",amount:"",description:"",date:todayISO(),afectaSociedad:true});
+  const [form,setForm]=useState({type:"Empaques",amount:"",description:"",date:todayISO(),afectaSociedad:true,paidBy:"ambos"});
   const set=(k,v)=>setForm(f=>({...f,[k]:v}));
   const total=expenses.reduce((a,e)=>a+e.amount,0);
   const monthly=expenses.filter(e=>e.date>=Date.now()-30*86400000).reduce((a,e)=>a+e.amount,0);
@@ -3103,7 +3103,13 @@ function ExpensesPage({expenses, onAdd, onDelete}) {
               {e.description&&<div className="ei-desc">{e.description}</div>}
               <div className="ei-date">
                 {fmtDate(e.date)}
-                {e.afectaSociedad===false&&<span style={{marginLeft:6,fontSize:".68rem",fontWeight:800,color:"var(--muted)",background:"var(--s2)",padding:"1px 5px",borderRadius:4}}>Solo tienda</span>}
+                {e.afectaSociedad===false
+                  ?<span style={{marginLeft:6,fontSize:".68rem",fontWeight:800,color:"var(--muted)",background:"var(--s2)",padding:"1px 5px",borderRadius:4}}>Solo tienda</span>
+                  :e.paidBy==="sergio"
+                  ?<span style={{marginLeft:6,fontSize:".68rem",fontWeight:800,color:"var(--gold)",background:"var(--s2)",padding:"1px 5px",borderRadius:4}}>💛 Sergio</span>
+                  :e.paidBy==="socio"
+                  ?<span style={{marginLeft:6,fontSize:".68rem",fontWeight:800,color:"var(--teal)",background:"var(--s2)",padding:"1px 5px",borderRadius:4}}>🩵 Israel</span>
+                  :null}
               </div>
             </div>
             <div className="ei-amt">{fmt(e.amount)}</div>
@@ -3140,16 +3146,14 @@ function ExpensesPage({expenses, onAdd, onDelete}) {
               <textarea className="fta" value={form.description} onChange={e=>set("description",e.target.value)} placeholder="Detalle opcional..."/>
             </div>
             <div className="fg">
-              <label className="fl">Afecta distribución societaria</label>
-              <div className="pills">
-                <button className={"pill"+(form.afectaSociedad!==false?" act":"")} onClick={()=>set("afectaSociedad",true)}>
-                  Si — gasto compartido 50/50
-                </button>
-                <button className={"pill"+(form.afectaSociedad===false?" act":"")} onClick={()=>set("afectaSociedad",false)}>
-                  No — gasto solo tienda
-                </button>
+              <label className="fl">¿Quién lo pagó?</label>
+              <div className="pills" style={{flexWrap:"wrap"}}>
+                <button className={"pill"+(form.paidBy==="sergio"&&form.afectaSociedad!==false?" act":"")} onClick={()=>set("paidBy","sergio")||set("afectaSociedad",true)}>💛 Sergio</button>
+                <button className={"pill"+(form.paidBy==="socio"&&form.afectaSociedad!==false?" act":"")} onClick={()=>set("paidBy","socio")||set("afectaSociedad",true)}>🩵 Israel</button>
+                <button className={"pill"+(form.paidBy==="ambos"&&form.afectaSociedad!==false?" act":"")} onClick={()=>set("paidBy","ambos")||set("afectaSociedad",true)}>Ambos (50/50)</button>
+                <button className={"pill"+(form.afectaSociedad===false?" act":"")} onClick={()=>{set("afectaSociedad",false);set("paidBy","ambos");}}>Solo tienda</button>
               </div>
-              <div className="fi-hint">Los gastos compartidos se descuentan de la ganancia antes de dividir</div>
+              <div className="fi-hint">{form.afectaSociedad===false?"No afecta la distribución societaria":form.paidBy==="ambos"?"Se descuenta 50/50 de la ganancia":form.paidBy==="sergio"?"Pagó Sergio — se ajusta en deuda":"Pagó Israel — se ajusta en deuda"}</div>
             </div>
             <div className="row">
               <button className="btn btn-out" onClick={()=>setShowForm(false)}>Cancelar</button>
@@ -3157,8 +3161,8 @@ function ExpensesPage({expenses, onAdd, onDelete}) {
                 if (!form.amount||isNaN(form.amount)) return;
                 await onAdd({id:uid("e"),type:form.type,amount:parseFloat(form.amount),
                   description:form.description,date:new Date(form.date).getTime(),
-                  afectaSociedad:form.afectaSociedad!==false});
-                setForm({type:"Empaques",amount:"",description:"",date:todayISO(),afectaSociedad:true});
+                  afectaSociedad:form.afectaSociedad!==false,paidBy:form.paidBy||"ambos"});
+                setForm({type:"Empaques",amount:"",description:"",date:todayISO(),afectaSociedad:true,paidBy:"ambos"});
                 setShowForm(false);
               }}>
                 <Ic n="plus" s={16} c="#fff"/> Registrar gasto
@@ -3495,15 +3499,19 @@ function ReportsPage({sales, expenses, promoters, payments, role}) {
         const efecS     = allS.filter(s=>saleMethodAmount(s,"efectivo")>0);
         const qrS       = allS.filter(s=>saleMethodAmount(s,"qr")>0);
         const gainTotal = r2(allS.reduce((a,s)=>a+s.profit,0));
-        const expSoc    = r2(expenses.filter(e=>e.afectaSociedad!==false).reduce((a,e)=>a+e.amount,0));
+        const socExp    = expenses.filter(e=>e.afectaSociedad!==false);
+        const expSoc    = r2(socExp.reduce((a,e)=>a+e.amount,0));
         const netFin    = r2(gainTotal-expSoc);
         const porSocio  = r2(netFin/2);
         // Efectivo neto de cada socio: lo que recibió (escalado a precio neto) menos costos que pagó
         const gainSergio= r2(allS.reduce((a,s)=>{ const tot=s.clientPrice||0; if(!tot) return a; const pp=s.promoterPrice||tot; const rec=saleMethodAmount(s,"sergio"); const costS=s.costPaidBy==="sergio"?(s.cost||0)+(s.empaque||0):0; return a+rec*(pp/tot)-costS; },0));
         const gainSocio = r2(allS.reduce((a,s)=>{ const tot=s.clientPrice||0; if(!tot) return a; const pp=s.promoterPrice||tot; const rec=saleMethodAmount(s,"socio");  const costA=(s.costPaidBy==="socio"||(s.costPaidBy==null&&s.cost>0))?(s.cost||0)+(s.empaque||0):0; return a+rec*(pp/tot)-costA; },0));
-        // Saldo: cuánto recibió cada uno de ganancia vs su parte justa
-        const saldoSergio = r2(gainSergio - expSoc/2 - porSocio); // positivo = Sergio tiene de más
-        const saldoSocio  = r2(gainSocio  - expSoc/2 - porSocio);
+        // Gastos físicamente pagados por cada uno
+        const expSergioPaid = r2(socExp.reduce((a,e)=>a+(e.paidBy==="sergio"?e.amount:e.paidBy==="socio"?0:e.amount/2),0));
+        const expSocioPaid  = r2(socExp.reduce((a,e)=>a+(e.paidBy==="socio"?e.amount:e.paidBy==="sergio"?0:e.amount/2),0));
+        // Saldo: (lo que tiene de ventas - gastos que pagó) vs su parte justa
+        const saldoSergio = r2(gainSergio - expSergioPaid - porSocio);
+        const saldoSocio  = r2(gainSocio  - expSocioPaid  - porSocio);
         const qrSinComp = allS.filter(s=>(isQRMethod(s.paymentMethod)||(s.paymentMethod==="mixto"&&(s.payments||[]).some(p=>isQRMethod(p.method))))&&(!s.paymentRef||!s.paymentRef.trim()));
         return (
           <>
