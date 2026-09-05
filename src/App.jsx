@@ -1321,20 +1321,22 @@ function useToast() {
 // ============================================================
 export default function App() {
   const SESSION_TTL = 8 * 60 * 60 * 1000; // 8 horas
-  const loadSession = () => {
+  const loadSessionForShare = () => {
+    // Solo auto-login si viene de un compartir de WhatsApp
+    if (sessionStorage.getItem('pendingShare') !== '1') return null;
     try {
-      const raw = localStorage.getItem("garabato_session");
+      const raw = localStorage.getItem("garabato_share_session");
       if (!raw) return null;
       const {u, exp} = JSON.parse(raw);
-      if (Date.now() > exp) { localStorage.removeItem("garabato_session"); return null; }
+      if (Date.now() > exp) { localStorage.removeItem("garabato_share_session"); return null; }
       return u;
     } catch { return null; }
   };
   const saveSession = u => {
-    try { localStorage.setItem("garabato_session", JSON.stringify({u, exp: Date.now()+SESSION_TTL})); } catch {}
+    try { localStorage.setItem("garabato_share_session", JSON.stringify({u, exp: Date.now()+SESSION_TTL})); } catch {}
   };
-  const clearSession = () => { try { localStorage.removeItem("garabato_session"); } catch {} };
-  const [user,    setUser]    = useState(loadSession);
+  const clearSession = () => { try { localStorage.removeItem("garabato_share_session"); } catch {} };
+  const [user,    setUser]    = useState(loadSessionForShare);
   const [page,    setPage]    = useState("home");
   const [online,  setOnline]  = useState(navigator.onLine);
   const [ready,   setReady]   = useState(false);
@@ -1603,9 +1605,6 @@ export default function App() {
       <style>{`@keyframes pulse{0%,100%{opacity:.6;transform:scale(.95)}50%{opacity:1;transform:scale(1)}}`}</style>
     </div>
   );
-
-  // Renovar sesión cada vez que se usa la app
-  useEffect(()=>{ if(user) saveSession(user); },[user]);
 
   if (!user) return <LoginScreen users={users} onLogin={u=>{
     setUser(u); saveSession(u);
