@@ -1554,6 +1554,11 @@ export default function App() {
     } else {
       await dbDel("sales",id);
     }
+    // Deslinkar comprobantes que apuntaban a esta venta
+    const allVouchers = await dbAll("vouchers");
+    for (const vc of allVouchers) {
+      if (vc.saleId===id) await dbPut("vouchers",{...vc,saleId:null,saleSummary:"",synced:false});
+    }
     await reload(); toast("Venta eliminada","info");
   };
 
@@ -1809,7 +1814,7 @@ export default function App() {
 
       {sharedFile && !CAN.seeReports(role) && (
         <SubirComprobante
-          vouchers={vouchers} user={user}
+          vouchers={vouchers} sales={sales} user={user}
           initialFile={sharedFile}
           onClose={()=>setSharedFile(null)}
           onSave={async v=>{await dbPut("vouchers",{...v,synced:false});await reload();setSharedFile(null);toast("✓ Comprobante guardado","ok");}}
@@ -5409,8 +5414,19 @@ function SubirComprobante({vouchers, sales, user, onClose, onSave, onSaveAndAssi
     if (existing) {
       const isSameSale = !!(prefillSale && existing.saleId === prefillSale.id);
       const assignedSale = existing.saleId ? (sales||[]).find(s=>s.id===existing.saleId) : null;
-      const assignedToDeleted = !!assignedSale?.deleted;
-      setDupAlert({assigned:!!existing.saleId && !isSameSale && !assignedToDeleted, isSameSale, assignedToDeleted, voucher:existing});
+      const assignedToDeleted = existing.saleId && (!assignedSale || !!assignedSale?.deleted);
+      // Si la venta asignada fue eliminada o no existe, permitir continuar como si fuera nuevo
+      if (assignedToDeleted) {
+        setDupAlert(null);
+        setFile(f);
+        setFileType(isPDF?"pdf":"image");
+        if (!isPDF) {
+          let base64 = await compressImage(f);
+          setPreview(base64);
+        }
+        return;
+      }
+      setDupAlert({assigned:!!existing.saleId && !isSameSale, isSameSale, assignedToDeleted:false, voucher:existing});
       return;
     }
     setDupAlert(null);
