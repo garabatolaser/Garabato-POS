@@ -1488,6 +1488,7 @@ export default function App() {
         const all = await dbAll(store);
         const unsynced = all.filter(r=>r.synced===false);
         for (const r of unsynced) {
+          await sbPush(store, r).catch(()=>{});
           await dbPut(store,{...r,synced:true});
           total++;
         }
@@ -2653,7 +2654,7 @@ function SaleRow({sale, role, showActions, onMarkPaid, onEdit, onDelete, voucher
           )}
         </div>
       </div>
-      <div className={"sdot "+(sale.synced?"sd-ok":"sd-no")}/>
+      <div className={"sdot "+(sale.synced===false?"sd-no":"sd-ok")}/>
     </div>
   );
 }
