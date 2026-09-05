@@ -4138,14 +4138,9 @@ function NewSaleModal({products, promoters, user, isHistoric, initialPrice, onCl
     if (item) { e.preventDefault(); processVcRaw(item.getAsFile()); }
   };
 
-  const [splitPayments, setSplitPayments] = useState([{method:"efectivo_s",amount:""},{method:"qr_a",amount:""}]);
+  const [splitPayments, setSplitPayments] = useState([{method:"efectivo_s",amount:""},{method:"efectivo_a",amount:""}]);
   const updSplit = (i,patch) => setSplitPayments(p=>p.map((x,j)=>j===i?{...x,...patch}:x));
   const splitTotal = splitPayments.reduce((a,p)=>a+(parseFloat(p.amount)||0),0);
-  const splitValid = f.paymentMethod!=="mixto" || (cp>0 && Math.abs(r2(splitTotal)-r2(cp))<0.01);
-
-  const needsVoucher = f.paymentMethod==="mixto"
-    ? splitPayments.some(p=>isQRMethod(p.method))
-    : isQRMethod(f.paymentMethod);
 
   // ── MODO CARRITO ──
   const [multiMode, setMultiMode] = useState(false);
@@ -4209,6 +4204,12 @@ function NewSaleModal({products, promoters, user, isHistoric, initialPrice, onCl
   const cst = f.cost||0;
   const emp = parseFloat(f.empaque)||0;
   const {commission,profit,profitOwner,profitPartner} = calcSale(cp,pp,cst,emp);
+
+  const splitEffectiveTotal = multiMode ? cartTotalPrice : cp;
+  const splitValid = f.paymentMethod!=="mixto" || (splitEffectiveTotal>0 && Math.abs(r2(splitTotal)-r2(splitEffectiveTotal))<0.01);
+  const needsVoucher = f.paymentMethod==="mixto"
+    ? splitPayments.some(p=>isQRMethod(p.method))
+    : isQRMethod(f.paymentMethod);
   const ss  = s => step>s?"s-done":step===s?"s-cur":"s-fut";
   const selProdHasVariants = selProd?.hasVariants && selProd?.variants?.length>0;
   const step1valid = multiMode
@@ -4930,9 +4931,9 @@ function NewSaleModal({products, promoters, user, isHistoric, initialPrice, onCl
                           className="fi" style={{flex:1}} placeholder="Bs 0"/>
                       </div>
                     ))}
-                    {cp>0&&(
+                    {splitEffectiveTotal>0&&(
                       <div style={{fontSize:".76rem",fontWeight:700,marginTop:4,color:splitValid?"var(--grn)":"var(--red)"}}>
-                        {splitValid?"✓ Total coincide":"Faltan Bs "+fmt(r2(cp-splitTotal))+" para llegar a "+fmt(cp)}
+                        {splitValid?"✓ Total coincide":"Faltan Bs "+fmt(r2(splitEffectiveTotal-splitTotal))+" para llegar a "+fmt(splitEffectiveTotal)}
                       </div>
                     )}
                   </div>
