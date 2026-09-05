@@ -730,7 +730,7 @@ const SB_MAP = {
   users:              { table:"users",              toSB: r=>({id:r.id,name:r.name,role:r.role,pin:r.pin,promoter_id:r.promoterId||null}), fromSB: r=>({id:r.id,name:r.name,role:r.role,pin:r.pin,promoterId:r.promoter_id||null,synced:true}) },
   products:           { table:"products",           toSB: r=>({id:r.id,name:r.name,photo:r.photo||null,client_price:r.clientPrice,promoter_price:r.promoterPrice,cost:r.cost,stock:r.stock,low_stock_alert:r.lowStockAlert,client_price_usd:r.clientPriceUSD||null,grabado_types_allowed:r.grabadoTypesAllowed||[],has_variants:r.hasVariants||false,variants:r.variants||[],price_history:r.priceHistory||[]}), fromSB: r=>({id:r.id,name:r.name,photo:r.photo,clientPrice:r.client_price,promoterPrice:r.promoter_price,cost:r.cost,stock:r.stock,lowStockAlert:r.low_stock_alert,clientPriceUSD:r.client_price_usd,grabadoTypesAllowed:r.grabado_types_allowed||[],hasVariants:r.has_variants||false,variants:r.variants||[],priceHistory:r.price_history||[]}) },
   promoters:          { table:"promoters",          toSB: r=>({id:r.id,name:r.name,phone:r.phone,active:r.active,custom_promoter_price:r.customPromoterPrice||null}), fromSB: r=>({id:r.id,name:r.name,phone:r.phone,active:r.active,customPromoterPrice:r.custom_promoter_price||null}) },
-  sales:              { table:"sales",              toSB: r=>({id:r.id,product_id:r.productId,product_name:r.productName,customization:r.customization||null,client_price:r.clientPrice,promoter_price:r.promoterPrice,cost:r.cost,commission:r.commission,profit:r.profit,profit_owner:r.profitOwner,profit_partner:r.profitPartner,payment_method:r.paymentMethod,promoter_id:r.promoterId||null,promoter_name:r.promoterName||null,is_direct_sale:r.isDirectSale||false,client_name:r.clientName||null,client_phone:r.clientPhone||null,notes:r.notes||null,commission_status:r.commissionStatus,date:r.date,is_historic:r.isHistoric||false,deleted:r.deleted||false,deleted_at:r.deletedAt||null,deleted_reason:r.deletedReason||null,order_id:r.orderId||null,variant_id:r.variantId||null,variant_name:r.variantName||null,voucher_id:r.voucherId||null}), fromSB: r=>({id:r.id,productId:r.product_id,productName:r.product_name,customization:r.customization,clientPrice:r.client_price,promoterPrice:r.promoter_price,cost:r.cost,commission:r.commission,profit:r.profit,profitOwner:r.profit_owner,profitPartner:r.profit_partner,paymentMethod:r.payment_method,promoterId:r.promoter_id,promoterName:r.promoter_name,isDirectSale:r.is_direct_sale,clientName:r.client_name,clientPhone:r.client_phone,notes:r.notes,commissionStatus:r.commission_status,date:r.date,isHistoric:r.is_historic,deleted:r.deleted,deletedAt:r.deleted_at,deletedReason:r.deleted_reason,orderId:r.order_id,variantId:r.variant_id,variantName:r.variant_name,voucherId:r.voucher_id||null,synced:true}) },
+  sales:              { table:"sales",              toSB: r=>({id:r.id,product_id:r.productId,product_name:r.productName,customization:r.customization||null,client_price:r.clientPrice,promoter_price:r.promoterPrice,cost:r.cost,commission:r.commission,profit:r.profit,profit_owner:r.profitOwner,profit_partner:r.profitPartner,payment_method:r.paymentMethod,payments:r.payments||null,promoter_id:r.promoterId||null,promoter_name:r.promoterName||null,is_direct_sale:r.isDirectSale||false,client_name:r.clientName||null,client_phone:r.clientPhone||null,notes:r.notes||null,commission_status:r.commissionStatus,date:r.date,is_historic:r.isHistoric||false,deleted:r.deleted||false,deleted_at:r.deletedAt||null,deleted_reason:r.deletedReason||null,order_id:r.orderId||null,variant_id:r.variantId||null,variant_name:r.variantName||null,voucher_id:r.voucherId||null}), fromSB: r=>({id:r.id,productId:r.product_id,productName:r.product_name,customization:r.customization,clientPrice:r.client_price,promoterPrice:r.promoter_price,cost:r.cost,commission:r.commission,profit:r.profit,profitOwner:r.profit_owner,profitPartner:r.profit_partner,paymentMethod:r.payment_method,payments:r.payments||null,promoterId:r.promoter_id,promoterName:r.promoter_name,isDirectSale:r.is_direct_sale,clientName:r.client_name,clientPhone:r.client_phone,notes:r.notes,commissionStatus:r.commission_status,date:r.date,isHistoric:r.is_historic,deleted:r.deleted,deletedAt:r.deleted_at,deletedReason:r.deleted_reason,orderId:r.order_id,variantId:r.variant_id,variantName:r.variant_name,voucherId:r.voucher_id||null,synced:true}) },
   expenses:           { table:"expenses",           toSB: r=>({id:r.id,type:r.type,amount:r.amount,description:r.description||null,date:r.date,afecta_sociedad:r.afectaSociedad!==false}), fromSB: r=>({id:r.id,type:r.type,amount:r.amount,description:r.description,date:r.date,afectaSociedad:r.afecta_sociedad,synced:true}) },
   commissionPayments: { table:"commission_payments", toSB: r=>({id:r.id,promoter_id:r.promoterId,amount:r.amount,sales_ids:r.salesIds||[],date:r.date}), fromSB: r=>({id:r.id,promoterId:r.promoter_id,amount:r.amount,salesIds:r.sales_ids||[],date:r.date}) },
   vouchers:           { table:"vouchers",           toSB: r=>({id:r.id,hash:r.hash||null,file_type:r.fileType||null,file_name:r.fileName||null,amount:r.amount||0,reference:r.reference||null,holder_name:r.holderName||null,bank:r.bank||null,payment_date:r.paymentDate||null,payment_time:r.paymentTime||null,uploaded_at:r.uploadedAt||null,uploaded_by:r.uploadedBy||null,sale_id:r.saleId||null,sale_summary:r.saleSummary||null,notes:r.notes||null,image_url:r.imageUrl||null}), fromSB: r=>({id:r.id,hash:r.hash,image:null,imageUrl:r.image_url||null,fileType:r.file_type,fileName:r.file_name,amount:r.amount,reference:r.reference,holderName:r.holder_name,bank:r.bank,paymentDate:r.payment_date,paymentTime:r.payment_time,uploadedAt:r.uploaded_at,uploadedBy:r.uploaded_by,saleId:r.sale_id,saleSummary:r.sale_summary,notes:r.notes,synced:true}) }
@@ -959,7 +959,7 @@ const nextState  = id => { const i = STATE_IDS.indexOf(id); return i >= 0 && i <
 const ROLE_LABEL = { admin:"Admin", socio:"Socio", employee:"Tienda", promoter:"Promotora" };
 const ROLE_CLASS = { admin:"rb-admin", socio:"rb-socio", employee:"rb-employee", promoter:"rb-promoter" };
 const EXP_TYPES  = ["Empaques","Electricidad","Internet","Materiales","Marketing","Transporte","Alquiler","Otro"];
-const PM_OPTS    = [["efectivo","Efectivo"],["transferencia","Transferencia"],["qr","QR"]];
+const PM_OPTS    = [["efectivo","Efectivo"],["transferencia","Transferencia"],["qr","QR"],["mixto","Dividido"]];
 
 // ============================================================
 //  BUSINESS CONSTANTS
@@ -1013,6 +1013,15 @@ function calcSale(cp, pp, cost) {
   const profitOwner   = r2(profit * .5);
   const profitPartner = r2(profit * .5);
   return { commission, profit, profitOwner, profitPartner };
+}
+// Para ventas con pago dividido, retorna cuánto corresponde a cada método
+function saleMethodAmount(sale, method) {
+  if (sale.payments?.length) {
+    const isQR = method==="qr";
+    return sale.payments.filter(p=>isQR?(p.method==="qr"||p.method==="transferencia"):p.method===method).reduce((a,p)=>a+p.amount,0);
+  }
+  if (method==="qr") return (sale.paymentMethod==="qr"||sale.paymentMethod==="transferencia")?sale.clientPrice:0;
+  return sale.paymentMethod===method?sale.clientPrice:0;
 }
 function openWhatsApp(phone, message) {
   if (!phone) return;
@@ -2392,8 +2401,11 @@ function SaleEditModal({sale, role, onClose, onSave}) {
 //  SALEROW
 // ============================================================
 function SaleRow({sale, role, showActions, onMarkPaid, onEdit, onDelete, voucher, onVoucherAssign, onVoucherView}) {
-  const pm={efectivo:"Efectivo",transferencia:"Transferencia",qr:"QR"};
-  const needsVoucher = (sale.paymentMethod==="qr"||sale.paymentMethod==="transferencia") && !voucher;
+  const pm={efectivo:"Efectivo",transferencia:"Transferencia",qr:"QR",mixto:"Dividido"};
+  const hasQRorTransf = sale.paymentMethod==="mixto"
+    ? (sale.payments||[]).some(p=>p.method==="qr"||p.method==="transferencia")
+    : sale.paymentMethod==="qr"||sale.paymentMethod==="transferencia";
+  const needsVoucher = hasQRorTransf && !voucher;
   return (
     <div className="si">
       <div className="si-ico"><Ic n={sale.isHistoric?"history":"laser"} s={16}/></div>
@@ -2414,8 +2426,13 @@ function SaleRow({sale, role, showActions, onMarkPaid, onEdit, onDelete, voucher
         {!sale.items&&sale.customization&&<div className="si-cust">"{sale.customization}"</div>}
         <div className="si-meta">
           <span>{fmtDate(sale.date)}{!sale.isHistoric&&" "+fmtHora(sale.date)}</span>
-          <span style={{display:"inline-flex",alignItems:"center",gap:3}}>
+          <span style={{display:"inline-flex",alignItems:"center",gap:3,flexWrap:"wrap"}}>
             {pm[sale.paymentMethod]||sale.paymentMethod}
+            {sale.paymentMethod==="mixto"&&sale.payments&&(
+              <span style={{fontSize:".72rem",color:"var(--muted)",fontWeight:500}}>
+                ({sale.payments.map(p=>`${p.method==="efectivo"?"Ef":p.method==="qr"?"QR":"Tr"}: ${fmt(p.amount)}`).join(" + ")})
+              </span>
+            )}
             {sale.voucherId&&onVoucherView&&(
               <button className="vc-has" onClick={e=>{e.stopPropagation();onVoucherView();}}>
                 <Ic n="clip" s={9}/> Comprobante
@@ -3416,14 +3433,11 @@ function ReportsPage({sales, expenses, promoters, payments, role}) {
       {tab==="socios"&&(()=>{
         const allS    = sales;
         const tvHist  = allS.reduce((a,s)=>a+s.clientPrice,0);
-        const efecS   = allS.filter(s=>s.paymentMethod==="efectivo");
-        const qrS     = allS.filter(s=>s.paymentMethod==="qr"||s.paymentMethod==="transferencia");
-        const otrosS  = allS.filter(s=>!["efectivo","qr","transferencia"].includes(s.paymentMethod));
-        const netEfec = efecS.reduce((a,s)=>a+s.clientPrice,0);
-        const netQR   = qrS.reduce((a,s)=>a+s.clientPrice,0);
-        const netOtros= otrosS.reduce((a,s)=>a+s.clientPrice,0);
-        const gainEfec= efecS.reduce((a,s)=>a+s.profit,0);
-        const gainQR  = qrS.reduce((a,s)=>a+s.profit,0);
+        const netEfec = allS.reduce((a,s)=>a+saleMethodAmount(s,"efectivo"),0);
+        const netQR   = allS.reduce((a,s)=>a+saleMethodAmount(s,"qr"),0);
+        const netOtros= 0;
+        const gainEfec= allS.reduce((a,s)=>{ const tot=s.clientPrice||0; const ef=saleMethodAmount(s,"efectivo"); return a+(tot>0?s.profit*ef/tot:0); },0);
+        const gainQR  = allS.reduce((a,s)=>{ const tot=s.clientPrice||0; const qr=saleMethodAmount(s,"qr"); return a+(tot>0?s.profit*qr/tot:0); },0);
         const gainTotal= allS.reduce((a,s)=>a+s.profit,0);
         const expSoc  = expenses.filter(e=>e.afectaSociedad!==false).reduce((a,e)=>a+e.amount,0);
         const netFin  = r2(gainTotal-expSoc);
@@ -3431,7 +3445,7 @@ function ReportsPage({sales, expenses, promoters, payments, role}) {
         const sergioRec = r2(gainEfec*0.5+gainQR);
         const socioRec  = r2(gainEfec*0.5);
         const saldo     = r2(sergioRec-socioRec-porSocio);
-        const qrSinComp = allS.filter(s=>(s.paymentMethod==="qr"||s.paymentMethod==="transferencia")&&(!s.paymentRef||!s.paymentRef.trim()));
+        const qrSinComp = allS.filter(s=>((s.paymentMethod==="qr"||s.paymentMethod==="transferencia")||(s.paymentMethod==="mixto"&&(s.payments||[]).some(p=>p.method==="qr"||p.method==="transferencia")))&&(!s.paymentRef||!s.paymentRef.trim()));
         return (
           <>
             <div className="al al-info" style={{marginBottom:14}}>
@@ -3839,7 +3853,14 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
     setVcLoading(false);
   };
 
-  const needsVoucher = f.paymentMethod==="qr" || f.paymentMethod==="transferencia";
+  const [splitPayments, setSplitPayments] = useState([{method:"efectivo",amount:""},{method:"qr",amount:""}]);
+  const updSplit = (i,patch) => setSplitPayments(p=>p.map((x,j)=>j===i?{...x,...patch}:x));
+  const splitTotal = splitPayments.reduce((a,p)=>a+(parseFloat(p.amount)||0),0);
+  const splitValid = f.paymentMethod!=="mixto" || (cp>0 && Math.abs(r2(splitTotal)-r2(cp))<0.01);
+
+  const needsVoucher = f.paymentMethod==="mixto"
+    ? splitPayments.some(p=>p.method==="qr"||p.method==="transferencia")
+    : f.paymentMethod==="qr" || f.paymentMethod==="transferencia";
 
   // ── MODO CARRITO ──
   const [multiMode, setMultiMode] = useState(false);
@@ -3909,7 +3930,7 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
     : f.soloGrabado
       ? cp > 0
       : f.productId && (f.productId!=="custom" || f.productName.trim()) && (!selProdHasVariants || f.variantId);
-  const step2valid = multiMode || f.isDirectSale||f.promoterId;
+  const step2valid = (multiMode || f.isDirectSale||f.promoterId) && splitValid;
 
   const parseLocalDate = iso => { const [y,m,d]=iso.split("-"); return new Date(+y,+m-1,+d).getTime(); };
 
@@ -3933,6 +3954,7 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
         clientPrice:cp2, promoterPrice:pp2, cost:r2(cartTotalCost),
         commission:cm, profit:pf, profitOwner:po, profitPartner:pp3,
         paymentMethod:f.paymentMethod,
+        payments: f.paymentMethod==="mixto" ? splitPayments.map(p=>({method:p.method,amount:parseFloat(p.amount)||0})) : null,
         promoterId: f.isDirectSale?null:f.promoterId,
         promoterName: f.isDirectSale?"Tienda directa":f.promoterName,
         isDirectSale: !!f.isDirectSale,
@@ -3993,6 +4015,7 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
       clientPrice:cp,promoterPrice:pp,cost:cst,
       commission,profit,profitOwner,profitPartner,
       paymentMethod:f.paymentMethod,
+      payments: f.paymentMethod==="mixto" ? splitPayments.map(p=>({method:p.method,amount:parseFloat(p.amount)||0})) : null,
       promoterId:   f.isDirectSale?null:f.promoterId,
       promoterName: f.isDirectSale?"Tienda directa":f.promoterName,
       isDirectSale: !!f.isDirectSale,
@@ -4588,10 +4611,32 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                   <label className="fl">Método de pago</label>
                   <div className="pills">
                     {PM_OPTS.map(([v,l])=>(
-                      <button key={v} className={"pill"+(f.paymentMethod===v?" act":"")} onClick={()=>{set("paymentMethod",v);if(v!=="qr"&&v!=="transferencia")setVcOpen(false);}}>{l}</button>
+                      <button key={v} className={"pill"+(f.paymentMethod===v?" act":"")} onClick={()=>{set("paymentMethod",v);if(v!=="qr"&&v!=="transferencia"&&v!=="mixto")setVcOpen(false);}}>{l}</button>
                     ))}
                   </div>
                 </div>
+
+                {f.paymentMethod==="mixto"&&(
+                  <div style={{background:"var(--s2)",borderRadius:"var(--r)",padding:"12px 13px",marginBottom:14}}>
+                    <div style={{fontSize:".78rem",fontWeight:700,color:"var(--muted)",marginBottom:10,textTransform:"uppercase",letterSpacing:.5}}>Desglose del pago</div>
+                    {splitPayments.map((sp,i)=>(
+                      <div key={i} style={{display:"flex",gap:8,marginBottom:8,alignItems:"center"}}>
+                        <select value={sp.method} onChange={e=>updSplit(i,{method:e.target.value})} className="fi" style={{flex:"0 0 auto",width:130}}>
+                          <option value="efectivo">Efectivo</option>
+                          <option value="qr">QR</option>
+                          <option value="transferencia">Transferencia</option>
+                        </select>
+                        <input type="number" value={sp.amount} onChange={e=>updSplit(i,{amount:e.target.value})}
+                          className="fi" style={{flex:1}} placeholder="Bs 0"/>
+                      </div>
+                    ))}
+                    {cp>0&&(
+                      <div style={{fontSize:".76rem",fontWeight:700,marginTop:4,color:splitValid?"var(--grn)":"var(--red)"}}>
+                        {splitValid?"✓ Total coincide":"Faltan Bs "+fmt(r2(cp-splitTotal))+" para llegar a "+fmt(cp)}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* SECCIÓN COMPROBANTE — aparece solo para QR/Transferencia */}
                 {needsVoucher&&(
@@ -4743,7 +4788,13 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                   )}
                   {isHistoric&&<div className="pbr"><span className="pbk">Fecha real</span><span className="pbv">{fmtDate(parseLocalDate(f.saleDate))}</span></div>}
                   <div className="pbr"><span className="pbk">Origen</span><span className="pbv">{multiMode?"Tienda directa":f.soloGrabado?"Solo grabado":f.isDirectSale?"Tienda directa":f.promoterName}</span></div>
-                  <div className="pbr"><span className="pbk">Método de pago</span><span className="pbv" style={{textTransform:"capitalize"}}>{f.paymentMethod}</span></div>
+                  <div className="pbr"><span className="pbk">Método de pago</span><span className="pbv" style={{textTransform:"capitalize"}}>{f.paymentMethod==="mixto"?"Dividido":f.paymentMethod}</span></div>
+              {f.paymentMethod==="mixto"&&splitPayments.map((p,i)=>(
+                <div key={i} className="pbr" style={{paddingLeft:16}}>
+                  <span className="pbk" style={{color:"var(--muted)"}}>{p.method==="efectivo"?"Efectivo":p.method==="qr"?"QR":"Transferencia"}</span>
+                  <span className="pbv">{fmt(parseFloat(p.amount)||0)}</span>
+                </div>
+              ))}
                   {f.clientName&&<div className="pbr"><span className="pbk">Cliente</span><span className="pbv">{f.clientName}</span></div>}
                   {isHistoric&&<div className="pbr"><span className="pbk">Tipo</span><span className="pbv hist-tag">Histórica</span></div>}
                   {vcFile&&<div className="pbr"><span className="pbk">Comprobante</span><span className="pbv" style={{color:"var(--grn)"}}><Ic n="clip" s={11}/> {vcFile.name}</span></div>}
