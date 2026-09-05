@@ -38,9 +38,9 @@ const CSS = `
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html{-webkit-text-size-adjust:100%}
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100dvh;overflow-x:hidden}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);height:100dvh;overflow:hidden}
 button,input,select,textarea{font-family:'DM Sans',sans-serif}
-.app{max-width:430px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column}
+.app{max-width:430px;margin:0 auto;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
 
 /* RESPONSIVE LAYOUT */
 @media(min-width:768px){
@@ -49,7 +49,7 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
   .bnav{display:none !important}
   .fab{display:none !important}
   .fab-sec{display:none !important}
-  .content{flex:1;padding:28px 32px 28px;overflow-y:auto;height:100dvh}
+  .content{flex:1;min-height:0;padding:28px 32px 28px;overflow-y:auto;height:100dvh}
   .toast-wrap{top:20px;left:260px;transform:none}
   .overlay{align-items:center;justify-content:center}
   .sheet{border-radius:20px;max-width:560px;width:100%;max-height:90dvh;margin:auto}
@@ -316,7 +316,7 @@ button,input,select,textarea{font-family:'DM Sans',sans-serif}
   display:flex;align-items:center;justify-content:center;padding:0 3px}
 
 /* CONTENT */
-.content{flex:1;padding:18px 16px 90px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.content{flex:1;min-height:0;padding:18px 16px 90px;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 .pe{animation:pe .2s ease}
 @keyframes pe{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
