@@ -959,7 +959,12 @@ const nextState  = id => { const i = STATE_IDS.indexOf(id); return i >= 0 && i <
 const ROLE_LABEL = { admin:"Admin", socio:"Socio", employee:"Tienda", promoter:"Promotora" };
 const ROLE_CLASS = { admin:"rb-admin", socio:"rb-socio", employee:"rb-employee", promoter:"rb-promoter" };
 const EXP_TYPES  = ["Empaques","Electricidad","Internet","Materiales","Marketing","Transporte","Alquiler","Otro"];
-const PM_OPTS    = [["efectivo","Efectivo"],["transferencia","Transferencia"],["qr","QR"],["mixto","Dividido"]];
+const PM_OPTS    = [["efectivo_s","Ef. Sergio"],["efectivo_a","Ef. Socio"],["qr_s","QR Sergio"],["qr_a","QR Socio"],["mixto","Dividido"]];
+const PM_LABEL   = {efectivo:"Efectivo",efectivo_s:"Ef. Sergio",efectivo_a:"Ef. Socio",transferencia:"Transferencia",qr:"QR",qr_s:"QR Sergio",qr_a:"QR Socio",mixto:"Dividido"};
+const isQRMethod = m=>m==="qr"||m==="qr_s"||m==="qr_a"||m==="transferencia";
+const isEfecMethod= m=>m==="efectivo"||m==="efectivo_s"||m==="efectivo_a";
+const isSergioMethod=m=>m==="efectivo_s"||m==="qr_s"||m==="efectivo"; // efectivo legacy→Sergio
+const isSocioMethod =m=>m==="efectivo_a"||m==="qr_a"||m==="qr"||m==="transferencia"; // qr legacy→Socio
 
 // ============================================================
 //  BUSINESS CONSTANTS
@@ -1015,13 +1020,17 @@ function calcSale(cp, pp, cost) {
   return { commission, profit, profitOwner, profitPartner };
 }
 // Para ventas con pago dividido, retorna cuánto corresponde a cada método
-function saleMethodAmount(sale, method) {
-  if (sale.payments?.length) {
-    const isQR = method==="qr";
-    return sale.payments.filter(p=>isQR?(p.method==="qr"||p.method==="transferencia"):p.method===method).reduce((a,p)=>a+p.amount,0);
-  }
-  if (method==="qr") return (sale.paymentMethod==="qr"||sale.paymentMethod==="transferencia")?sale.clientPrice:0;
-  return sale.paymentMethod===method?sale.clientPrice:0;
+function saleMethodAmount(sale, query) {
+  // query: "efectivo" | "qr" | "sergio" | "socio"
+  const match = m=>{
+    if (query==="efectivo") return isEfecMethod(m);
+    if (query==="qr")       return isQRMethod(m);
+    if (query==="sergio")   return isSergioMethod(m);
+    if (query==="socio")    return isSocioMethod(m);
+    return false;
+  };
+  if (sale.payments?.length) return sale.payments.filter(p=>match(p.method)).reduce((a,p)=>a+p.amount,0);
+  return match(sale.paymentMethod)?sale.clientPrice:0;
 }
 function openWhatsApp(phone, message) {
   if (!phone) return;
@@ -2322,7 +2331,7 @@ function SaleEditModal({sale, role, onClose, onSave}) {
 
   const [splitPayments, setSplitPayments] = useState(
     sale.payments?.length ? sale.payments.map(p=>({...p,amount:String(p.amount)}))
-    : [{method:"efectivo",amount:""},{method:"qr",amount:""}]
+    : [{method:"efectivo_s",amount:""},{method:"qr_a",amount:""}]
   );
   const updSplit = (i,patch) => setSplitPayments(p=>p.map((x,j)=>j===i?{...x,...patch}:x));
   const cp = parseFloat(f.clientPrice)||0;
@@ -2366,10 +2375,11 @@ function SaleEditModal({sale, role, onClose, onSave}) {
             <div style={{fontSize:".78rem",fontWeight:700,color:"var(--muted)",marginBottom:10,textTransform:"uppercase",letterSpacing:.5}}>Desglose del pago</div>
             {splitPayments.map((sp,i)=>(
               <div key={i} style={{display:"flex",gap:8,marginBottom:8,alignItems:"center"}}>
-                <select value={sp.method} onChange={e=>updSplit(i,{method:e.target.value})} className="fi" style={{flex:"0 0 auto",width:130}}>
-                  <option value="efectivo">Efectivo</option>
-                  <option value="qr">QR</option>
-                  <option value="transferencia">Transferencia</option>
+                <select value={sp.method} onChange={e=>updSplit(i,{method:e.target.value})} className="fi" style={{flex:"0 0 auto",width:145}}>
+                  <option value="efectivo_s">Ef. Sergio</option>
+                  <option value="efectivo_a">Ef. Socio</option>
+                  <option value="qr_s">QR Sergio</option>
+                  <option value="qr_a">QR Socio</option>
                 </select>
                 <input type="number" value={sp.amount} onChange={e=>updSplit(i,{amount:e.target.value})}
                   className="fi" style={{flex:1}} placeholder="Bs 0"/>
@@ -2432,10 +2442,9 @@ function SaleEditModal({sale, role, onClose, onSave}) {
 //  SALEROW
 // ============================================================
 function SaleRow({sale, role, showActions, onMarkPaid, onEdit, onDelete, voucher, onVoucherAssign, onVoucherView}) {
-  const pm={efectivo:"Efectivo",transferencia:"Transferencia",qr:"QR",mixto:"Dividido"};
   const hasQRorTransf = sale.paymentMethod==="mixto"
-    ? (sale.payments||[]).some(p=>p.method==="qr"||p.method==="transferencia")
-    : sale.paymentMethod==="qr"||sale.paymentMethod==="transferencia";
+    ? (sale.payments||[]).some(p=>isQRMethod(p.method))
+    : isQRMethod(sale.paymentMethod);
   const needsVoucher = hasQRorTransf && !voucher;
   return (
     <div className="si">
@@ -2458,10 +2467,10 @@ function SaleRow({sale, role, showActions, onMarkPaid, onEdit, onDelete, voucher
         <div className="si-meta">
           <span>{fmtDate(sale.date)}{!sale.isHistoric&&" "+fmtHora(sale.date)}</span>
           <span style={{display:"inline-flex",alignItems:"center",gap:3,flexWrap:"wrap"}}>
-            {pm[sale.paymentMethod]||sale.paymentMethod}
+            {PM_LABEL[sale.paymentMethod]||sale.paymentMethod}
             {sale.paymentMethod==="mixto"&&sale.payments&&(
               <span style={{fontSize:".72rem",color:"var(--muted)",fontWeight:500}}>
-                ({sale.payments.map(p=>`${p.method==="efectivo"?"Ef":p.method==="qr"?"QR":"Tr"}: ${fmt(p.amount)}`).join(" + ")})
+                ({sale.payments.map(p=>`${PM_LABEL[p.method]||p.method}: ${fmt(p.amount)}`).join(" + ")})
               </span>
             )}
             {sale.voucherId&&onVoucherView&&(
@@ -3464,21 +3473,23 @@ function ReportsPage({sales, expenses, promoters, payments, role}) {
       {tab==="socios"&&(()=>{
         const allS    = sales;
         const tvHist  = allS.reduce((a,s)=>a+s.clientPrice,0);
-        const efecS   = allS.filter(s=>s.paymentMethod==="efectivo"||saleMethodAmount(s,"efectivo")>0);
-        const qrS     = allS.filter(s=>s.paymentMethod==="qr"||s.paymentMethod==="transferencia"||(s.paymentMethod==="mixto"&&saleMethodAmount(s,"qr")>0));
-        const netEfec = allS.reduce((a,s)=>a+saleMethodAmount(s,"efectivo"),0);
-        const netQR   = allS.reduce((a,s)=>a+saleMethodAmount(s,"qr"),0);
-        const netOtros= 0;
-        const gainEfec= allS.reduce((a,s)=>{ const tot=s.clientPrice||0; const ef=saleMethodAmount(s,"efectivo"); return a+(tot>0?s.profit*ef/tot:0); },0);
-        const gainQR  = allS.reduce((a,s)=>{ const tot=s.clientPrice||0; const qr=saleMethodAmount(s,"qr"); return a+(tot>0?s.profit*qr/tot:0); },0);
-        const gainTotal= allS.reduce((a,s)=>a+s.profit,0);
-        const expSoc  = expenses.filter(e=>e.afectaSociedad!==false).reduce((a,e)=>a+e.amount,0);
-        const netFin  = r2(gainTotal-expSoc);
-        const porSocio= r2(netFin/2);
-        const sergioRec = r2(gainEfec*0.5+gainQR);
-        const socioRec  = r2(gainEfec*0.5);
-        const saldo     = r2(sergioRec-socioRec-porSocio);
-        const qrSinComp = allS.filter(s=>((s.paymentMethod==="qr"||s.paymentMethod==="transferencia")||(s.paymentMethod==="mixto"&&(s.payments||[]).some(p=>p.method==="qr"||p.method==="transferencia")))&&(!s.paymentRef||!s.paymentRef.trim()));
+        const netSergio = r2(allS.reduce((a,s)=>a+saleMethodAmount(s,"sergio"),0));
+        const netSocio  = r2(allS.reduce((a,s)=>a+saleMethodAmount(s,"socio"),0));
+        const netEfec   = r2(allS.reduce((a,s)=>a+saleMethodAmount(s,"efectivo"),0));
+        const netQR     = r2(allS.reduce((a,s)=>a+saleMethodAmount(s,"qr"),0));
+        const efecS     = allS.filter(s=>saleMethodAmount(s,"efectivo")>0);
+        const qrS       = allS.filter(s=>saleMethodAmount(s,"qr")>0);
+        const gainTotal = r2(allS.reduce((a,s)=>a+s.profit,0));
+        const expSoc    = r2(expenses.filter(e=>e.afectaSociedad!==false).reduce((a,e)=>a+e.amount,0));
+        const netFin    = r2(gainTotal-expSoc);
+        const porSocio  = r2(netFin/2);
+        // Ganancia proporcional por receptor (para deuda interna)
+        const gainSergio= r2(allS.reduce((a,s)=>{ const tot=s.clientPrice||0; const rec=saleMethodAmount(s,"sergio"); return a+(tot>0?s.profit*rec/tot:0); },0));
+        const gainSocio = r2(allS.reduce((a,s)=>{ const tot=s.clientPrice||0; const rec=saleMethodAmount(s,"socio");  return a+(tot>0?s.profit*rec/tot:0); },0));
+        // Saldo: cuánto recibió cada uno de ganancia vs su parte justa
+        const saldoSergio = r2(gainSergio - expSoc/2 - porSocio); // positivo = Sergio tiene de más
+        const saldoSocio  = r2(gainSocio  - expSoc/2 - porSocio);
+        const qrSinComp = allS.filter(s=>(isQRMethod(s.paymentMethod)||(s.paymentMethod==="mixto"&&(s.payments||[]).some(p=>isQRMethod(p.method))))&&(!s.paymentRef||!s.paymentRef.trim()));
         return (
           <>
             <div className="al al-info" style={{marginBottom:14}}>
@@ -3500,59 +3511,75 @@ function ReportsPage({sales, expenses, promoters, payments, role}) {
             </div>
             <div className="shd mt8"><div className="shd-l">Por método de pago</div></div>
             <div className="fb">
-              <div className="fr"><span className="fk">Efectivo</span>
+              <div className="fr"><span className="fk">Efectivo total</span>
                 <div style={{textAlign:"right"}}>
                   <span className="fv" style={{color:"var(--grn)"}}>{fmt(netEfec)}</span>
-                  <div style={{fontSize:".68rem",color:"var(--dim)"}}>{efecS.length} ventas · ganancia {fmt(gainEfec)}</div>
+                  <div style={{fontSize:".68rem",color:"var(--dim)"}}>{efecS.length} ventas</div>
                 </div>
               </div>
-              <div className="fr"><span className="fk">QR / Transferencia</span>
+              <div className="fr"><span className="fk">QR / Transferencia total</span>
                 <div style={{textAlign:"right"}}>
                   <span className="fv" style={{color:"var(--blu)"}}>{fmt(netQR)}</span>
-                  <div style={{fontSize:".68rem",color:"var(--dim)"}}>{qrS.length} ventas · ganancia {fmt(gainQR)}</div>
+                  <div style={{fontSize:".68rem",color:"var(--dim)"}}>{qrS.length} ventas</div>
                 </div>
               </div>
-              {netOtros>0&&<div className="fr"><span className="fk">Otros métodos</span><span className="fv">{fmt(netOtros)}</span></div>}
               <div className="fr"><span className="fk">(-) Gastos societarios</span><span className="fv" style={{color:"var(--red)"}}>{fmt(expSoc)}</span></div>
               <div className="fr total"><span className="fk">= Ganancia real neta</span><span className="fv" style={{color:netFin>=0?"var(--grn)":"var(--red)"}}>{fmt(netFin)}</span></div>
             </div>
-            <div className="shd mt16"><div className="shd-l">Distribución entre socios</div></div>
+            <div className="shd mt16"><div className="shd-l">Lo que recibió cada socio</div></div>
+            <div className="fb">
+              <div className="fr">
+                <span className="fk">💛 Sergio recibió (efectivo + QR propio)</span>
+                <div style={{textAlign:"right"}}>
+                  <span className="fv" style={{color:"var(--gold)"}}>{fmt(netSergio)}</span>
+                  <div style={{fontSize:".68rem",color:"var(--dim)"}}>ganancia: {fmt(gainSergio)}</div>
+                </div>
+              </div>
+              <div className="fr">
+                <span className="fk">🩵 Socio recibió (efectivo + QR propio)</span>
+                <div style={{textAlign:"right"}}>
+                  <span className="fv" style={{color:"var(--teal)"}}>{fmt(netSocio)}</span>
+                  <div style={{fontSize:".68rem",color:"var(--dim)"}}>ganancia: {fmt(gainSocio)}</div>
+                </div>
+              </div>
+            </div>
+            <div className="shd mt16"><div className="shd-l">Distribución justa (50/50)</div></div>
             <div className="g2">
               <div className="sc hg">
-                <div className="sl">Sergio (Admin)</div>
+                <div className="sl">A Sergio le corresponde</div>
                 <div className="sv gold">{fmt(porSocio)}</div>
                 <div className="ss">50% ganancia neta</div>
               </div>
               <div className="sc ht">
-                <div className="sl">Socio</div>
+                <div className="sl">Al Socio le corresponde</div>
                 <div className="sv teal">{fmt(porSocio)}</div>
                 <div className="ss">50% ganancia neta</div>
               </div>
             </div>
-            <div className="shd mt8"><div className="shd-l">Deuda societaria estimada</div></div>
+            <div className="shd mt8"><div className="shd-l">Saldo / Deuda</div></div>
             <div className="fb">
               <div className="fr">
-                <span className="fk">Ganancia efectivo recibida por Sergio</span>
-                <span className="fv">{fmt(gainEfec*0.5)}</span>
+                <span className="fk">Saldo Sergio (recibió vs le corresponde)</span>
+                <span className="fv" style={{color:saldoSergio>=0?"var(--grn)":"var(--red)",fontWeight:800}}>
+                  {saldoSergio>=0?"+":""}{fmt(saldoSergio)}
+                </span>
               </div>
               <div className="fr">
-                <span className="fk">Ganancia QR/transf. recibida por Sergio</span>
-                <span className="fv" style={{color:"var(--blu)"}}>{fmt(gainQR)}</span>
-              </div>
-              <div className="fr">
-                <span className="fk">Total recibido Sergio (estimado)</span>
-                <span className="fv" style={{color:"var(--gold)"}}>{fmt(sergioRec)}</span>
-              </div>
-              <div className="fr">
-                <span className="fk">Total recibido Socio (estimado)</span>
-                <span className="fv" style={{color:"var(--teal)"}}>{fmt(socioRec)}</span>
+                <span className="fk">Saldo Socio (recibió vs le corresponde)</span>
+                <span className="fv" style={{color:saldoSocio>=0?"var(--grn)":"var(--red)",fontWeight:800}}>
+                  {saldoSocio>=0?"+":""}{fmt(saldoSocio)}
+                </span>
               </div>
               <div className="fr total">
-                <span className="fk">Saldo a favor de Sergio</span>
-                <span className="fv" style={{color:saldo>0?"var(--grn)":"var(--red)",fontSize:"1.1rem",fontWeight:800}}>{fmt(Math.abs(saldo))}</span>
+                {saldoSergio>0
+                  ? <><span className="fk">Sergio le debe al Socio</span><span className="fv" style={{color:"var(--red)",fontSize:"1.1rem",fontWeight:800}}>{fmt(saldoSergio)}</span></>
+                  : saldoSergio<0
+                  ? <><span className="fk">Socio le debe a Sergio</span><span className="fv" style={{color:"var(--grn)",fontSize:"1.1rem",fontWeight:800}}>{fmt(Math.abs(saldoSergio))}</span></>
+                  : <><span className="fk">Están a mano</span><span className="fv" style={{color:"var(--grn)"}}>✓</span></>
+                }
               </div>
               <div style={{fontSize:".68rem",color:"var(--dim)",padding:"6px 0",lineHeight:1.5}}>
-                Estimado: QR/transferencias van a cuenta Sergio. Efectivo se asume repartido 50/50 en el momento.
+                Saldo positivo = recibió más de lo que le corresponde. Datos exactos según lo registrado en cada venta.
               </div>
             </div>
             {qrSinComp.length>0&&(
@@ -3886,14 +3913,14 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
     setVcLoading(false);
   };
 
-  const [splitPayments, setSplitPayments] = useState([{method:"efectivo",amount:""},{method:"qr",amount:""}]);
+  const [splitPayments, setSplitPayments] = useState([{method:"efectivo_s",amount:""},{method:"qr_a",amount:""}]);
   const updSplit = (i,patch) => setSplitPayments(p=>p.map((x,j)=>j===i?{...x,...patch}:x));
   const splitTotal = splitPayments.reduce((a,p)=>a+(parseFloat(p.amount)||0),0);
   const splitValid = f.paymentMethod!=="mixto" || (cp>0 && Math.abs(r2(splitTotal)-r2(cp))<0.01);
 
   const needsVoucher = f.paymentMethod==="mixto"
-    ? splitPayments.some(p=>p.method==="qr"||p.method==="transferencia")
-    : f.paymentMethod==="qr" || f.paymentMethod==="transferencia";
+    ? splitPayments.some(p=>isQRMethod(p.method))
+    : isQRMethod(f.paymentMethod);
 
   // ── MODO CARRITO ──
   const [multiMode, setMultiMode] = useState(false);
@@ -4654,10 +4681,11 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                     <div style={{fontSize:".78rem",fontWeight:700,color:"var(--muted)",marginBottom:10,textTransform:"uppercase",letterSpacing:.5}}>Desglose del pago</div>
                     {splitPayments.map((sp,i)=>(
                       <div key={i} style={{display:"flex",gap:8,marginBottom:8,alignItems:"center"}}>
-                        <select value={sp.method} onChange={e=>updSplit(i,{method:e.target.value})} className="fi" style={{flex:"0 0 auto",width:130}}>
-                          <option value="efectivo">Efectivo</option>
-                          <option value="qr">QR</option>
-                          <option value="transferencia">Transferencia</option>
+                        <select value={sp.method} onChange={e=>updSplit(i,{method:e.target.value})} className="fi" style={{flex:"0 0 auto",width:145}}>
+                          <option value="efectivo_s">Ef. Sergio</option>
+                          <option value="efectivo_a">Ef. Socio</option>
+                          <option value="qr_s">QR Sergio</option>
+                          <option value="qr_a">QR Socio</option>
                         </select>
                         <input type="number" value={sp.amount} onChange={e=>updSplit(i,{amount:e.target.value})}
                           className="fi" style={{flex:1}} placeholder="Bs 0"/>
