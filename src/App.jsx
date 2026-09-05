@@ -1358,7 +1358,7 @@ export default function App() {
         const blob = await res.blob();
         setSharedFile(new File([blob],'comprobante.jpg',{type:blob.type||'image/jpeg'}));
         cache.delete('shared-image');
-        setPage('vouchers');
+        if (CAN.seeReports(user?.role)) setPage('vouchers');
       })
     ).catch(()=>{});
   },[user]);
@@ -1806,6 +1806,15 @@ export default function App() {
         </nav>
       )}
 
+      {sharedFile && !CAN.seeReports(role) && (
+        <SubirComprobante
+          vouchers={vouchers} user={user}
+          initialFile={sharedFile}
+          onClose={()=>setSharedFile(null)}
+          onSave={async v=>{await dbPut("vouchers",{...v,synced:false});await reload();setSharedFile(null);toast("✓ Comprobante guardado","ok");}}
+          onSaveAndAssign={async v=>{await dbPut("vouchers",{...v,synced:false});await reload();setSharedFile(null);toast("✓ Comprobante guardado","ok");}}
+          onSaveAndNew={async v=>{await dbPut("vouchers",{...v,synced:false});await reload();setSharedFile(null);setNewSaleVoucher(v);setHistoric(false);}}/>
+      )}
       {showSale && (
         <NewSaleModal products={products} promoters={promoters} user={user} isHistoric={historic}
           onClose={()=>setShowSale(false)} onSubmit={handleNewSale}/>
