@@ -1323,7 +1323,11 @@ export default function App() {
   const SESSION_TTL = 8 * 60 * 60 * 1000; // 8 horas
   const loadSessionForShare = () => {
     // Solo auto-login si viene de un compartir de WhatsApp
-    if (sessionStorage.getItem('pendingShare') !== '1') return null;
+    // Chequeamos la URL directamente porque sessionStorage todavía no fue seteado
+    // (useState corre antes que los useEffect)
+    const isShare = new URLSearchParams(window.location.search).get('share') === '1'
+      || sessionStorage.getItem('pendingShare') === '1';
+    if (!isShare) return null;
     try {
       const raw = localStorage.getItem("garabato_share_session");
       if (!raw) return null;
