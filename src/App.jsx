@@ -2382,7 +2382,16 @@ function SalesPage({sales, role, user, promoters, vouchers, onMarkPaid, onEdit, 
       {viewVoucher&&(
         <VerComprobante voucher={viewVoucher} sales={sales}
           onClose={()=>setViewVoucher(null)}
-          onAssign={()=>{setAssignVoucherForSale(viewVoucher);setViewVoucher(null);}}/>
+          onAssign={()=>{setAssignVoucherForSale(viewVoucher);setViewVoucher(null);}}
+          onUnassign={onReload?async()=>{
+            const vc=await dbGet("vouchers",viewVoucher.id);
+            if(vc){
+              await dbPut("vouchers",{...vc,saleId:null,saleSummary:"",synced:false});
+              const s=await dbGet("sales",vc.saleId);
+              if(s&&s.voucherId===vc.id) await dbPut("sales",{...s,voucherId:null,synced:false});
+            }
+            setViewVoucher(null); await onReload();
+          }:null}/>
       )}
 
       {assignVoucherForSale&&(
@@ -2698,8 +2707,15 @@ function SaleRow({sale, role, showActions, onMarkPaid, onEdit, onDelete, voucher
           )}
           {sale.clientPhone&&(
             <button className="wa-btn" style={{fontSize:".76rem",padding:"5px 10px"}}
-              onClick={()=>openWhatsApp(sale.clientPhone,"¡Hola "+(sale.clientName||"cliente")+"! Gracias por tu compra en Garabato.")}>
+              onClick={()=>window.open("https://wa.me/591"+sale.clientPhone.replace(/\D/g,"").replace(/^591/,""),"_blank")}>
               <WaIcon/> Contactar
+            </button>
+          )}
+          {sale.clientPhone&&(
+            <button className="btn btn-sm btn-out" style={{fontSize:".72rem",padding:"5px 8px",fontFamily:"monospace"}}
+              onClick={()=>navigator.clipboard.writeText(sale.clientPhone).then(()=>{}).catch(()=>{})}
+              title="Copiar número">
+              {sale.clientPhone}
             </button>
           )}
           {onEdit&&(
@@ -2719,7 +2735,7 @@ function SaleRow({sale, role, showActions, onMarkPaid, onEdit, onDelete, voucher
         {CAN.seeComms(role)&&<div className="si-sub">Comisión: {fmt(sale.commission)}</div>}
         {CAN.seeReports(role)&&<div className="si-sub" style={{color:"var(--teal)"}}>Ganancia: {fmt(sale.profit)}</div>}
         <div className="mt8">
-          {!sale.isDirectSale&&(
+          {!sale.isDirectSale&&sale.commission>0&&(
             <span className={"chip "+(sale.commissionStatus==="pagado"?"ch-grn":"ch-gold")}>
               {sale.commissionStatus==="pagado"?"Com. pagada":"Com. pendiente"}
             </span>
