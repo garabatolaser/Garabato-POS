@@ -1329,6 +1329,7 @@ export default function App() {
   const [historic,setHistoric]= useState(false);
   const [deleteSale,setDeleteSale]= useState(null);
   const [newSaleVoucher,setNewSaleVoucher]= useState(null);
+  const [assignVCGlobal,setAssignVCGlobal]= useState(null);
   const [showOnboarding,setShowOnboarding]= useState(false);
   const [products, setProducts]  = useState([]);
   const [promoters,setPromoters] = useState([]);
@@ -1812,8 +1813,21 @@ export default function App() {
           initialFile={sharedFile}
           onClose={()=>setSharedFile(null)}
           onSave={async v=>{await dbPut("vouchers",{...v,synced:false});await reload();setSharedFile(null);toast("✓ Comprobante guardado","ok");}}
-          onSaveAndAssign={async v=>{await dbPut("vouchers",{...v,synced:false});await reload();setSharedFile(null);toast("✓ Comprobante guardado","ok");}}
+          onSaveAndAssign={async v=>{await dbPut("vouchers",{...v,synced:false});await reload();setSharedFile(null);setAssignVCGlobal(v);}}
           onSaveAndNew={async v=>{await dbPut("vouchers",{...v,synced:false});await reload();setSharedFile(null);setNewSaleVoucher(v);setHistoric(false);}}/>
+      )}
+      {assignVCGlobal&&(
+        <AsignarComprobante voucher={assignVCGlobal} sales={sales}
+          onClose={()=>setAssignVCGlobal(null)}
+          onConfirm={async(vid,sid)=>{
+            const v=await dbGet("vouchers",vid); const s=await dbGet("sales",sid);
+            if(v&&s){
+              await dbPut("vouchers",{...v,saleId:sid,saleSummary:s.productName+" · "+fmtDate(s.date),synced:false});
+              await dbPut("sales",{...s,voucherId:vid,synced:false});
+              await reload(); toast("✓ Comprobante asignado","ok");
+            }
+            setAssignVCGlobal(null);
+          }}/>
       )}
       {showSale && (
         <NewSaleModal products={products} promoters={promoters} user={user} isHistoric={historic}
