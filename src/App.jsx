@@ -1336,7 +1336,24 @@ export default function App() {
   const [payments, setPayments]  = useState([]);
   const [users,    setUsers]     = useState([]);
   const [vouchers, setVouchers]  = useState([]);
+  const [sharedFile, setSharedFile] = useState(null);
   const {show:toast, ToastContainer} = useToast();
+
+  // Detectar imagen compartida desde WhatsApp (Web Share Target)
+  useEffect(()=>{
+    if (new URLSearchParams(window.location.search).get('share')==='1') {
+      window.history.replaceState({},'','/');
+      caches.open('garabato-share-v1').then(cache=>
+        cache.match('shared-image').then(async res=>{
+          if (!res) return;
+          const blob = await res.blob();
+          setSharedFile(new File([blob],'comprobante.jpg',{type:blob.type||'image/jpeg'}));
+          cache.delete('shared-image');
+          setPage('vouchers');
+        })
+      ).catch(()=>{});
+    }
+  },[]);
 
   useEffect(()=>{
     const st=document.createElement("style"); st.textContent=CSS; document.head.appendChild(st);
@@ -1590,7 +1607,7 @@ export default function App() {
         onImport={role==="admin"?async rows=>{for(const s of rows){await dbPut("sales",s);}await reload();toast(`✓ ${rows.length} ventas importadas`,"ok");}:null}
         onReload={reload}/>}
       {page==="vouchers" && (CAN.seeReports(role)
-        ? <VouchersPage vouchers={vouchers} sales={sales} user={user}
+        ? <VouchersPage vouchers={vouchers} sales={sales} user={user} initialFile={sharedFile} onInitialFileDone={()=>setSharedFile(null)}
             onSave={async v=>{await dbPut("vouchers",{...v,synced:false});await reload();toast("✓ Comprobante guardado","ok");}}
             onAssign={async(vid,sid)=>{
               const v=await dbGet("vouchers",vid); const s=await dbGet("sales",sid);
@@ -5131,9 +5148,11 @@ function Locked() {
 // ============================================================
 //  VOUCHERS PAGE
 // ============================================================
-function VouchersPage({vouchers, sales, user, onSave, onAssign, onUnassign}) {
+function VouchersPage({vouchers, sales, user, onSave, onAssign, onUnassign, initialFile, onInitialFileDone}) {
   const [tab,      setTab]      = useState("unassigned");
-  const [showUpload,setShowUpload]= useState(false);
+  const [showUpload,setShowUpload]= useState(!!initialFile);
+
+  useEffect(()=>{ if(initialFile) setShowUpload(true); },[initialFile]);
   const [assignVC, setAssignVC] = useState(null);
   const [viewVC,   setViewVC]   = useState(null);
 
@@ -5184,9 +5203,10 @@ function VouchersPage({vouchers, sales, user, onSave, onAssign, onUnassign}) {
       {showUpload&&(
         <SubirComprobante
           vouchers={vouchers} user={user}
-          onClose={()=>setShowUpload(false)}
-          onSave={async v=>{await onSave(v);setShowUpload(false);}}
-          onSaveAndAssign={async v=>{await onSave(v);setShowUpload(false);setAssignVC(v);}}/>
+          initialFile={initialFile}
+          onClose={()=>{setShowUpload(false);onInitialFileDone&&onInitialFileDone();}}
+          onSave={async v=>{await onSave(v);setShowUpload(false);onInitialFileDone&&onInitialFileDone();}}
+          onSaveAndAssign={async v=>{await onSave(v);setShowUpload(false);onInitialFileDone&&onInitialFileDone();setAssignVC(v);}}/>
       )}
 
       {assignVC&&(
@@ -5280,7 +5300,7 @@ function VoucherRow({voucher, matches, sales, onView, onAssign}) {
 // ============================================================
 //  MODAL: SUBIR COMPROBANTE
 // ============================================================
-function SubirComprobante({vouchers, sales, user, onClose, onSave, onSaveAndAssign, onExistingVoucher, prefillSale}) {
+function SubirComprobante({vouchers, sales, user, onClose, onSave, onSaveAndAssign, onExistingVoucher, prefillSale, initialFile}) {
   const BANKS = ["Tigo Money","BNB","Banco Unión","Banco Mercantil","Banco Bisa","Banco Nacional","Otro"];
   const [file,      setFile]      = useState(null);
   const [preview,   setPreview]   = useState(null);
@@ -5296,6 +5316,8 @@ function SubirComprobante({vouchers, sales, user, onClose, onSave, onSaveAndAssi
   const [notes,     setNotes]     = useState("");
   const [saving,    setSaving]    = useState(false);
   const fileRef = useRef();
+
+  useEffect(()=>{ if(initialFile) processFile(initialFile); },[]);
 
   const processFile = async f => {
     if (!f) return;
