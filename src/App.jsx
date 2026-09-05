@@ -1328,6 +1328,7 @@ export default function App() {
   const [showSale,setShowSale]= useState(false);
   const [historic,setHistoric]= useState(false);
   const [deleteSale,setDeleteSale]= useState(null);
+  const [newSaleVoucher,setNewSaleVoucher]= useState(null);
   const [showOnboarding,setShowOnboarding]= useState(false);
   const [products, setProducts]  = useState([]);
   const [promoters,setPromoters] = useState([]);
@@ -1615,6 +1616,7 @@ export default function App() {
         onReload={reload}/>}
       {page==="vouchers" && (CAN.seeReports(role)
         ? <VouchersPage vouchers={vouchers} sales={sales} user={user} initialFile={sharedFile} onInitialFileDone={()=>setSharedFile(null)}
+            onSaveAndNew={async v=>{await dbPut("vouchers",{...v,synced:false});await reload();toast("✓ Comprobante guardado","ok");setNewSaleVoucher(v);setHistoric(false);}}
             onSave={async v=>{await dbPut("vouchers",{...v,synced:false});await reload();toast("✓ Comprobante guardado","ok");}}
             onAssign={async(vid,sid)=>{
               const v=await dbGet("vouchers",vid); const s=await dbGet("sales",sid);
@@ -1807,6 +1809,30 @@ export default function App() {
       {showSale && (
         <NewSaleModal products={products} promoters={promoters} user={user} isHistoric={historic}
           onClose={()=>setShowSale(false)} onSubmit={handleNewSale}/>
+      )}
+      {newSaleVoucher && (
+        <NewSaleModal products={products} promoters={promoters} user={user} isHistoric={false}
+          initialPrice={newSaleVoucher.amount}
+          onClose={()=>setNewSaleVoucher(null)}
+          onSubmit={async sale=>{
+            await dbPut("sales",{...sale,voucherId:newSaleVoucher.id,synced:false});
+            const lines = sale.items||[{productId:sale.productId,qty:1,variantId:sale.variantId}];
+            for (const line of lines) {
+              const prod = products.find(p=>p.id===line.productId);
+              if (!prod) continue;
+              const qty = line.qty||1;
+              if (line.variantId&&prod.hasVariants&&prod.variants?.length) {
+                const vars = prod.variants.map(v=>v.id===line.variantId&&v.stock>0?{...v,stock:Math.max(0,v.stock-qty)}:v);
+                await dbPut("products",{...prod,variants:vars,stock:vars.reduce((a,v)=>a+(v.stock||0),0),synced:false});
+              } else if (prod.stock>0) {
+                await dbPut("products",{...prod,stock:Math.max(0,prod.stock-qty),synced:false});
+              }
+            }
+            await dbPut("vouchers",{...newSaleVoucher,saleId:sale.id,saleSummary:(sale.productName||"Venta")+" · "+fmtDate(sale.date),synced:false});
+            setNewSaleVoucher(null);
+            await reload();
+            toast("✓ Venta creada y comprobante vinculado","ok");
+          }}/>
       )}
       {deleteSale && (
         <DeleteSaleModal sale={deleteSale}
@@ -3888,13 +3914,13 @@ function UserForm({user, promoters, onClose, onSave}) {
 // ============================================================
 //  NEW SALE MODAL
 // ============================================================
-function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}) {
+function NewSaleModal({products, promoters, user, isHistoric, initialPrice, onClose, onSubmit}) {
   const BANKS = ["Tigo Money","BNB","Banco Unión","Banco Mercantil","Banco Bisa","Banco Nacional","Otro"];
   const [step,setStep]= useState(1);
   const [done,setDone]= useState(null);
   const [f,setF]= useState({
     productId:"",productName:"",customization:"",
-    clientPrice:"",promoterPrice:"",cost:0,
+    clientPrice:initialPrice||"",promoterPrice:initialPrice||"",cost:0,
     paymentMethod:"efectivo",
     promoterId:   user.role==="promoter"?user.promoterId:"",
     promoterName: user.role==="promoter"?(promoters.find(p=>p.id===user.promoterId)?.name||""):"",
@@ -5161,7 +5187,7 @@ function Locked() {
 // ============================================================
 //  VOUCHERS PAGE
 // ============================================================
-function VouchersPage({vouchers, sales, user, onSave, onAssign, onUnassign, onDelete, initialFile, onInitialFileDone}) {
+function VouchersPage({vouchers, sales, user, onSave, onSaveAndNew, onAssign, onUnassign, onDelete, initialFile, onInitialFileDone}) {
   const [tab,      setTab]      = useState("unassigned");
   const [showUpload,setShowUpload]= useState(!!initialFile);
 
@@ -5225,7 +5251,8 @@ function VouchersPage({vouchers, sales, user, onSave, onAssign, onUnassign, onDe
           initialFile={initialFile}
           onClose={()=>{setShowUpload(false);onInitialFileDone&&onInitialFileDone();}}
           onSave={async v=>{await onSave(v);setShowUpload(false);onInitialFileDone&&onInitialFileDone();}}
-          onSaveAndAssign={async v=>{await onSave(v);setShowUpload(false);onInitialFileDone&&onInitialFileDone();setAssignVC(v);}}/>
+          onSaveAndAssign={async v=>{await onSave(v);setShowUpload(false);onInitialFileDone&&onInitialFileDone();setAssignVC(v);}}
+          onSaveAndNew={onSaveAndNew?async v=>{await onSaveAndNew(v);setShowUpload(false);onInitialFileDone&&onInitialFileDone();}:null}/>
       )}
 
       {assignVC&&(
@@ -5324,7 +5351,7 @@ function VoucherRow({voucher, matches, sales, onView, onAssign, onDelete}) {
 // ============================================================
 //  MODAL: SUBIR COMPROBANTE
 // ============================================================
-function SubirComprobante({vouchers, sales, user, onClose, onSave, onSaveAndAssign, onExistingVoucher, prefillSale, initialFile}) {
+function SubirComprobante({vouchers, sales, user, onClose, onSave, onSaveAndAssign, onSaveAndNew, onExistingVoucher, prefillSale, initialFile}) {
   const BANKS = ["Tigo Money","BNB","Banco Unión","Banco Mercantil","Banco Bisa","Banco Nacional","Otro"];
   const [file,      setFile]      = useState(null);
   const [preview,   setPreview]   = useState(null);
@@ -5432,7 +5459,8 @@ function SubirComprobante({vouchers, sales, user, onClose, onSave, onSaveAndAssi
         uploadedAt: Date.now(), uploadedBy: user?.name||"",
         saleId: null, saleSummary: "", notes: notes.trim(),
       };
-      if (andAssign) await onSaveAndAssign(v);
+      if (andAssign==="new") await onSaveAndNew(v);
+      else if (andAssign) await onSaveAndAssign(v);
       else await onSave(v);
     } catch(e) {
       alert("No se pudo subir el comprobante a la nube. Verifica tu conexión a internet e intenta nuevamente.");
@@ -5542,14 +5570,18 @@ function SubirComprobante({vouchers, sales, user, onClose, onSave, onSaveAndAssi
                 placeholder="Ej: dijo Ana y Luis, cliente María García"/>
             </div>
 
-            <div className="row mt12">
-              <button className="btn btn-out" onClick={onClose}>Cancelar</button>
+            <div className="row mt12" style={{flexWrap:"wrap",gap:6}}>
+              <button className="btn btn-out" onClick={onClose} style={{flexShrink:0}}>Cancelar</button>
               <button className="btn btn-out" disabled={!file||!amount||!payDate||saving}
-                onClick={()=>handleSave(false)} style={{flex:1}}>
+                onClick={()=>handleSave(false)} style={{flex:1,minWidth:100}}>
                 Solo guardar
               </button>
+              {onSaveAndNew&&<button className="btn btn-out" disabled={!file||!amount||!payDate||saving}
+                onClick={()=>handleSave("new")} style={{flex:1,minWidth:120,color:"var(--teal)",borderColor:"var(--teal)"}}>
+                {saving?"Guardando...":"+ Crear venta"}
+              </button>}
               <button className="btn btn-gold" disabled={!file||!amount||!payDate||saving}
-                onClick={()=>handleSave(true)} style={{flex:1.5}}>
+                onClick={()=>handleSave(true)} style={{flex:1,minWidth:120}}>
                 {saving?"Guardando...":"Guardar y asignar"}
               </button>
             </div>
