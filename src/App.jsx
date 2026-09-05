@@ -2320,13 +2320,23 @@ function SaleEditModal({sale, role, onClose, onSave}) {
   });
   const set = (k,v)=>setF(x=>({...x,[k]:v}));
 
+  const [splitPayments, setSplitPayments] = useState(
+    sale.payments?.length ? sale.payments.map(p=>({...p,amount:String(p.amount)}))
+    : [{method:"efectivo",amount:""},{method:"qr",amount:""}]
+  );
+  const updSplit = (i,patch) => setSplitPayments(p=>p.map((x,j)=>j===i?{...x,...patch}:x));
+  const cp = parseFloat(f.clientPrice)||0;
+  const splitTotal = splitPayments.reduce((a,p)=>a+(parseFloat(p.amount)||0),0);
+  const splitValid = f.paymentMethod!=="mixto"||(cp>0&&Math.abs(r2(splitTotal)-r2(cp))<0.01);
+
   const handleSave = ()=>{
+    const payments = f.paymentMethod==="mixto" ? splitPayments.map(p=>({method:p.method,amount:parseFloat(p.amount)||0})) : null;
     if (role==="admin"){
-      const cp=parseFloat(f.clientPrice)||0, pp=parseFloat(f.promoterPrice)||0, c=parseFloat(f.cost)||0;
-      const {commission,profit,profitOwner,profitPartner}=calcSale(cp,pp,c);
-      onSave({...sale,...f,clientPrice:cp,promoterPrice:pp,cost:c,commission,profit,profitOwner,profitPartner});
+      const cp2=parseFloat(f.clientPrice)||0, pp=parseFloat(f.promoterPrice)||0, c=parseFloat(f.cost)||0;
+      const {commission,profit,profitOwner,profitPartner}=calcSale(cp2,pp,c);
+      onSave({...sale,...f,clientPrice:cp2,promoterPrice:pp,cost:c,commission,profit,profitOwner,profitPartner,payments});
     } else {
-      onSave({...sale,...f});
+      onSave({...sale,...f,payments});
     }
   };
 
@@ -2351,6 +2361,27 @@ function SaleEditModal({sale, role, onClose, onSave}) {
             ))}
           </div>
         </div>
+        {f.paymentMethod==="mixto"&&(
+          <div style={{background:"var(--s2)",borderRadius:"var(--r)",padding:"12px 13px",marginBottom:14}}>
+            <div style={{fontSize:".78rem",fontWeight:700,color:"var(--muted)",marginBottom:10,textTransform:"uppercase",letterSpacing:.5}}>Desglose del pago</div>
+            {splitPayments.map((sp,i)=>(
+              <div key={i} style={{display:"flex",gap:8,marginBottom:8,alignItems:"center"}}>
+                <select value={sp.method} onChange={e=>updSplit(i,{method:e.target.value})} className="fi" style={{flex:"0 0 auto",width:130}}>
+                  <option value="efectivo">Efectivo</option>
+                  <option value="qr">QR</option>
+                  <option value="transferencia">Transferencia</option>
+                </select>
+                <input type="number" value={sp.amount} onChange={e=>updSplit(i,{amount:e.target.value})}
+                  className="fi" style={{flex:1}} placeholder="Bs 0"/>
+              </div>
+            ))}
+            {cp>0&&(
+              <div style={{fontSize:".76rem",fontWeight:700,marginTop:4,color:splitValid?"var(--grn)":"var(--red)"}}>
+                {splitValid?"✓ Total coincide":"Faltan Bs "+fmt(r2(cp-splitTotal))+" para llegar a "+fmt(cp)}
+              </div>
+            )}
+          </div>
+        )}
         <div className="fi2">
           <div className="fg">
             <label className="fl">Nombre del cliente</label>
