@@ -1320,7 +1320,21 @@ function useToast() {
 //  APP ROOT
 // ============================================================
 export default function App() {
-  const [user,    setUser]    = useState(null);
+  const SESSION_TTL = 8 * 60 * 60 * 1000; // 8 horas
+  const loadSession = () => {
+    try {
+      const raw = localStorage.getItem("garabato_session");
+      if (!raw) return null;
+      const {u, exp} = JSON.parse(raw);
+      if (Date.now() > exp) { localStorage.removeItem("garabato_session"); return null; }
+      return u;
+    } catch { return null; }
+  };
+  const saveSession = u => {
+    try { localStorage.setItem("garabato_session", JSON.stringify({u, exp: Date.now()+SESSION_TTL})); } catch {}
+  };
+  const clearSession = () => { try { localStorage.removeItem("garabato_session"); } catch {} };
+  const [user,    setUser]    = useState(loadSession);
   const [page,    setPage]    = useState("home");
   const [online,  setOnline]  = useState(navigator.onLine);
   const [ready,   setReady]   = useState(false);
@@ -1590,10 +1604,12 @@ export default function App() {
     </div>
   );
 
+  // Renovar sesión cada vez que se usa la app
+  useEffect(()=>{ if(user) saveSession(user); },[user]);
+
   if (!user) return <LoginScreen users={users} onLogin={u=>{
-    setUser(u);
+    setUser(u); saveSession(u);
     setPage("home");
-    // Mostrar onboarding si es admin y no hay productos cargados
     if (u.role==="admin" && products.length===0) setShowOnboarding(true);
   }}/>;
 
@@ -1757,7 +1773,7 @@ export default function App() {
                     <Ic n="download" s={13}/>
                   </button>
                 )}
-                <button className="sb-btn" onClick={()=>{setUser(null);setPage("home");}} title="Salir">
+                <button className="sb-btn" onClick={()=>{setUser(null);clearSession();setPage("home");}} title="Salir">
                   <Ic n="logout" s={13}/>
                 </button>
               </div>
@@ -1774,7 +1790,7 @@ export default function App() {
       {user&&(
         <TopBar user={user} online={online} pendingSync={pendingSync} syncing={syncing}
           onSync={handleSync}
-          onLogout={()=>{setUser(null);setPage("home");}}
+          onLogout={()=>{setUser(null);clearSession();setPage("home");}}
           onBackup={CAN.manageConfig(role)?handleBackup:null}
         />
       )}
