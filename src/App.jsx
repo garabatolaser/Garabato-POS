@@ -730,7 +730,7 @@ const SB_MAP = {
   users:              { table:"users",              toSB: r=>({id:r.id,name:r.name,role:r.role,pin:r.pin,promoter_id:r.promoterId||null}), fromSB: r=>({id:r.id,name:r.name,role:r.role,pin:r.pin,promoterId:r.promoter_id||null,synced:true}) },
   products:           { table:"products",           toSB: r=>({id:r.id,name:r.name,photo:r.photo||null,client_price:r.clientPrice,promoter_price:r.promoterPrice,cost:r.cost,stock:r.stock,low_stock_alert:r.lowStockAlert,client_price_usd:r.clientPriceUSD||null,grabado_types_allowed:r.grabadoTypesAllowed||[],has_variants:r.hasVariants||false,variants:r.variants||[],price_history:r.priceHistory||[]}), fromSB: r=>({id:r.id,name:r.name,photo:r.photo,clientPrice:r.client_price,promoterPrice:r.promoter_price,cost:r.cost,stock:r.stock,lowStockAlert:r.low_stock_alert,clientPriceUSD:r.client_price_usd,grabadoTypesAllowed:r.grabado_types_allowed||[],hasVariants:r.has_variants||false,variants:r.variants||[],priceHistory:r.price_history||[]}) },
   promoters:          { table:"promoters",          toSB: r=>({id:r.id,name:r.name,phone:r.phone,active:r.active,custom_promoter_price:r.customPromoterPrice||null}), fromSB: r=>({id:r.id,name:r.name,phone:r.phone,active:r.active,customPromoterPrice:r.custom_promoter_price||null}) },
-  sales:              { table:"sales",              toSB: r=>({id:r.id,product_id:r.productId,product_name:r.productName,customization:r.customization||null,client_price:r.clientPrice,promoter_price:r.promoterPrice,cost:r.cost,commission:r.commission,profit:r.profit,profit_owner:r.profitOwner,profit_partner:r.profitPartner,payment_method:r.paymentMethod,payments:r.payments||null,promoter_id:r.promoterId||null,promoter_name:r.promoterName||null,is_direct_sale:r.isDirectSale||false,client_name:r.clientName||null,client_phone:r.clientPhone||null,notes:r.notes||null,commission_status:r.commissionStatus,date:r.date,is_historic:r.isHistoric||false,deleted:r.deleted||false,deleted_at:r.deletedAt||null,deleted_reason:r.deletedReason||null,order_id:r.orderId||null,variant_id:r.variantId||null,variant_name:r.variantName||null,voucher_id:r.voucherId||null}), fromSB: r=>({id:r.id,productId:r.product_id,productName:r.product_name,customization:r.customization,clientPrice:r.client_price,promoterPrice:r.promoter_price,cost:r.cost,commission:r.commission,profit:r.profit,profitOwner:r.profit_owner,profitPartner:r.profit_partner,paymentMethod:r.payment_method,payments:r.payments||null,promoterId:r.promoter_id,promoterName:r.promoter_name,isDirectSale:r.is_direct_sale,clientName:r.client_name,clientPhone:r.client_phone,notes:r.notes,commissionStatus:r.commission_status,date:r.date,isHistoric:r.is_historic,deleted:r.deleted,deletedAt:r.deleted_at,deletedReason:r.deleted_reason,orderId:r.order_id,variantId:r.variant_id,variantName:r.variant_name,voucherId:r.voucher_id||null,synced:true}) },
+  sales:              { table:"sales",              toSB: r=>({id:r.id,product_id:r.productId,product_name:r.productName,customization:r.customization||null,client_price:r.clientPrice,promoter_price:r.promoterPrice,cost:r.cost,empaque:r.empaque||0,cost_paid_by:r.costPaidBy||"socio",commission:r.commission,profit:r.profit,profit_owner:r.profitOwner,profit_partner:r.profitPartner,payment_method:r.paymentMethod,payments:r.payments||null,promoter_id:r.promoterId||null,promoter_name:r.promoterName||null,is_direct_sale:r.isDirectSale||false,client_name:r.clientName||null,client_phone:r.clientPhone||null,notes:r.notes||null,commission_status:r.commissionStatus,date:r.date,is_historic:r.isHistoric||false,deleted:r.deleted||false,deleted_at:r.deletedAt||null,deleted_reason:r.deletedReason||null,order_id:r.orderId||null,variant_id:r.variantId||null,variant_name:r.variantName||null,voucher_id:r.voucherId||null}), fromSB: r=>({id:r.id,productId:r.product_id,productName:r.product_name,customization:r.customization,clientPrice:r.client_price,promoterPrice:r.promoter_price,cost:r.cost,empaque:r.empaque||0,costPaidBy:r.cost_paid_by||"socio",commission:r.commission,profit:r.profit,profitOwner:r.profit_owner,profitPartner:r.profit_partner,paymentMethod:r.payment_method,payments:r.payments||null,promoterId:r.promoter_id,promoterName:r.promoter_name,isDirectSale:r.is_direct_sale,clientName:r.client_name,clientPhone:r.client_phone,notes:r.notes,commissionStatus:r.commission_status,date:r.date,isHistoric:r.is_historic,deleted:r.deleted,deletedAt:r.deleted_at,deletedReason:r.deleted_reason,orderId:r.order_id,variantId:r.variant_id,variantName:r.variant_name,voucherId:r.voucher_id||null,synced:true}) },
   expenses:           { table:"expenses",           toSB: r=>({id:r.id,type:r.type,amount:r.amount,description:r.description||null,date:r.date,afecta_sociedad:r.afectaSociedad!==false}), fromSB: r=>({id:r.id,type:r.type,amount:r.amount,description:r.description,date:r.date,afectaSociedad:r.afecta_sociedad,synced:true}) },
   commissionPayments: { table:"commission_payments", toSB: r=>({id:r.id,promoter_id:r.promoterId,amount:r.amount,sales_ids:r.salesIds||[],date:r.date}), fromSB: r=>({id:r.id,promoterId:r.promoter_id,amount:r.amount,salesIds:r.sales_ids||[],date:r.date}) },
   vouchers:           { table:"vouchers",           toSB: r=>({id:r.id,hash:r.hash||null,file_type:r.fileType||null,file_name:r.fileName||null,amount:r.amount||0,reference:r.reference||null,holder_name:r.holderName||null,bank:r.bank||null,payment_date:r.paymentDate||null,payment_time:r.paymentTime||null,uploaded_at:r.uploadedAt||null,uploaded_by:r.uploadedBy||null,sale_id:r.saleId||null,sale_summary:r.saleSummary||null,notes:r.notes||null,image_url:r.imageUrl||null}), fromSB: r=>({id:r.id,hash:r.hash,image:null,imageUrl:r.image_url||null,fileType:r.file_type,fileName:r.file_name,amount:r.amount,reference:r.reference,holderName:r.holder_name,bank:r.bank,paymentDate:r.payment_date,paymentTime:r.payment_time,uploadedAt:r.uploaded_at,uploadedBy:r.uploaded_by,saleId:r.sale_id,saleSummary:r.sale_summary,notes:r.notes,synced:true}) }
@@ -1012,9 +1012,9 @@ function resolvePromoterPrice(product, promoter) {
   if (promoter?.customPromoterPrice != null) return promoter.customPromoterPrice;
   return product.promoterPrice;
 }
-function calcSale(cp, pp, cost) {
+function calcSale(cp, pp, cost, empaque=0) {
   const commission    = r2(cp - pp);
-  const profit        = r2(pp - cost);
+  const profit        = r2(pp - cost - empaque);
   const profitOwner   = r2(profit * .5);
   const profitPartner = r2(profit * .5);
   return { commission, profit, profitOwner, profitPartner };
@@ -2326,6 +2326,8 @@ function SaleEditModal({sale, role, onClose, onSave}) {
     clientPrice:   sale.clientPrice||0,
     promoterPrice: sale.promoterPrice||0,
     cost:          sale.cost||0,
+    empaque:       sale.empaque||0,
+    costPaidBy:    sale.costPaidBy||"socio",
   });
   const set = (k,v)=>setF(x=>({...x,[k]:v}));
 
@@ -2341,9 +2343,9 @@ function SaleEditModal({sale, role, onClose, onSave}) {
   const handleSave = ()=>{
     const payments = f.paymentMethod==="mixto" ? splitPayments.map(p=>({method:p.method,amount:parseFloat(p.amount)||0})) : null;
     if (role==="admin"){
-      const cp2=parseFloat(f.clientPrice)||0, pp=parseFloat(f.promoterPrice)||0, c=parseFloat(f.cost)||0;
-      const {commission,profit,profitOwner,profitPartner}=calcSale(cp2,pp,c);
-      onSave({...sale,...f,clientPrice:cp2,promoterPrice:pp,cost:c,commission,profit,profitOwner,profitPartner,payments});
+      const cp2=parseFloat(f.clientPrice)||0, pp=parseFloat(f.promoterPrice)||0, c=parseFloat(f.cost)||0, emp2=parseFloat(f.empaque)||0;
+      const {commission,profit,profitOwner,profitPartner}=calcSale(cp2,pp,c,emp2);
+      onSave({...sale,...f,clientPrice:cp2,promoterPrice:pp,cost:c,empaque:emp2,costPaidBy:f.costPaidBy||"socio",commission,profit,profitOwner,profitPartner,payments});
     } else {
       onSave({...sale,...f,payments});
     }
@@ -2424,6 +2426,19 @@ function SaleEditModal({sale, role, onClose, onSave}) {
             <div className="fg">
               <label className="fl">Costo material</label>
               <input className="fi" type="number" inputMode="decimal" value={f.cost} onChange={e=>set("cost",e.target.value)}/>
+            </div>
+            {parseFloat(f.cost)>0&&(
+              <div className="fg">
+                <label className="fl">¿Quién pagó los materiales?</label>
+                <div className="pills">
+                  <button className={"pill"+(f.costPaidBy==="socio"?" act":"")} onClick={()=>set("costPaidBy","socio")}>Israel (Socio)</button>
+                  <button className={"pill"+(f.costPaidBy==="sergio"?" act":"")} onClick={()=>set("costPaidBy","sergio")}>Sergio</button>
+                </div>
+              </div>
+            )}
+            <div className="fg">
+              <label className="fl">Empaque (opcional, Bs)</label>
+              <input className="fi" type="number" inputMode="decimal" value={f.empaque||""} onChange={e=>set("empaque",parseFloat(e.target.value)||0)} placeholder="0"/>
             </div>
           </div>
         )}
@@ -3483,9 +3498,9 @@ function ReportsPage({sales, expenses, promoters, payments, role}) {
         const expSoc    = r2(expenses.filter(e=>e.afectaSociedad!==false).reduce((a,e)=>a+e.amount,0));
         const netFin    = r2(gainTotal-expSoc);
         const porSocio  = r2(netFin/2);
-        // Ganancia proporcional por receptor (para deuda interna)
-        const gainSergio= r2(allS.reduce((a,s)=>{ const tot=s.clientPrice||0; const rec=saleMethodAmount(s,"sergio"); return a+(tot>0?s.profit*rec/tot:0); },0));
-        const gainSocio = r2(allS.reduce((a,s)=>{ const tot=s.clientPrice||0; const rec=saleMethodAmount(s,"socio");  return a+(tot>0?s.profit*rec/tot:0); },0));
+        // Efectivo neto de cada socio: lo que recibió (escalado a precio neto) menos costos que pagó
+        const gainSergio= r2(allS.reduce((a,s)=>{ const tot=s.clientPrice||0; if(!tot) return a; const pp=s.promoterPrice||tot; const rec=saleMethodAmount(s,"sergio"); const costS=s.costPaidBy==="sergio"?(s.cost||0)+(s.empaque||0):0; return a+rec*(pp/tot)-costS; },0));
+        const gainSocio = r2(allS.reduce((a,s)=>{ const tot=s.clientPrice||0; if(!tot) return a; const pp=s.promoterPrice||tot; const rec=saleMethodAmount(s,"socio");  const costA=(s.costPaidBy==="socio"||(s.costPaidBy==null&&s.cost>0))?(s.cost||0)+(s.empaque||0):0; return a+rec*(pp/tot)-costA; },0));
         // Saldo: cuánto recibió cada uno de ganancia vs su parte justa
         const saldoSergio = r2(gainSergio - expSoc/2 - porSocio); // positivo = Sergio tiene de más
         const saldoSocio  = r2(gainSocio  - expSoc/2 - porSocio);
@@ -3530,17 +3545,11 @@ function ReportsPage({sales, expenses, promoters, payments, role}) {
             <div className="fb">
               <div className="fr">
                 <span className="fk">💛 Sergio recibió (efectivo + QR propio)</span>
-                <div style={{textAlign:"right"}}>
-                  <span className="fv" style={{color:"var(--gold)"}}>{fmt(netSergio)}</span>
-                  <div style={{fontSize:".68rem",color:"var(--dim)"}}>ganancia: {fmt(gainSergio)}</div>
-                </div>
+                <span className="fv" style={{color:"var(--gold)"}}>{fmt(netSergio)}</span>
               </div>
               <div className="fr">
                 <span className="fk">🩵 Socio recibió (efectivo + QR propio)</span>
-                <div style={{textAlign:"right"}}>
-                  <span className="fv" style={{color:"var(--teal)"}}>{fmt(netSocio)}</span>
-                  <div style={{fontSize:".68rem",color:"var(--dim)"}}>ganancia: {fmt(gainSocio)}</div>
-                </div>
+                <span className="fv" style={{color:"var(--teal)"}}>{fmt(netSocio)}</span>
               </div>
             </div>
             <div className="shd mt16"><div className="shd-l">Distribución justa (50/50)</div></div>
@@ -3854,6 +3863,7 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
     saleDate:todayISO(),
     variantId:"",variantName:"",
     soloGrabado:false, grabadoDesc:"",
+    empaque:0, costPaidBy:"socio",
   });
   const set=(k,v)=>setF(x=>({...x,[k]:v}));
   const setSoloPrice=v=>setF(x=>({...x,clientPrice:v,promoterPrice:v}));
@@ -3982,7 +3992,8 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
   const cp  = parseFloat(f.clientPrice)||0;
   const pp  = parseFloat(f.promoterPrice)||0;
   const cst = f.cost||0;
-  const {commission,profit,profitOwner,profitPartner} = calcSale(cp,pp,cst);
+  const emp = parseFloat(f.empaque)||0;
+  const {commission,profit,profitOwner,profitPartner} = calcSale(cp,pp,cst,emp);
   const ss  = s => step>s?"s-done":step===s?"s-cur":"s-fut";
   const selProdHasVariants = selProd?.hasVariants && selProd?.variants?.length>0;
   const step1valid = multiMode
@@ -4072,7 +4083,7 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
       productId: soloGrabado?"solo-grabado":f.productId,
       productName: soloGrabado?(f.grabadoDesc.trim()||"Servicio de grabado"):f.productName,
       customization:f.customization.trim(),
-      clientPrice:cp,promoterPrice:pp,cost:cst,
+      clientPrice:cp,promoterPrice:pp,cost:cst,empaque:emp,costPaidBy:f.costPaidBy||"socio",
       commission,profit,profitOwner,profitPartner,
       paymentMethod:f.paymentMethod,
       payments: f.paymentMethod==="mixto" ? splitPayments.map(p=>({method:p.method,amount:parseFloat(p.amount)||0})) : null,
@@ -4540,6 +4551,19 @@ function NewSaleModal({products, promoters, user, isHistoric, onClose, onSubmit}
                         <div className="fg">
                           <label className="fl">Costo material (en ese momento)</label>
                           <input className="fi" type="number" inputMode="decimal" value={f.cost} onChange={e=>set("cost",parseFloat(e.target.value)||0)}/>
+                        </div>
+                        {f.cost>0&&(
+                          <div className="fg">
+                            <label className="fl">¿Quién pagó los materiales?</label>
+                            <div className="pills">
+                              <button className={"pill"+(f.costPaidBy==="socio"?" act":"")} onClick={()=>set("costPaidBy","socio")}>Israel (Socio)</button>
+                              <button className={"pill"+(f.costPaidBy==="sergio"?" act":"")} onClick={()=>set("costPaidBy","sergio")}>Sergio</button>
+                            </div>
+                          </div>
+                        )}
+                        <div className="fg">
+                          <label className="fl">Empaque (opcional, Bs)</label>
+                          <input className="fi" type="number" inputMode="decimal" value={f.empaque||""} onChange={e=>set("empaque",parseFloat(e.target.value)||0)} placeholder="0"/>
                         </div>
                       </div>
                     )}
