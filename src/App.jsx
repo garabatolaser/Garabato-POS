@@ -2530,19 +2530,93 @@ function SaleEditModal({sale, role, promoters=[], onClose, onSave}) {
   }));
   const pickPromoter = pr => setF(x=>({...x, promoterId:pr.id, promoterName:pr.name, isDirectSale:false}));
 
+  const BANKS_E = ["Tigo Money","BNB","Banco Unión","Banco Mercantil","Banco Bisa","Banco Nacional","Otro"];
+
   const [splitPayments, setSplitPayments] = useState(
     sale.payments?.length ? sale.payments.map(p=>({...p,amount:String(p.amount)}))
-    : [{method:"efectivo_s",amount:""},{method:"qr_a",amount:""}]
+    : [{method:"efectivo_s",amount:""},{method:"efectivo_a",amount:""}]
   );
-  const updSplit = (i,patch) => setSplitPayments(p=>p.map((x,j)=>j===i?{...x,...patch}:x));
   const cp = parseFloat(f.clientPrice)||0;
   const splitTotal = splitPayments.reduce((a,p)=>a+(parseFloat(p.amount)||0),0);
   const splitValid = f.paymentMethod!=="mixto"||(cp>0&&Math.abs(r2(splitTotal)-r2(cp))<0.01);
 
-  const handleSave = ()=>{
+  const editNeedsVoucher = f.paymentMethod==="mixto"
+    ? splitPayments.some(p=>isQRMethod(p.method))
+    : isQRMethod(f.paymentMethod);
+
+  // Estado comprobante
+  const [vcOpen,    setVcOpen]    = useState(false);
+  const [vcFile,    setVcFile]    = useState(null);
+  const [vcPreview, setVcPreview] = useState(null);
+  const [vcType,    setVcType]    = useState("");
+  const [vcHash,    setVcHash]    = useState("");
+  const [vcRef,     setVcRef]     = useState("");
+  const [vcHolder,  setVcHolder]  = useState("");
+  const [vcBank,    setVcBank]    = useState("Tigo Money");
+  const [vcDate,    setVcDate]    = useState(todayISO());
+  const [vcLoading, setVcLoading] = useState(false);
+
+  const processVcRaw = async file => {
+    if (!file) return;
+    if (file.size > 10*1024*1024) { alert("El archivo supera los 10MB."); return; }
+    const isPDF = file.type==="application/pdf";
+    const isImg = file.type.startsWith("image/");
+    if (!isPDF&&!isImg) { alert("Solo JPG, PNG o PDF."); return; }
+    setVcLoading(true);
+    const h = await fileHash(file);
+    setVcHash(h); setVcFile(file); setVcType(isPDF?"pdf":"image");
+    if (isImg) {
+      const b64 = await compressImage(file);
+      setVcPreview(b64);
+    } else {
+      const b64 = await new Promise(res=>{const r=new FileReader();r.onload=ev=>res(ev.target.result);r.readAsDataURL(file);});
+      setVcPreview(b64);
+    }
+    setVcLoading(false); setVcOpen(true);
+  };
+  const handleVcFile = e => processVcRaw(e.target.files?.[0]);
+  const handleVcPaste = e => {
+    const item = [...(e.clipboardData?.items||[])].find(i=>i.type.startsWith("image/"));
+    if (item) { e.preventDefault(); processVcRaw(item.getAsFile()); }
+  };
+
+  const updSplit = (i,patch) => {
+    setSplitPayments(p=>p.map((x,j)=>j===i?{...x,...patch}:x));
+    if (patch.method && isQRMethod(patch.method)) setVcOpen(true);
+  };
+
+  const handleSave = async ()=>{
     const payments = f.paymentMethod==="mixto" ? splitPayments.map(p=>({method:p.method,amount:parseFloat(p.amount)||0})) : null;
     const newDate = isoToMs(f.saleDate);
-    const base = {...sale,...f, date:newDate, payments,
+    let voucherId = sale.voucherId||null;
+
+    // Si hay nuevo comprobante y la venta no tenía uno, crearlo
+    if (vcFile && !sale.voucherId) {
+      const vcId = uid("vc");
+      let vcImageUrl = null;
+      try {
+        let uploadBlob = vcFile, uploadType = vcFile.type;
+        if (vcType!=="pdf"&&vcPreview) {
+          const byteStr=atob(vcPreview.split(",")[1]);
+          const buf=new ArrayBuffer(byteStr.length); const arr=new Uint8Array(buf);
+          for(let i=0;i<byteStr.length;i++) arr[i]=byteStr.charCodeAt(i);
+          uploadBlob=new Blob([buf],{type:"image/jpeg"}); uploadType="image/jpeg";
+        }
+        vcImageUrl = await uploadVoucherImage(vcId, uploadBlob, uploadType);
+      } catch(e) { console.warn("Storage upload failed:", e); }
+      await dbPut("vouchers",{
+        id:vcId, hash:vcHash, image:vcPreview, imageUrl:vcImageUrl,
+        fileType:vcType, fileName:vcFile.name, amount:cp,
+        reference:vcRef.trim(), holderName:vcHolder.trim(),
+        bank:vcBank, paymentDate:vcDate, paymentTime:"",
+        uploadedAt:Date.now(), uploadedBy:"",
+        saleId:sale.id, saleSummary:sale.productName+" · "+fmtDate(sale.date),
+        notes:"", synced:false,
+      });
+      voucherId = vcId;
+    }
+
+    const base = {...sale,...f, date:newDate, payments, voucherId,
       isDirectSale: f.isDirectSale,
       promoterId:   f.isDirectSale?"DIRECTO":f.promoterId,
       promoterName: f.isDirectSale?"Tienda directa":f.promoterName,
@@ -2666,7 +2740,79 @@ function SaleEditModal({sale, role, promoters=[], onClose, onSave}) {
           </div>
         )}
 
-        {/* 4. Notas */}
+        {/* 4. Comprobante */}
+        {editNeedsVoucher&&(
+          <div style={{background:"var(--s2)",borderRadius:"var(--r)",padding:"12px 13px",marginBottom:14}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer",userSelect:"none"}}
+              onClick={()=>setVcOpen(v=>!v)}>
+              <div style={{fontSize:".78rem",fontWeight:700,color:"var(--muted)",textTransform:"uppercase",letterSpacing:.5}}>
+                {sale.voucherId?"Comprobante vinculado":"Comprobante de pago"}
+              </div>
+              <Ic n={vcOpen?"expand_less":"expand_more"} s={18} c="var(--muted)"/>
+            </div>
+            {sale.voucherId&&!vcFile&&(
+              <div style={{fontSize:".8rem",color:"var(--grn)",marginTop:6}}>
+                ✓ Ya tiene comprobante cargado. Podés reemplazarlo subiendo uno nuevo.
+              </div>
+            )}
+            {vcOpen&&!sale.voucherId&&(
+              <div style={{marginTop:10}} onPaste={handleVcPaste}>
+                {!vcPreview?(
+                  <div style={{border:"2px dashed var(--border)",borderRadius:"var(--r)",padding:"20px 12px",textAlign:"center",cursor:"pointer"}}
+                    onClick={()=>{const inp=document.createElement("input");inp.type="file";inp.accept="image/*,.pdf";inp.onchange=handleVcFile;inp.click();}}>
+                    <Ic n="upload" s={28} c="var(--muted)"/>
+                    <div style={{fontSize:".82rem",color:"var(--muted)",marginTop:6}}>Tocá para subir o pegá imagen (Ctrl+V)</div>
+                    <div style={{fontSize:".74rem",color:"var(--muted)",marginTop:2}}>JPG, PNG o PDF · máx 10MB</div>
+                  </div>
+                ):(
+                  <div style={{position:"relative",display:"flex",justifyContent:"center",marginBottom:10}}>
+                    {vcType==="pdf"?(
+                      <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",background:"var(--s3)",borderRadius:"var(--r)"}}>
+                        <Ic n="picture_as_pdf" s={28} c="var(--red)"/>
+                        <span style={{fontSize:".84rem"}}>PDF cargado</span>
+                      </div>
+                    ):(
+                      <img src={vcPreview} style={{maxWidth:"100%",maxHeight:220,borderRadius:"var(--r)",objectFit:"contain"}} alt="comprobante"/>
+                    )}
+                    <button style={{position:"absolute",top:4,right:4,background:"rgba(0,0,0,.55)",border:"none",borderRadius:"50%",width:26,height:26,color:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}
+                      onClick={()=>{setVcFile(null);setVcPreview(null);setVcType("");setVcHash("");}}>
+                      <Ic n="close" s={14} c="#fff"/>
+                    </button>
+                  </div>
+                )}
+                {vcLoading&&<div style={{textAlign:"center",fontSize:".8rem",color:"var(--muted)",padding:"8px 0"}}>Procesando...</div>}
+                {vcPreview&&(
+                  <div style={{display:"flex",flexDirection:"column",gap:8,marginTop:8}}>
+                    <div className="fi2">
+                      <div className="fg">
+                        <label className="fl">N° de referencia</label>
+                        <input className="fi" value={vcRef} onChange={e=>setVcRef(e.target.value)} placeholder="Ej: 123456"/>
+                      </div>
+                      <div className="fg">
+                        <label className="fl">Titular</label>
+                        <input className="fi" value={vcHolder} onChange={e=>setVcHolder(e.target.value)} placeholder="Nombre en la cuenta"/>
+                      </div>
+                    </div>
+                    <div className="fi2">
+                      <div className="fg">
+                        <label className="fl">Banco / Billetera</label>
+                        <select className="fi" value={vcBank} onChange={e=>setVcBank(e.target.value)}>
+                          {BANKS_E.map(b=><option key={b} value={b}>{b}</option>)}
+                        </select>
+                      </div>
+                      <div className="fg">
+                        <label className="fl">Fecha de pago</label>
+                        <input className="fi" type="date" value={vcDate} onChange={e=>setVcDate(e.target.value)}/>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 5. Notas */}
         <div className="fg">
           <label className="fl">Notas adicionales</label>
           <textarea className="fta" value={f.notes} onChange={e=>set("notes",e.target.value)} placeholder="Instrucciones especiales, observaciones..."/>
