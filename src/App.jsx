@@ -1798,7 +1798,7 @@ export default function App() {
                 {syncing?"Sincronizando...":pendingSync+" pendiente"+(pendingSync>1?"s":"")}
               </button>
             )}
-            {CAN.seeReports(role)&&(
+            {(CAN.seeReports(role)||role==="employee")&&(
               <button className="sb-hist" onClick={()=>{setHistoric(true);setShowSale(true);}}>
                 <Ic n="history" s={14}/> Venta histórica
               </button>
@@ -1849,7 +1849,7 @@ export default function App() {
           <button className="fab" onClick={()=>{setHistoric(false);setShowSale(true);}} aria-label="Nueva venta">
             <Ic n="plus" s={24} c="#0a0a00"/>
           </button>
-          {CAN.seeReports(role) && (
+          {(CAN.seeReports(role)||role==="employee") && (
             <button className="fab-sec" onClick={()=>{setHistoric(true);setShowSale(true);}} title="Venta histórica">
               <Ic n="history" s={16} c="var(--muted)"/>
             </button>
