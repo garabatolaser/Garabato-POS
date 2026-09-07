@@ -2204,10 +2204,16 @@ function HomePage({sales, products, promoters, expenses, role, user, vouchers}) 
         </div>
       )}
       {role==="employee"&&(
-        <div className="g2">
-          <div className="sc hg"><div className="sl">Ventas hoy</div><div className="sv gold">{todaySales.length}</div><div className="ss">Registradas hoy</div></div>
-          <div className="sc"><div className="sl">Ventas hoy</div><div className="sv">{todaySales.length}</div><div className="ss">Registradas</div></div>
-        </div>
+        <>
+          <div className="g2">
+            <div className="sc hg"><div className="sl">Ventas hoy</div><div className="sv gold">{todaySales.length}</div><div className="ss">Registradas hoy</div></div>
+            <div className="sc"><div className="sl">Total hoy</div><div className="sv gold">{fmt(totalToday)}</div><div className="ss">En ventas · Bs</div></div>
+          </div>
+          <div className="g2">
+            <div className="sc"><div className="sl">Todas las ventas</div><div className="sv">{activeSales.length}</div><div className="ss">En el sistema</div></div>
+            <div className="sc"><div className="sl">QR sin comprobante</div><div className="sv red">{activeSales.filter(s=>isQRMethod(s.paymentMethod)&&!s.voucherId).length}</div><div className="ss">Pendientes</div></div>
+          </div>
+        </>
       )}
 
       <div className="shd mt12"><div className="shd-l">{role==="promoter"?"Mis ventas recientes":"Ventas recientes"}</div></div>
@@ -2361,7 +2367,7 @@ function SalesPage({sales, role, user, promoters, vouchers, onMarkPaid, onEdit, 
               onDelete={role==="admin"&&onDelete?()=>onDelete(s):null}
               vouchers={saleVouchers}
               onVoucherView={vc=>setViewVoucher(vc)}
-              onVoucherAssign={CAN.seeReports(role)?()=>setAssignSaleForVoucher(s):null}
+              onVoucherAssign={(CAN.seeReports(role)||role==="employee")?()=>setAssignSaleForVoucher(s):null}
             />
           );
         })
