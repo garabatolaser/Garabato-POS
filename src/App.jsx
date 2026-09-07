@@ -2542,14 +2542,37 @@ function SaleEditModal({sale, role, onClose, onSave}) {
       <div className="sheet">
         <div className="sh-hd"/>
         <div className="sh-title">Editar venta</div>
+
+        {/* Cabecera: producto + fecha + promotora */}
         <div style={{background:"var(--s2)",borderRadius:"var(--rsm)",padding:"10px 13px",marginBottom:16,fontSize:".86rem"}}>
           <div style={{fontWeight:700,color:"var(--gold)"}}>{sale.productName}</div>
-          <div style={{color:"var(--dim)",fontSize:".76rem",marginTop:2}}>{fmtDate(sale.date)} - {sale.promoterName}</div>
+          <div style={{color:"var(--dim)",fontSize:".76rem",marginTop:2}}>{fmtDate(sale.date)}{sale.promoterName?" · "+sale.promoterName:""}</div>
         </div>
+
+        {/* 1. Datos del cliente */}
+        <div className="price-box" style={{marginBottom:14}}>
+          <div style={{fontSize:".76rem",color:"var(--muted)",fontWeight:800,textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>
+            Datos del cliente
+          </div>
+          <div className="fi2">
+            <div className="fg">
+              <label className="fl">Nombre</label>
+              <input className="fi" value={f.clientName} onChange={e=>set("clientName",e.target.value)} placeholder="Nombre del cliente" autoComplete="name"/>
+            </div>
+            <div className="fg">
+              <label className="fl">Teléfono</label>
+              <input className="fi" type="tel" autoComplete="tel" value={f.clientPhone} onChange={e=>set("clientPhone",e.target.value)} placeholder="70012345"/>
+            </div>
+          </div>
+        </div>
+
+        {/* 2. Grabado */}
         <div className="fg">
           <label className="fl">Texto del grabado</label>
           <input className="fi" value={f.customization} onChange={e=>set("customization",e.target.value)} placeholder="Texto, foto o diseño a grabar"/>
         </div>
+
+        {/* 3. Método de pago */}
         <div className="fg">
           <label className="fl">Método de pago</label>
           <div className="pills">
@@ -2580,20 +2603,14 @@ function SaleEditModal({sale, role, onClose, onSave}) {
             )}
           </div>
         )}
-        <div className="fi2">
-          <div className="fg">
-            <label className="fl">Nombre del cliente</label>
-            <input className="fi" value={f.clientName} onChange={e=>set("clientName",e.target.value)} placeholder="Nombre"/>
-          </div>
-          <div className="fg">
-            <label className="fl">Teléfono del cliente</label>
-            <input className="fi" type="tel" autoComplete="tel" value={f.clientPhone} onChange={e=>set("clientPhone",e.target.value)} placeholder="7XXXXXXX"/>
-          </div>
-        </div>
+
+        {/* 4. Notas */}
         <div className="fg">
           <label className="fl">Notas adicionales</label>
-          <textarea className="fta" value={f.notes} onChange={e=>set("notes",e.target.value)} placeholder="Instrucciones especiales..."/>
+          <textarea className="fta" value={f.notes} onChange={e=>set("notes",e.target.value)} placeholder="Instrucciones especiales, observaciones..."/>
         </div>
+
+        {/* 5. Precios (solo admin) */}
         {role==="admin"&&(
           <div className="price-box">
             <div style={{fontSize:".76rem",color:"var(--muted)",fontWeight:800,textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>
@@ -2628,6 +2645,7 @@ function SaleEditModal({sale, role, onClose, onSave}) {
             </div>
           </div>
         )}
+
         <div className="row mt12">
           <button className="btn btn-out" onClick={onClose}>Cancelar</button>
           <button className="btn btn-gold" onClick={handleSave}>
