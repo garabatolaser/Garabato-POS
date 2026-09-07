@@ -2368,7 +2368,7 @@ function SalesPage({sales, role, user, promoters, vouchers, onMarkPaid, onEdit, 
       }
 
       {editSale&&(
-        <SaleEditModal sale={editSale} role={role}
+        <SaleEditModal sale={editSale} role={role} promoters={promoters}
           onClose={()=>setEditSale(null)}
           onSave={async u=>{await onEdit(u);setEditSale(null);}}/>
       )}
@@ -2502,7 +2502,10 @@ function SalesPage({sales, role, user, promoters, vouchers, onMarkPaid, onEdit, 
 // ============================================================
 //  SALEEDITMODAL
 // ============================================================
-function SaleEditModal({sale, role, onClose, onSave}) {
+function SaleEditModal({sale, role, promoters=[], onClose, onSave}) {
+  const msToISO = ms => new Date(ms).toISOString().slice(0,10);
+  const isoToMs = iso => { const [y,m,d]=iso.split("-"); return new Date(+y,+m-1,+d).getTime(); };
+
   const [f,setF] = useState({
     customization: sale.customization||"",
     clientPhone:   sale.clientPhone||"",
@@ -2514,8 +2517,18 @@ function SaleEditModal({sale, role, onClose, onSave}) {
     cost:          sale.cost||0,
     empaque:       sale.empaque||0,
     costPaidBy:    sale.costPaidBy||"socio",
+    isDirectSale:  !!sale.isDirectSale,
+    promoterId:    sale.promoterId||"",
+    promoterName:  sale.promoterName||"",
+    saleDate:      msToISO(sale.date||Date.now()),
   });
   const set = (k,v)=>setF(x=>({...x,[k]:v}));
+  const setDirectSale = direct => setF(x=>({...x,
+    isDirectSale: direct,
+    promoterId:   direct?"DIRECTO":x.promoterId==="DIRECTO"?"":x.promoterId,
+    promoterName: direct?"Tienda directa":x.promoterName==="Tienda directa"?"":x.promoterName,
+  }));
+  const pickPromoter = pr => setF(x=>({...x, promoterId:pr.id, promoterName:pr.name, isDirectSale:false}));
 
   const [splitPayments, setSplitPayments] = useState(
     sale.payments?.length ? sale.payments.map(p=>({...p,amount:String(p.amount)}))
@@ -2528,12 +2541,18 @@ function SaleEditModal({sale, role, onClose, onSave}) {
 
   const handleSave = ()=>{
     const payments = f.paymentMethod==="mixto" ? splitPayments.map(p=>({method:p.method,amount:parseFloat(p.amount)||0})) : null;
+    const newDate = isoToMs(f.saleDate);
+    const base = {...sale,...f, date:newDate, payments,
+      isDirectSale: f.isDirectSale,
+      promoterId:   f.isDirectSale?"DIRECTO":f.promoterId,
+      promoterName: f.isDirectSale?"Tienda directa":f.promoterName,
+    };
     if (role==="admin"){
       const cp2=parseFloat(f.clientPrice)||0, pp=parseFloat(f.promoterPrice)||0, c=parseFloat(f.cost)||0, emp2=parseFloat(f.empaque)||0;
       const {commission,profit,profitOwner,profitPartner}=calcSale(cp2,pp,c,emp2);
-      onSave({...sale,...f,clientPrice:cp2,promoterPrice:pp,cost:c,empaque:emp2,costPaidBy:f.costPaidBy||"socio",commission,profit,profitOwner,profitPartner,payments});
+      onSave({...base,clientPrice:cp2,promoterPrice:pp,cost:c,empaque:emp2,costPaidBy:f.costPaidBy||"socio",commission,profit,profitOwner,profitPartner});
     } else {
-      onSave({...sale,...f,payments});
+      onSave(base);
     }
   };
 
@@ -2543,13 +2562,56 @@ function SaleEditModal({sale, role, onClose, onSave}) {
         <div className="sh-hd"/>
         <div className="sh-title">Editar venta</div>
 
-        {/* Cabecera: producto + fecha + promotora */}
+        {/* Cabecera: producto */}
         <div style={{background:"var(--s2)",borderRadius:"var(--rsm)",padding:"10px 13px",marginBottom:16,fontSize:".86rem"}}>
           <div style={{fontWeight:700,color:"var(--gold)"}}>{sale.productName}</div>
-          <div style={{color:"var(--dim)",fontSize:".76rem",marginTop:2}}>{fmtDate(sale.date)}{sale.promoterName?" · "+sale.promoterName:""}</div>
         </div>
 
-        {/* 1. Datos del cliente */}
+        {/* 1. Fecha */}
+        <div className="fg">
+          <label className="fl">Fecha de la venta</label>
+          <input className="fi" type="date" value={f.saleDate} onChange={e=>set("saleDate",e.target.value)} max={todayISO()}/>
+        </div>
+
+        {/* 2. Tipo de venta + Promotora (no aplica a ventas solo grabado) */}
+        {!sale.isSoloGrabado&&role!=="promoter"&&(
+          <>
+            <div className="fg">
+              <label className="fl">Tipo de venta</label>
+              <div className="pills" style={{marginBottom:8}}>
+                <button className={"pill"+(!f.isDirectSale?" act":"")} onClick={()=>setDirectSale(false)}>Por promotora</button>
+                <button className={"pill"+(f.isDirectSale?" act":"")} onClick={()=>setDirectSale(true)}>Venta directa tienda</button>
+              </div>
+            </div>
+            {!f.isDirectSale&&promoters.filter(p=>p.active).length>0&&(
+              <div className="fg">
+                <label className="fl">Promotora</label>
+                <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                  {promoters.filter(p=>p.active).map(pr=>(
+                    <div key={pr.id} onClick={()=>pickPromoter(pr)} style={{
+                      display:"flex",alignItems:"center",gap:10,padding:"9px 12px",
+                      background:f.promoterId===pr.id?"linear-gradient(145deg,#18140a,#201c0e)":"var(--s2)",
+                      border:"1px solid "+(f.promoterId===pr.id?"var(--gd)":"var(--b1)"),
+                      borderRadius:"var(--rsm)",cursor:"pointer",
+                    }}>
+                      <div style={{width:28,height:28,borderRadius:"50%",
+                        background:f.promoterId===pr.id?"var(--gd)":"var(--b1)",
+                        display:"flex",alignItems:"center",justifyContent:"center",
+                        fontWeight:800,fontSize:".9rem",
+                        color:f.promoterId===pr.id?"#100d02":"var(--muted)",flexShrink:0}}>
+                        {pr.name.charAt(0)}
+                      </div>
+                      <span style={{fontWeight:700,fontSize:".86rem",color:f.promoterId===pr.id?"var(--gold)":"var(--txt)"}}>{pr.name}</span>
+                      {f.promoterId===pr.id&&<Ic n="check" s={14} c="var(--gold)"/>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* 3. Datos del cliente */}
         <div className="price-box" style={{marginBottom:14}}>
           <div style={{fontSize:".76rem",color:"var(--muted)",fontWeight:800,textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>
             Datos del cliente
@@ -4157,7 +4219,10 @@ function NewSaleModal({products, promoters, user, isHistoric, initialPrice, onCl
   };
 
   const [splitPayments, setSplitPayments] = useState([{method:"efectivo_s",amount:""},{method:"efectivo_a",amount:""}]);
-  const updSplit = (i,patch) => setSplitPayments(p=>p.map((x,j)=>j===i?{...x,...patch}:x));
+  const updSplit = (i,patch) => {
+    setSplitPayments(p=>p.map((x,j)=>j===i?{...x,...patch}:x));
+    if (patch.method && isQRMethod(patch.method)) setVcOpen(true);
+  };
   const splitTotal = splitPayments.reduce((a,p)=>a+(parseFloat(p.amount)||0),0);
 
   // ── MODO CARRITO ──
