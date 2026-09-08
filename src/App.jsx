@@ -5204,6 +5204,15 @@ function NewSaleModal({products, promoters, user, isHistoric, initialPrice, onCl
                         </div>
                       </div>
                     )}
+                    {user.role!=="promoter"&&(
+                      <div className="fg">
+                        <label className="fl">Tipo de venta</label>
+                        <div className="pills">
+                          <button className={"pill"+(!f.isDirectSale?" act":"")} onClick={()=>setDirectSale(false)}>Por promotora</button>
+                          <button className={"pill"+(f.isDirectSale?" act":"")} onClick={()=>setDirectSale(true)}>Venta directa tienda</button>
+                        </div>
+                      </div>
+                    )}
                     <div className="fg">
                       <label className="fl">Producto</label>
                       <button className={"prod-card"+(f.productId==="custom"?" sel":"")}
