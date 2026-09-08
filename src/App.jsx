@@ -1054,18 +1054,18 @@ async function fileHash(file) {
   return Array.from(new Uint8Array(hashBuf)).map(b=>b.toString(16).padStart(2,"0")).join("");
 }
 
-function compressImage(file) {
+function compressImage(file, maxSize=400) {
   return new Promise(resolve => {
     const reader = new FileReader();
     reader.onload = e => {
       const img = new Image();
       img.onload = () => {
-        const MAX=400, canvas=document.createElement("canvas");
+        const MAX=maxSize, canvas=document.createElement("canvas");
         let w=img.width, h=img.height;
         if (w>h) { if(w>MAX){h=h*MAX/w;w=MAX;} } else { if(h>MAX){w=w*MAX/h;h=MAX;} }
         canvas.width=Math.round(w); canvas.height=Math.round(h);
         canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
-        resolve(canvas.toDataURL("image/jpeg",0.7));
+        resolve(canvas.toDataURL("image/jpeg",0.8));
       };
       img.src = e.target.result;
     };
@@ -1397,6 +1397,7 @@ export default function App() {
   const [online,  setOnline]  = useState(navigator.onLine);
   const [ready,   setReady]   = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const syncingRef = useRef(false); // guardia para evitar syncs concurrentes
   const [showSale,setShowSale]= useState(false);
   const [historic,setHistoric]= useState(false);
   const [deleteSale,setDeleteSale]= useState(null);
@@ -1438,12 +1439,21 @@ export default function App() {
 
   useEffect(()=>{
     const st=document.createElement("style"); st.textContent=CSS; document.head.appendChild(st);
+    // Limpieza de papelera: corre UNA sola vez al arrancar (no en cada reload)
+    const cleanTrash = async ()=>{
+      const TRASH_TTL = 90*24*60*60*1000;
+      const nowMs = Date.now();
+      const sl = await dbAll("sales");
+      for (const s of sl.filter(s=>s.deleted&&s.deletedAt&&(nowMs-s.deletedAt>TRASH_TTL))) {
+        await dbDel("sales",s.id).catch(()=>{});
+      }
+    };
     (navigator.onLine ? syncFromSupabase() : Promise.resolve())
       .then(()=>seed())
+      .then(()=>cleanTrash())
       .then(()=>reload())
       .then(()=>{
         setReady(true);
-        // Iniciar realtime si hay conexión
         if (navigator.onLine) startRealtime(()=>reload());
       })
       .catch(err=>{
@@ -1462,19 +1472,20 @@ export default function App() {
     const off=()=>{setOnline(false); stopRealtime();};
     const onVisible=()=>{
       if(document.visibilityState==="visible"&&navigator.onLine){
-        if(!_realtimeWs) startRealtime(()=>reload()); // reconectar si se cayó
+        if(!_realtimeWs) startRealtime(()=>reload());
         reload(true);
       }
     };
-    // Auto-sync silencioso cada 30 segundos
+    // Auto-sync silencioso cada 30 segundos (con guardia de concurrencia)
     const _autoSync = async ()=>{
-      if(!navigator.onLine) return;
+      if(!navigator.onLine||syncingRef.current) return;
+      syncingRef.current = true;
       try{
         const _SS=["products","promoters","users","sales","expenses","commissionPayments","vouchers"];
         for(const _s of _SS){ const _a=await dbAll(_s); for(const _r of _a.filter(x=>x.synced===false)){ await sbPush(_s,_r).catch(()=>{}); } }
         await syncFromSupabase().catch(()=>{});
         reload();
-      }catch(e){}
+      }catch(e){}finally{ syncingRef.current=false; }
     };
     const _autoTimer = setInterval(_autoSync, 30000);
     window.addEventListener("online",on); window.addEventListener("offline",off);
@@ -1489,7 +1500,6 @@ export default function App() {
 
   const reload = useCallback(async (fromCloud=false)=>{
     try {
-      // Si fromCloud=true o hay conexión, sincronizar desde Supabase primero
       if (fromCloud && navigator.onLine) {
         await syncFromSupabase().catch(()=>{});
       }
@@ -1497,13 +1507,7 @@ export default function App() {
         dbAll("products"),dbAll("promoters"),dbAll("sales"),
         dbAll("expenses"),dbAll("commissionPayments"),dbAll("users"),dbAll("vouchers"),
       ]);
-      // Auto-expirar ventas en papelera con más de 90 días
-      const TRASH_TTL = 90 * 24 * 60 * 60 * 1000;
-      const nowMs = Date.now();
-      for (const s of sl.filter(s=>s.deleted && s.deletedAt && (nowMs - s.deletedAt > TRASH_TTL))) {
-        await dbDel("sales", s.id).catch(()=>{});
-      }
-      // Reparar vínculos rotos voucher↔venta (solo si la venta no tiene voucherId asignado)
+      // Reparar vínculos rotos voucher↔venta (idempotente, barato)
       for (const vc of vch) {
         if (!vc.saleId) continue;
         const sale = sl.find(s=>s.id===vc.saleId);
@@ -1534,7 +1538,8 @@ export default function App() {
 
   // HANDLERS
     const handleSync = async ()=>{
-    if (!online||syncing) return;
+    if (!online||syncing||syncingRef.current) return;
+    syncingRef.current = true;
     setSyncing(true);
     try {
       // 1. Bajar todo de Supabase
@@ -1562,6 +1567,7 @@ export default function App() {
       toast("Error al sincronizar","err");
     } finally {
       setSyncing(false);
+      syncingRef.current = false;
     }
   };
 
@@ -1672,16 +1678,16 @@ export default function App() {
   };
 
   const handleMarkPaid = async saleId=>{
-    const s=await (async()=>{const db=await openDB();return new Promise((r)=>{const q=db.transaction("sales","readonly").objectStore("sales").get(saleId);q.onsuccess=()=>r(q.result);})})();
-    if (s) await dbPut("sales",{...s,commissionStatus:"pagado"});
+    const s = await dbGet("sales", saleId);
+    if (s) await dbPut("sales",{...s,commissionStatus:"pagado",synced:false});
     await reload(); toast("✓ Comisión pagada","ok");
   };
 
   const handlePayPromoter = async (promoterId,saleIds,total)=>{
-    await dbPut("commissionPayments",{id:uid("cp"),promoterId,amount:total,salesIds:saleIds,date:Date.now()});
+    await dbPut("commissionPayments",{id:uid("cp"),promoterId,amount:total,salesIds:saleIds,date:Date.now(),synced:false});
     for (const sid of saleIds){
-      const s=await (async()=>{const db=await openDB();return new Promise((r)=>{const q=db.transaction("sales","readonly").objectStore("sales").get(sid);q.onsuccess=()=>r(q.result);})})();
-      if (s) await dbPut("sales",{...s,commissionStatus:"pagado"});
+      const s = await dbGet("sales", sid);
+      if (s) await dbPut("sales",{...s,commissionStatus:"pagado",synced:false});
     }
     await reload(); toast("Pago de "+fmt(total)+" registrado","ok");
   };
@@ -2623,7 +2629,7 @@ function SaleEditModal({sale, role, promoters=[], onClose, onSave}) {
     const h = await fileHash(file);
     setVcHash(h); setVcFile(file); setVcType(isPDF?"pdf":"image");
     if (isImg) {
-      const b64 = await compressImage(file);
+      const b64 = await compressImage(file, 800);
       setVcPreview(b64);
     } else {
       const b64 = await new Promise(res=>{const r=new FileReader();r.onload=ev=>res(ev.target.result);r.readAsDataURL(file);});
