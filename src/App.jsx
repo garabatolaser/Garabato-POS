@@ -2797,7 +2797,7 @@ function SaleEditModal({sale, role, promoters=[], onClose, onSave}) {
             ))}
             {cp>0&&(
               <div style={{fontSize:".76rem",fontWeight:700,marginTop:4,color:splitValid?"var(--grn)":"var(--red)"}}>
-                {splitValid?"✓ Total coincide":"Faltan Bs "+fmt(r2(cp-splitTotal))+" para llegar a "+fmt(cp)}
+                {splitValid?"✓ Total coincide":splitTotal>cp?"Excede en Bs "+fmt(r2(splitTotal-cp))+" (total: "+fmt(cp)+")":"Faltan Bs "+fmt(r2(cp-splitTotal))+" para llegar a "+fmt(cp)}
               </div>
             )}
           </div>
@@ -5225,7 +5225,7 @@ function NewSaleModal({products, promoters, user, isHistoric, initialPrice, onCl
                     ))}
                     {splitEffectiveTotal>0&&(
                       <div style={{fontSize:".76rem",fontWeight:700,marginTop:4,color:splitValid?"var(--grn)":"var(--red)"}}>
-                        {splitValid?"✓ Total coincide":"Faltan Bs "+fmt(r2(splitEffectiveTotal-splitTotal))+" para llegar a "+fmt(splitEffectiveTotal)}
+                        {splitValid?"✓ Total coincide":splitTotal>splitEffectiveTotal?"Excede en Bs "+fmt(r2(splitTotal-splitEffectiveTotal))+" (total: "+fmt(splitEffectiveTotal)+")":"Faltan Bs "+fmt(r2(splitEffectiveTotal-splitTotal))+" para llegar a "+fmt(splitEffectiveTotal)}
                       </div>
                     )}
                   </div>
