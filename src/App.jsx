@@ -1106,9 +1106,11 @@ async function seed() {
 // ============================================================
 function generatePartnerReport(sales, expenses, promoters, period, periodLabel) {
   const now = Date.now();
+  // Mes calendario real (desde el día 1 del mes actual)
+  const startOfMonth = (()=>{const d=new Date();d.setDate(1);d.setHours(0,0,0,0);return d.getTime();})();
   const active = sales.filter(s=>!s.deleted);
   const fs  = period==="week"  ? active.filter(s=>s.date>=now-7*86400000)
-            : period==="month" ? active.filter(s=>s.date>=now-30*86400000)
+            : period==="month" ? active.filter(s=>s.date>=startOfMonth)
             : active;
   const totalSales  = fs.reduce((a,s)=>a+s.clientPrice,0);
   const totalComm   = fs.reduce((a,s)=>a+s.commission,0);
@@ -1116,16 +1118,49 @@ function generatePartnerReport(sales, expenses, promoters, period, periodLabel) 
   const totalProfit = fs.reduce((a,s)=>a+s.profit,0);
   const fe = period==="today" ? expenses.filter(e=>e.date>=todayMs())
            : period==="week"  ? expenses.filter(e=>e.date>=now-7*86400000)
-           : period==="month" ? expenses.filter(e=>e.date>=now-30*86400000)
+           : period==="month" ? expenses.filter(e=>e.date>=startOfMonth)
            : expenses;
-  const totalExp    = fe.filter(e=>e.afectaSociedad!==false).reduce((a,e)=>a+e.amount,0);
-  const totalExpAll = fe.reduce((a,e)=>a+e.amount,0);
-  const netFinal    = r2(totalProfit-totalExp);
-  const socio       = r2(netFinal*.5);
-  const dateStr     = new Date().toLocaleDateString("es-BO",{day:"2-digit",month:"long",year:"numeric"});
-  const promos      = promoters.map(pr=>{
+  const socExp   = fe.filter(e=>e.afectaSociedad!==false);
+  const totalExp = socExp.reduce((a,e)=>a+e.amount,0);
+  const netFinal = r2(totalProfit-totalExp);
+  const porSocio = r2(netFinal*.5);
+  const dateStr  = new Date().toLocaleDateString("es-BO",{day:"2-digit",month:"long",year:"numeric"});
+
+  // Lo que recibió cada socio en el período
+  const netSergio  = r2(fs.reduce((a,s)=>a+saleMethodAmount(s,"sergio"),0));
+  const netSocio   = r2(fs.reduce((a,s)=>a+saleMethodAmount(s,"socio"),0));
+  const gainSergio = r2(fs.reduce((a,s)=>{
+    const tot=s.clientPrice||0; if(!tot) return a;
+    const pp=s.promoterPrice||tot, rec=saleMethodAmount(s,"sergio");
+    const costS=s.costPaidBy==="sergio"?(s.cost||0)+(s.empaque||0):0;
+    return a+rec*(pp/tot)-costS;
+  },0));
+  const gainSocio = r2(fs.reduce((a,s)=>{
+    const tot=s.clientPrice||0; if(!tot) return a;
+    const pp=s.promoterPrice||tot, rec=saleMethodAmount(s,"socio");
+    const costA=(s.costPaidBy==="socio"||(s.costPaidBy==null&&s.cost>0))?(s.cost||0)+(s.empaque||0):0;
+    return a+rec*(pp/tot)-costA;
+  },0));
+  const expSergioPaid = r2(socExp.reduce((a,e)=>a+(e.paidBy==="sergio"?e.amount:e.paidBy==="socio"?0:e.amount/2),0));
+  const expSocioPaid  = r2(socExp.reduce((a,e)=>a+(e.paidBy==="socio"?e.amount:e.paidBy==="sergio"?0:e.amount/2),0));
+  const saldoSergio = r2(gainSergio-expSergioPaid-porSocio);
+  const saldoSocio  = r2(gainSocio -expSocioPaid -porSocio);
+  const deudaMsg = saldoSergio>0.01
+    ? `Sergio le debe al Socio: <b style="color:#d95555">Bs ${saldoSergio.toFixed(2)}</b>`
+    : saldoSergio<-0.01
+    ? `Socio le debe a Sergio: <b style="color:#45b87c">Bs ${Math.abs(saldoSergio).toFixed(2)}</b>`
+    : `<b style="color:#45b87c">✓ Están a mano</b>`;
+
+  // QR sin comprobante (en el período)
+  const qrSinComp = fs.filter(s=>
+    (isQRMethod(s.paymentMethod)||(s.paymentMethod==="mixto"&&(s.payments||[]).some(p=>isQRMethod(p.method))))
+    &&!s.voucherId
+  );
+
+  const promos = promoters.map(pr=>{
     const ps=fs.filter(s=>s.promoterId===pr.id);
-    return {name:pr.name,count:ps.length,total:ps.reduce((a,s)=>a+s.clientPrice,0)};
+    const comm=ps.reduce((a,s)=>a+s.commission,0);
+    return {name:pr.name,count:ps.length,total:ps.reduce((a,s)=>a+s.clientPrice,0),comm};
   }).filter(r=>r.count>0).sort((a,b)=>b.total-a.total);
   const prodMap={};
   fs.forEach(s=>{
@@ -1133,9 +1168,10 @@ function generatePartnerReport(sales, expenses, promoters, period, periodLabel) 
     prodMap[s.productId].count++; prodMap[s.productId].rev+=s.clientPrice;
   });
   const topP = Object.values(prodMap).sort((a,b)=>b.count-a.count).slice(0,5);
+
   const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Reporte Garabato</title>
+<title>Reporte Garabato - ${periodLabel}</title>
 <style>*{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Georgia,serif;background:#f8f5f0;color:#2a2010;padding:20px;max-width:600px;margin:0 auto}
 .hdr{text-align:center;padding:28px 0 20px;border-bottom:2px solid #c8a84b;margin-bottom:24px}
@@ -1158,39 +1194,54 @@ body{font-family:Georgia,serif;background:#f8f5f0;color:#2a2010;padding:20px;max
   border-bottom:1px solid #f0e8d0;font-size:1rem}
 .row:last-child{border-bottom:none}
 .row.tot{font-weight:700;font-size:1rem;padding-top:10px;margin-top:4px}
+.row.hl2{background:#fffbf0;padding:10px 12px;border-radius:8px;border:1px solid #e8d8b0;margin-top:8px}
 .rk{color:#7a6020}.rv{font-weight:700}
+.warn{background:#fff5f5;border:1px solid #f0b0b0;border-radius:10px;padding:14px;margin-bottom:16px;font-family:sans-serif;font-size:.86rem;color:#a03030}
 .footer{text-align:center;font-size:.76rem;color:#9a8060;margin-top:24px;
   padding-top:16px;border-top:1px solid #e8d8b0;font-family:sans-serif}
 </style></head><body>
 <div class="hdr"><div class="logo">Garabato</div>
-<div class="sub">Reporte para el Socio</div>
-<div class="dt">Período: ${periodLabel} - Generado el ${dateStr}</div></div>
-<div class="hl"><div class="hl-lbl">Participación del socio</div>
-<div class="hl-val">Bs ${socio.toFixed(2)}</div>
-<div class="hl-sub">${fs.length} ventas - Ganancia real: Bs ${netFinal.toFixed(2)}</div></div>
+<div class="sub">Reporte mensual de socios</div>
+<div class="dt">Período: ${periodLabel} · Generado el ${dateStr}</div></div>
 <div class="g2">
 <div class="card"><div class="cv g">Bs ${totalSales.toFixed(2)}</div><div class="cl">Total vendido</div></div>
 <div class="card"><div class="cv t">Bs ${totalProfit.toFixed(2)}</div><div class="cl">Ganancia bruta</div></div>
-<div class="card"><div class="cv r">Bs ${totalExp.toFixed(2)}</div><div class="cl">Gastos operativos</div></div>
+<div class="card"><div class="cv r">Bs ${totalExp.toFixed(2)}</div><div class="cl">Gastos del período</div></div>
 <div class="card"><div class="cv g">Bs ${netFinal.toFixed(2)}</div><div class="cl">Ganancia real final</div></div>
 </div>
 <div class="sec"><div class="sec-t">Estado de resultados</div>
-<div class="row"><span class="rk">(+) Ingresos brutos</span><span class="rv">Bs ${totalSales.toFixed(2)}</span></div>
+<div class="row"><span class="rk">(+) Ingresos brutos al cliente</span><span class="rv">Bs ${totalSales.toFixed(2)}</span></div>
 <div class="row"><span class="rk">(-) Comisiones promotoras</span><span class="rv" style="color:#d95555">Bs ${totalComm.toFixed(2)}</span></div>
 <div class="row"><span class="rk">(-) Costo de materiales</span><span class="rv" style="color:#d95555">Bs ${totalCost.toFixed(2)}</span></div>
 <div class="row tot"><span class="rk">= Ganancia bruta</span><span class="rv" style="color:#29b8a8">Bs ${totalProfit.toFixed(2)}</span></div>
-<div class="row"><span class="rk">(-) Gastos operativos</span><span class="rv" style="color:#d95555">Bs ${totalExp.toFixed(2)}</span></div>
+<div class="row"><span class="rk">(-) Gastos compartidos del período</span><span class="rv" style="color:#d95555">Bs ${totalExp.toFixed(2)}</span></div>
 <div class="row tot"><span class="rk">= Ganancia real final</span><span class="rv" style="color:${netFinal>=0?"#45b87c":"#d95555"}">Bs ${netFinal.toFixed(2)}</span></div>
-<div class="row tot"><span class="rk">Socio administrador (50%)</span><span class="rv" style="color:#c8a84b">Bs ${socio.toFixed(2)}</span></div>
-<div class="row tot"><span class="rk">Socio (50%)</span><span class="rv" style="color:#29b8a8">Bs ${socio.toFixed(2)}</span></div>
+<div class="row tot"><span class="rk">💛 Sergio (50%)</span><span class="rv" style="color:#c8a84b">Bs ${porSocio.toFixed(2)}</span></div>
+<div class="row tot"><span class="rk">🩵 Socio Israel (50%)</span><span class="rv" style="color:#29b8a8">Bs ${porSocio.toFixed(2)}</span></div>
 </div>
+<div class="sec"><div class="sec-t">Lo que recibió cada socio en el período</div>
+<div class="row"><span class="rk">💛 Sergio cobró (efectivo + QR propios)</span><span class="rv" style="color:#c8a84b">Bs ${netSergio.toFixed(2)}</span></div>
+<div class="row"><span class="rk">🩵 Israel cobró (efectivo + QR propios)</span><span class="rv" style="color:#29b8a8">Bs ${netSocio.toFixed(2)}</span></div>
+<div class="row"><span class="rk">💛 Sergio (neto - costos que pagó)</span><span class="rv">Bs ${gainSergio.toFixed(2)}</span></div>
+<div class="row"><span class="rk">🩵 Israel (neto - costos que pagó)</span><span class="rv">Bs ${gainSocio.toFixed(2)}</span></div>
+<div class="row hl2" style="margin-top:10px;border:2px solid ${Math.abs(saldoSergio)<0.01?"#45b87c":"#d95555"};background:${Math.abs(saldoSergio)<0.01?"#f0fff7":"#fff5f5"}">
+  <span class="rk" style="font-weight:700">Balance del período</span>
+  <span>${deudaMsg}</span>
+</div>
+<div style="font-size:.72rem;color:#9a8060;margin-top:8px;font-family:sans-serif">Saldo positivo = recibió más de lo que le corresponde.</div>
+</div>
+${qrSinComp.length>0?`<div class="warn">
+⚠️ <b>${qrSinComp.length} venta${qrSinComp.length>1?"s":""} QR sin comprobante</b> — Bs ${qrSinComp.reduce((a,s)=>a+s.clientPrice,0).toFixed(2)} pendientes de verificar.<br/>
+${qrSinComp.slice(0,4).map(s=>`· ${s.productName} · ${new Date(s.date).toLocaleDateString("es-BO")} · Bs ${s.clientPrice.toFixed(2)}`).join("<br/>")}
+${qrSinComp.length>4?`<br/>... y ${qrSinComp.length-4} más.`:""}
+</div>`:""}
 ${promos.length>0?`<div class="sec"><div class="sec-t">Ventas por promotora</div>
-${promos.map(r=>`<div class="row"><span class="rk">${r.name} (${r.count} ventas)</span><span class="rv">Bs ${r.total.toFixed(2)}</span></div>`).join("")}
+${promos.map(r=>`<div class="row"><span class="rk">${r.name} (${r.count} v.)</span><div style="text-align:right"><span class="rv">Bs ${r.total.toFixed(2)}</span>${r.comm>0?`<div style="font-size:.72rem;color:#9a8060;font-family:sans-serif">Com: Bs ${r.comm.toFixed(2)}</div>`:""}  </div></div>`).join("")}
 </div>`:""}
 ${topP.length>0?`<div class="sec"><div class="sec-t">Productos más vendidos</div>
 ${topP.map((p,i)=>`<div class="row"><span class="rk">${i+1}. ${p.name} (${p.count} u.)</span><span class="rv">Bs ${p.rev.toFixed(2)}</span></div>`).join("")}
 </div>`:""}
-<div class="footer">Garabato POS - Reporte generado automáticamente - ${dateStr}</div>
+<div class="footer">Garabato POS · Reporte generado automáticamente · ${dateStr}</div>
 </body></html>`;
   const url = URL.createObjectURL(new Blob([html],{type:"text/html"}));
   window.open(url,"_blank"); setTimeout(()=>URL.revokeObjectURL(url),60000);
@@ -3884,7 +3935,7 @@ function ReportsPage({sales, expenses, promoters, payments, role}) {
           }
           <div className="dvd"/>
           <div style={{fontSize:".76rem",color:"var(--muted)",fontWeight:700,textTransform:"uppercase",letterSpacing:.4,marginBottom:10,marginTop:4}}>Ultimos gastos</div>
-          {expenses.slice(0,8).map(e=>(
+          {fe.slice(0,8).map(e=>(
             <div key={e.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid var(--b1)",fontSize:".86rem"}}>
               <div>
                 <div style={{fontWeight:700}}>{e.type}</div>
@@ -3945,7 +3996,7 @@ function ReportsPage({sales, expenses, promoters, payments, role}) {
         // Saldo: (lo que tiene de ventas - gastos que pagó) vs su parte justa
         const saldoSergio = r2(gainSergio - expSergioPaid - porSocio);
         const saldoSocio  = r2(gainSocio  - expSocioPaid  - porSocio);
-        const qrSinComp = allS.filter(s=>(isQRMethod(s.paymentMethod)||(s.paymentMethod==="mixto"&&(s.payments||[]).some(p=>isQRMethod(p.method))))&&(!s.paymentRef||!s.paymentRef.trim()));
+        const qrSinComp = allS.filter(s=>(isQRMethod(s.paymentMethod)||(s.paymentMethod==="mixto"&&(s.payments||[]).some(p=>isQRMethod(p.method))))&&!s.voucherId&&(!s.paymentRef||!s.paymentRef.trim()));
         return (
           <>
             <div className="al al-info" style={{marginBottom:14}}>
