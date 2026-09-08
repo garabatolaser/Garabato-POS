@@ -4546,9 +4546,9 @@ function NewSaleModal({products, promoters, user, isHistoric, initialPrice, onCl
     productId:"",productName:"",customization:"",
     clientPrice:initialPrice||"",promoterPrice:initialPrice||"",cost:0,
     paymentMethod:"efectivo",
-    promoterId:   user.role==="promoter"?user.promoterId:"",
-    promoterName: user.role==="promoter"?(promoters.find(p=>p.id===user.promoterId)?.name||""):"",
-    isDirectSale: false,
+    promoterId:   user.role==="promoter"?user.promoterId:"DIRECTO",
+    promoterName: user.role==="promoter"?(promoters.find(p=>p.id===user.promoterId)?.name||""):"Tienda directa",
+    isDirectSale: user.role!=="promoter",
     clientName:"",clientPhone:"",
     saleDate:todayISO(),
     variantId:"",variantName:"",
@@ -4920,6 +4920,17 @@ function NewSaleModal({products, promoters, user, isHistoric, initialPrice, onCl
                   Paso 1 - <span style={{color:"var(--txt)"}}>{multiMode?"Artículos (carrito)":f.soloGrabado?"Servicio de grabado":"Producto y grabado"}</span>
                 </div>
 
+                {/* Tipo de venta */}
+                {!f.soloGrabado&&!multiMode&&user.role!=="promoter"&&(
+                  <div className="fg">
+                    <label className="fl">Tipo de venta</label>
+                    <div className="pills">
+                      <button className={"pill"+(f.isDirectSale?" act":"")} onClick={()=>setDirectSale(true)}>Venta directa tienda</button>
+                      <button className={"pill"+(!f.isDirectSale?" act":"")} onClick={()=>setDirectSale(false)}>Por promotora</button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Toggle venta múltiple */}
                 {!f.soloGrabado&&(
                   <div className="price-box" style={{marginBottom:14,cursor:"pointer"}}
@@ -5201,15 +5212,6 @@ function NewSaleModal({products, promoters, user, isHistoric, initialPrice, onCl
                             <label className="fl">Teléfono</label>
                             <input className="fi" type="tel" autoComplete="tel" value={f.clientPhone} onChange={e=>set("clientPhone",e.target.value)} placeholder="Ej: 70012345 (sin prefijo 591)"/>
                           </div>
-                        </div>
-                      </div>
-                    )}
-                    {user.role!=="promoter"&&(
-                      <div className="fg">
-                        <label className="fl">Tipo de venta</label>
-                        <div className="pills">
-                          <button className={"pill"+(!f.isDirectSale?" act":"")} onClick={()=>setDirectSale(false)}>Por promotora</button>
-                          <button className={"pill"+(f.isDirectSale?" act":"")} onClick={()=>setDirectSale(true)}>Venta directa tienda</button>
                         </div>
                       </div>
                     )}
