@@ -5252,22 +5252,20 @@ function NewSaleModal({products, promoters, user, isHistoric, initialPrice, onCl
                           <label className="fl">Costo material (en ese momento)</label>
                           <input className="fi" type="number" inputMode="decimal" value={f.cost} onChange={e=>set("cost",parseFloat(e.target.value)||0)}/>
                         </div>
-                        {f.cost>0&&(
-                          <div className="fg">
-                            <label className="fl">¿Quién pagó los materiales?</label>
-                            <div className="pills">
-                              <button className={"pill"+(f.costPaidBy==="socio"?" act":"")} onClick={()=>set("costPaidBy","socio")}>Israel (Socio)</button>
-                              <button className={"pill"+(f.costPaidBy==="sergio"?" act":"")} onClick={()=>set("costPaidBy","sergio")}>Sergio</button>
-                            </div>
+                        <div className="fg">
+                          <label className="fl">¿Quién pagó los materiales?</label>
+                          <div className="pills">
+                            <button className={"pill"+(f.costPaidBy==="socio"?" act":"")} onClick={()=>set("costPaidBy","socio")}>Israel (Socio)</button>
+                            <button className={"pill"+(f.costPaidBy==="sergio"?" act":"")} onClick={()=>set("costPaidBy","sergio")}>Sergio</button>
                           </div>
-                        )}
+                        </div>
                         <div className="fg">
                           <label className="fl">Empaque (opcional, Bs)</label>
                           <input className="fi" type="number" inputMode="decimal" value={f.empaque||""} onChange={e=>set("empaque",parseFloat(e.target.value)||0)} placeholder="0"/>
                         </div>
                       </div>
                     )}
-                    {!isHistoric&&f.cost>0&&(
+                    {f.productId&&f.productId!=="custom"&&!isHistoric&&(
                       <div className="fg">
                         <label className="fl">¿Quién pagó los materiales?</label>
                         <div className="pills">
