@@ -1104,22 +1104,14 @@ async function seed() {
 // ============================================================
 //  REPORT GENERATORS
 // ============================================================
-function generatePartnerReport(sales, expenses, promoters, period, periodLabel) {
-  const now = Date.now();
-  // Mes calendario real (desde el día 1 del mes actual)
-  const startOfMonth = (()=>{const d=new Date();d.setDate(1);d.setHours(0,0,0,0);return d.getTime();})();
+function generatePartnerReport(sales, expenses, promoters, startMs, endMs, periodLabel) {
   const active = sales.filter(s=>!s.deleted);
-  const fs  = period==="week"  ? active.filter(s=>s.date>=now-7*86400000)
-            : period==="month" ? active.filter(s=>s.date>=startOfMonth)
-            : active;
+  const fs = active.filter(s=>s.date>=startMs&&s.date<endMs);
   const totalSales  = fs.reduce((a,s)=>a+s.clientPrice,0);
   const totalComm   = fs.reduce((a,s)=>a+s.commission,0);
   const totalCost   = fs.reduce((a,s)=>a+s.cost,0);
   const totalProfit = fs.reduce((a,s)=>a+s.profit,0);
-  const fe = period==="today" ? expenses.filter(e=>e.date>=todayMs())
-           : period==="week"  ? expenses.filter(e=>e.date>=now-7*86400000)
-           : period==="month" ? expenses.filter(e=>e.date>=startOfMonth)
-           : expenses;
+  const fe = expenses.filter(e=>e.date>=startMs&&e.date<endMs);
   const socExp   = fe.filter(e=>e.afectaSociedad!==false);
   const totalExp = socExp.reduce((a,e)=>a+e.amount,0);
   const netFinal = r2(totalProfit-totalExp);
@@ -1242,6 +1234,140 @@ ${topP.length>0?`<div class="sec"><div class="sec-t">Productos más vendidos</di
 ${topP.map((p,i)=>`<div class="row"><span class="rk">${i+1}. ${p.name} (${p.count} u.)</span><span class="rv">Bs ${p.rev.toFixed(2)}</span></div>`).join("")}
 </div>`:""}
 <div class="footer">Garabato POS · Reporte generado automáticamente · ${dateStr}</div>
+</body></html>`;
+  const url = URL.createObjectURL(new Blob([html],{type:"text/html"}));
+  window.open(url,"_blank"); setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
+
+function generateAnnualReport(sales, expenses, promoters, year) {
+  const active = sales.filter(s=>!s.deleted);
+  const yearStart = new Date(year,0,1).getTime();
+  const yearEnd   = new Date(year+1,0,1).getTime();
+  const fs  = active.filter(s=>s.date>=yearStart&&s.date<yearEnd);
+  const fe  = expenses.filter(e=>e.date>=yearStart&&e.date<yearEnd);
+  const dateStr = new Date().toLocaleDateString("es-BO",{day:"2-digit",month:"long",year:"numeric"});
+
+  const MONTHS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  const monthData = MONTHS.map((name,i)=>{
+    const ms = new Date(year,i,1).getTime();
+    const me = new Date(year,i+1,1).getTime();
+    const msl = fs.filter(s=>s.date>=ms&&s.date<me);
+    const mel = fe.filter(e=>e.date>=ms&&e.date<me&&e.afectaSociedad!==false);
+    const revenue = msl.reduce((a,s)=>a+s.clientPrice,0);
+    const profit  = msl.reduce((a,s)=>a+s.profit,0);
+    const exp     = mel.reduce((a,e)=>a+e.amount,0);
+    return {name,count:msl.length,revenue,profit,exp,net:r2(profit-exp)};
+  });
+
+  const totalSales  = fs.reduce((a,s)=>a+s.clientPrice,0);
+  const totalComm   = fs.reduce((a,s)=>a+s.commission,0);
+  const totalCost   = fs.reduce((a,s)=>a+s.cost,0);
+  const totalProfit = fs.reduce((a,s)=>a+s.profit,0);
+  const socExp      = fe.filter(e=>e.afectaSociedad!==false);
+  const totalExp    = socExp.reduce((a,e)=>a+e.amount,0);
+  const netFinal    = r2(totalProfit-totalExp);
+  const porSocio    = r2(netFinal*.5);
+
+  const netSergio  = r2(fs.reduce((a,s)=>a+saleMethodAmount(s,"sergio"),0));
+  const netSocio   = r2(fs.reduce((a,s)=>a+saleMethodAmount(s,"socio"),0));
+  const gainSergio = r2(fs.reduce((a,s)=>{
+    const tot=s.clientPrice||0; if(!tot) return a;
+    const pp=s.promoterPrice||tot, rec=saleMethodAmount(s,"sergio");
+    const costS=s.costPaidBy==="sergio"?(s.cost||0)+(s.empaque||0):0;
+    return a+rec*(pp/tot)-costS;
+  },0));
+  const gainSocio = r2(fs.reduce((a,s)=>{
+    const tot=s.clientPrice||0; if(!tot) return a;
+    const pp=s.promoterPrice||tot, rec=saleMethodAmount(s,"socio");
+    const costA=(s.costPaidBy==="socio"||(s.costPaidBy==null&&s.cost>0))?(s.cost||0)+(s.empaque||0):0;
+    return a+rec*(pp/tot)-costA;
+  },0));
+  const expSergioPaid = r2(socExp.reduce((a,e)=>a+(e.paidBy==="sergio"?e.amount:e.paidBy==="socio"?0:e.amount/2),0));
+  const expSocioPaid  = r2(socExp.reduce((a,e)=>a+(e.paidBy==="socio"?e.amount:e.paidBy==="sergio"?0:e.amount/2),0));
+  const saldoSergio = r2(gainSergio-expSergioPaid-porSocio);
+  const deudaMsg = saldoSergio>0.01
+    ? `Sergio le debe al Socio: <b style="color:#d95555">Bs ${saldoSergio.toFixed(2)}</b>`
+    : saldoSergio<-0.01
+    ? `Socio le debe a Sergio: <b style="color:#45b87c">Bs ${Math.abs(saldoSergio).toFixed(2)}</b>`
+    : `<b style="color:#45b87c">✓ Están a mano</b>`;
+
+  const qrSinComp = fs.filter(s=>
+    (isQRMethod(s.paymentMethod)||(s.paymentMethod==="mixto"&&(s.payments||[]).some(p=>isQRMethod(p.method))))
+    &&!s.voucherId
+  );
+  const promos = promoters.map(pr=>{
+    const ps=fs.filter(s=>s.promoterId===pr.id);
+    return {name:pr.name,count:ps.length,total:ps.reduce((a,s)=>a+s.clientPrice,0),comm:ps.reduce((a,s)=>a+s.commission,0)};
+  }).filter(r=>r.count>0).sort((a,b)=>b.total-a.total);
+  const maxMonth = Math.max(...monthData.map(m=>m.revenue),1);
+
+  const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Reporte Anual ${year} - Garabato</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Georgia,serif;background:#f8f5f0;color:#2a2010;padding:20px;max-width:700px;margin:0 auto}
+.hdr{text-align:center;padding:28px 0 20px;border-bottom:2px solid #c8a84b;margin-bottom:24px}
+.logo{font-size:2rem;color:#c8a84b;letter-spacing:2px;font-weight:700}
+.sub{font-size:.86rem;color:#7a6020;margin-top:4px;text-transform:uppercase;letter-spacing:1px}
+.dt{font-size:.86rem;color:#9a8060;margin-top:8px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+.card{background:#fff;border:1px solid #e8d8b0;border-radius:10px;padding:14px;text-align:center}
+.cv{font-size:1.3rem;font-weight:700}.cv.g{color:#c8a84b}.cv.t{color:#29b8a8}.cv.r{color:#d95555}
+.cl{font-size:.68rem;color:#9a8060;margin-top:3px;text-transform:uppercase;letter-spacing:.5px;font-family:sans-serif}
+.sec{background:#fff;border:1px solid #e8d8b0;border-radius:12px;padding:18px;margin-bottom:16px}
+.sec-t{font-size:.76rem;text-transform:uppercase;letter-spacing:1px;color:#9a8060;margin-bottom:14px;font-weight:700;font-family:sans-serif}
+.row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f0e8d0;font-size:.95rem}
+.row:last-child{border-bottom:none}.row.tot{font-weight:700;padding-top:10px;margin-top:4px}
+.row.hl2{background:#fffbf0;padding:10px 12px;border-radius:8px;border:1px solid #e8d8b0;margin-top:8px}
+.rk{color:#7a6020}.rv{font-weight:700}
+.tbl{width:100%;border-collapse:collapse;font-family:sans-serif;font-size:.82rem}
+.tbl th{text-align:left;padding:8px 8px;border-bottom:2px solid #e8d8b0;color:#7a6020;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.tbl td{padding:6px 8px;border-bottom:1px solid #f0e8d0;vertical-align:middle}
+.tbl tr.total-row td{border-bottom:none;font-weight:700;background:#fffbf0;border-top:2px solid #e8d8b0}
+.bar{background:#f0e8d0;border-radius:4px;height:7px;width:60px;display:inline-block;vertical-align:middle;margin-left:4px}
+.bar-f{background:#c8a84b;border-radius:4px;height:100%}
+.warn{background:#fff5f5;border:1px solid #f0b0b0;border-radius:10px;padding:14px;margin-bottom:16px;font-family:sans-serif;font-size:.86rem;color:#a03030}
+.footer{text-align:center;font-size:.76rem;color:#9a8060;margin-top:24px;padding-top:16px;border-top:1px solid #e8d8b0;font-family:sans-serif}
+@media(max-width:480px){.g4{grid-template-columns:1fr 1fr}.bar{display:none}}
+</style></head><body>
+<div class="hdr"><div class="logo">Garabato</div>
+<div class="sub">Reporte anual de socios · ${year}</div>
+<div class="dt">Generado el ${dateStr}</div></div>
+<div class="g4">
+<div class="card"><div class="cv g">Bs ${totalSales.toFixed(2)}</div><div class="cl">Total vendido</div></div>
+<div class="card"><div class="cv t">Bs ${totalProfit.toFixed(2)}</div><div class="cl">Ganancia bruta</div></div>
+<div class="card"><div class="cv r">Bs ${totalExp.toFixed(2)}</div><div class="cl">Gastos</div></div>
+<div class="card"><div class="cv g">Bs ${netFinal.toFixed(2)}</div><div class="cl">Ganancia real</div></div>
+</div>
+<div class="sec"><div class="sec-t">Desglose mensual</div>
+<table class="tbl"><thead><tr><th>Mes</th><th>Ventas</th><th>Facturado</th><th>Ganancia</th><th>Gastos</th><th>Neto</th></tr></thead><tbody>
+${monthData.map(m=>{
+  if(m.count===0&&m.exp===0) return "";
+  const pct=Math.round(m.revenue/maxMonth*100);
+  return `<tr><td>${m.name}</td><td>${m.count}<span class="bar"><span class="bar-f" style="width:${pct}%"></span></span></td><td>Bs ${m.revenue.toFixed(2)}</td><td style="color:#29b8a8">Bs ${m.profit.toFixed(2)}</td><td style="color:#d95555">Bs ${m.exp.toFixed(2)}</td><td style="color:${m.net>=0?"#45b87c":"#d95555"}"><b>Bs ${m.net.toFixed(2)}</b></td></tr>`;
+}).join("")}
+<tr class="total-row"><td><b>TOTAL ${year}</b></td><td>${fs.length}</td><td>Bs ${totalSales.toFixed(2)}</td><td style="color:#29b8a8">Bs ${totalProfit.toFixed(2)}</td><td style="color:#d95555">Bs ${totalExp.toFixed(2)}</td><td style="color:${netFinal>=0?"#45b87c":"#d95555"}"><b>Bs ${netFinal.toFixed(2)}</b></td></tr>
+</tbody></table></div>
+<div class="sec"><div class="sec-t">Estado de resultados anual</div>
+<div class="row"><span class="rk">(+) Ingresos brutos</span><span class="rv">Bs ${totalSales.toFixed(2)}</span></div>
+<div class="row"><span class="rk">(-) Comisiones promotoras</span><span class="rv" style="color:#d95555">Bs ${totalComm.toFixed(2)}</span></div>
+<div class="row"><span class="rk">(-) Costo de materiales</span><span class="rv" style="color:#d95555">Bs ${totalCost.toFixed(2)}</span></div>
+<div class="row tot"><span class="rk">= Ganancia bruta</span><span class="rv" style="color:#29b8a8">Bs ${totalProfit.toFixed(2)}</span></div>
+<div class="row"><span class="rk">(-) Gastos compartidos</span><span class="rv" style="color:#d95555">Bs ${totalExp.toFixed(2)}</span></div>
+<div class="row tot"><span class="rk">= Ganancia real final</span><span class="rv" style="color:${netFinal>=0?"#45b87c":"#d95555"}">Bs ${netFinal.toFixed(2)}</span></div>
+<div class="row tot"><span class="rk">💛 Sergio (50%)</span><span class="rv" style="color:#c8a84b">Bs ${porSocio.toFixed(2)}</span></div>
+<div class="row tot"><span class="rk">🩵 Socio Israel (50%)</span><span class="rv" style="color:#29b8a8">Bs ${porSocio.toFixed(2)}</span></div>
+</div>
+<div class="sec"><div class="sec-t">Lo que recibió cada socio en el año</div>
+<div class="row"><span class="rk">💛 Sergio cobró</span><span class="rv" style="color:#c8a84b">Bs ${netSergio.toFixed(2)}</span></div>
+<div class="row"><span class="rk">🩵 Israel cobró</span><span class="rv" style="color:#29b8a8">Bs ${netSocio.toFixed(2)}</span></div>
+<div class="row"><span class="rk">💛 Sergio (neto - costos)</span><span class="rv">Bs ${gainSergio.toFixed(2)}</span></div>
+<div class="row"><span class="rk">🩵 Israel (neto - costos)</span><span class="rv">Bs ${gainSocio.toFixed(2)}</span></div>
+<div class="row hl2" style="border:2px solid ${Math.abs(saldoSergio)<0.01?"#45b87c":"#d95555"};background:${Math.abs(saldoSergio)<0.01?"#f0fff7":"#fff5f5"}">
+<span class="rk" style="font-weight:700">Balance anual</span><span>${deudaMsg}</span></div></div>
+${qrSinComp.length>0?`<div class="warn">⚠️ <b>${qrSinComp.length} venta${qrSinComp.length>1?"s":""} QR sin comprobante</b> en el año · Bs ${qrSinComp.reduce((a,s)=>a+s.clientPrice,0).toFixed(2)}</div>`:""}
+${promos.length>0?`<div class="sec"><div class="sec-t">Promotoras · Resumen anual</div>${promos.map(r=>`<div class="row"><span class="rk">${r.name} (${r.count} v.)</span><div style="text-align:right"><span class="rv">Bs ${r.total.toFixed(2)}</span>${r.comm>0?`<div style="font-size:.72rem;color:#9a8060;font-family:sans-serif">Com: Bs ${r.comm.toFixed(2)}</div>`:""}</div></div>`).join("")}</div>`:""}
+<div class="footer">Garabato POS · Reporte anual ${year} · ${dateStr}</div>
 </body></html>`;
   const url = URL.createObjectURL(new Blob([html],{type:"text/html"}));
   window.open(url,"_blank"); setTimeout(()=>URL.revokeObjectURL(url),60000);
@@ -3670,6 +3796,9 @@ function ExpensesPage({expenses, onAdd, onDelete}) {
 function ReportsPage({sales, expenses, promoters, payments, role}) {
   const [tab,   setTab]   = useState("financiero");
   const [period,setPeriod]= useState("month");
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [showYearPicker,  setShowYearPicker]  = useState(false);
+  const [pickerYear, setPickerYear] = useState(new Date().getFullYear());
   const periodLabel = period==="today"?"Hoy":period==="week"?"Últimos 7 días":period==="month"?"Últimos 30 días":"Todo el período";
 
   const now = Date.now();
@@ -3762,15 +3891,71 @@ function ReportsPage({sales, expenses, promoters, payments, role}) {
 
   return (
     <div className="pe">
+      {showMonthPicker&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center"}}
+          onClick={()=>setShowMonthPicker(false)}>
+          <div style={{background:"var(--bg2)",borderRadius:16,padding:24,width:300,maxWidth:"90vw",boxShadow:"0 8px 32px rgba(0,0,0,.4)"}}
+            onClick={e=>e.stopPropagation()}>
+            <div style={{fontWeight:700,marginBottom:16,fontSize:"1rem",textAlign:"center"}}>Seleccioná el mes</div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+              <button className="btn btn-sm" onClick={()=>setPickerYear(y=>y-1)}>◀</button>
+              <span style={{fontWeight:700,fontSize:"1.1rem"}}>{pickerYear}</span>
+              <button className="btn btn-sm" onClick={()=>setPickerYear(y=>y+1)} disabled={pickerYear>=new Date().getFullYear()}>▶</button>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+              {["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"].map((m,i)=>{
+                const now=new Date(); const disabled=pickerYear===now.getFullYear()&&i>now.getMonth();
+                return (
+                  <button key={i} disabled={disabled}
+                    style={{padding:"9px 4px",borderRadius:8,border:"1px solid var(--brd)",
+                      background:"var(--bg3)",opacity:disabled?.35:1,cursor:disabled?"not-allowed":"pointer",
+                      color:"var(--txt)",fontFamily:"sans-serif",fontSize:".85rem"}}
+                    onClick={()=>{
+                      const startMs=new Date(pickerYear,i,1).getTime();
+                      const endMs=new Date(pickerYear,i+1,1).getTime();
+                      const label=new Date(pickerYear,i,1).toLocaleDateString("es-BO",{month:"long",year:"numeric"});
+                      generatePartnerReport(sales,expenses,promoters,startMs,endMs,label);
+                      setShowMonthPicker(false);
+                    }}>{m}</button>
+                );
+              })}
+            </div>
+            <button className="btn btn-sm" style={{marginTop:14,width:"100%"}} onClick={()=>setShowMonthPicker(false)}>Cancelar</button>
+          </div>
+        </div>
+      )}
+      {showYearPicker&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center"}}
+          onClick={()=>setShowYearPicker(false)}>
+          <div style={{background:"var(--bg2)",borderRadius:16,padding:24,width:260,maxWidth:"90vw",boxShadow:"0 8px 32px rgba(0,0,0,.4)"}}
+            onClick={e=>e.stopPropagation()}>
+            <div style={{fontWeight:700,marginBottom:16,fontSize:"1rem",textAlign:"center"}}>Seleccioná el año</div>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {Array.from({length:new Date().getFullYear()-2023},(_,i)=>new Date().getFullYear()-i).map(y=>(
+                <button key={y} className="btn btn-sm"
+                  style={{padding:"10px",borderRadius:8,fontWeight:700,fontSize:"1rem"}}
+                  onClick={()=>{
+                    generateAnnualReport(sales,expenses,promoters,y);
+                    setShowYearPicker(false);
+                  }}>{y}</button>
+              ))}
+            </div>
+            <button className="btn btn-sm" style={{marginTop:14,width:"100%"}} onClick={()=>setShowYearPicker(false)}>Cancelar</button>
+          </div>
+        </div>
+      )}
       <div className="shd">
         <div className="shd-l">Reportes</div>
-        <button className="btn btn-sm btn-gold" style={{fontSize:".76rem",padding:"5px 10px"}}
-          onClick={()=>{
-            const label = new Date().toLocaleDateString("es-BO",{month:"long",year:"numeric"});
-            generatePartnerReport(sales,expenses,promoters,"month",label);
-          }}>
-          Reporte mensual
-        </button>
+        <div style={{display:"flex",gap:6}}>
+          <button className="btn btn-sm" style={{fontSize:".76rem",padding:"5px 10px"}}
+            onClick={()=>{setPickerYear(new Date().getFullYear());setShowYearPicker(true);}}>
+            Anual
+          </button>
+          <button className="btn btn-sm btn-gold" style={{fontSize:".76rem",padding:"5px 10px"}}
+            onClick={()=>{setPickerYear(new Date().getFullYear());setShowMonthPicker(true);}}>
+            Mensual
+          </button>
+        </div>
       </div>
       <div className="flt">
         {[["today","Hoy"],["week","7 días"],["month","30 días"],["all","Todo"]].map(([k,v])=>(
