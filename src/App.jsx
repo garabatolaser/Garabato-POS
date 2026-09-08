@@ -1928,6 +1928,13 @@ export default function App() {
                     {date:Date.now(),clientPrice:existing.clientPrice,promoterPrice:existing.promoterPrice,cost:existing.cost}
                   ];
                 }
+                // Si cambió el nombre, actualizar todas las ventas con ese producto
+                if(existing && existing.name!==p.name){
+                  const allSales = await dbAll("sales");
+                  for(const s of allSales.filter(s=>s.productId===p.id)){
+                    await dbPut("sales",{...s,productName:p.name,synced:false});
+                  }
+                }
                 await dbPut("products",toSave);await reload();toast("✓ Producto guardado","ok");
               }
             }}/>
@@ -5257,6 +5264,15 @@ function NewSaleModal({products, promoters, user, isHistoric, initialPrice, onCl
                         <div className="fg">
                           <label className="fl">Empaque (opcional, Bs)</label>
                           <input className="fi" type="number" inputMode="decimal" value={f.empaque||""} onChange={e=>set("empaque",parseFloat(e.target.value)||0)} placeholder="0"/>
+                        </div>
+                      </div>
+                    )}
+                    {!isHistoric&&f.cost>0&&(
+                      <div className="fg">
+                        <label className="fl">¿Quién pagó los materiales?</label>
+                        <div className="pills">
+                          <button className={"pill"+(f.costPaidBy==="socio"?" act":"")} onClick={()=>set("costPaidBy","socio")}>Israel (Socio)</button>
+                          <button className={"pill"+(f.costPaidBy==="sergio"?" act":"")} onClick={()=>set("costPaidBy","sergio")}>Sergio</button>
                         </div>
                       </div>
                     )}
