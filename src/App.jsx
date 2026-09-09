@@ -1854,7 +1854,7 @@ export default function App() {
     <>
       {page==="home"     && <HomePage sales={sales} products={products} promoters={promoters}
         expenses={expenses} role={role} user={user} vouchers={vouchers}/>}
-      {page==="sales"    && <SalesPage sales={sales} role={role} user={user} promoters={promoters}
+      {page==="sales"    && <SalesPage sales={sales} role={role} user={user} promoters={promoters} products={products}
         vouchers={vouchers}
         onMarkPaid={handleMarkPaid} onEdit={handleEditSale}
         onDelete={role==="admin"?sale=>setDeleteSale(sale):null}
@@ -2422,7 +2422,7 @@ function HomePage({sales, products, promoters, expenses, role, user, vouchers}) 
 // ============================================================
 //  SALESPAGE
 // ============================================================
-function SalesPage({sales, role, user, promoters, vouchers, onMarkPaid, onEdit, onDelete, onRestore, onPermanentDelete, onEmptyTrash, onImport, onReload}) {
+function SalesPage({sales, role, user, promoters, products=[], vouchers, onMarkPaid, onEdit, onDelete, onRestore, onPermanentDelete, onEmptyTrash, onImport, onReload}) {
   const [filter,      setFilter]      = useState("all");
   const [period,      setPeriod]      = useState("all");
   const [search,      setSearch]      = useState("");
@@ -2564,7 +2564,7 @@ function SalesPage({sales, role, user, promoters, vouchers, onMarkPaid, onEdit, 
       }
 
       {editSale&&(
-        <SaleEditModal sale={editSale} role={role} promoters={promoters}
+        <SaleEditModal sale={editSale} role={role} promoters={promoters} products={products}
           onClose={()=>setEditSale(null)}
           onSave={async u=>{await onEdit(u);setEditSale(null);}}/>
       )}
@@ -2698,11 +2698,13 @@ function SalesPage({sales, role, user, promoters, vouchers, onMarkPaid, onEdit, 
 // ============================================================
 //  SALEEDITMODAL
 // ============================================================
-function SaleEditModal({sale, role, promoters=[], onClose, onSave}) {
+function SaleEditModal({sale, role, promoters=[], products=[], onClose, onSave}) {
   const msToISO = ms => new Date(ms).toISOString().slice(0,10);
   const isoToMs = iso => { const [y,m,d]=iso.split("-"); return new Date(+y,+m-1,+d).getTime(); };
 
   const [f,setF] = useState({
+    productId:     sale.productId||"",
+    productName:   sale.productName||"",
     customization: sale.customization||"",
     clientPhone:   sale.clientPhone||"",
     clientName:    sale.clientName||"",
@@ -2718,6 +2720,15 @@ function SaleEditModal({sale, role, promoters=[], onClose, onSave}) {
     promoterName:  sale.promoterName||"",
     saleDate:      msToISO(sale.date||Date.now()),
   });
+  const pickEditProduct = p => {
+    setF(x=>({...x,
+      productId:    p.id,
+      productName:  p.name,
+      clientPrice:  p.clientPrice,
+      promoterPrice:x.isDirectSale ? p.clientPrice : (p.promoterPrice||p.clientPrice),
+      cost:         p.cost||0,
+    }));
+  };
   const set = (k,v)=>setF(x=>({...x,[k]:v}));
   const setDirectSale = direct => setF(x=>({...x,
     isDirectSale: direct,
@@ -2833,9 +2844,24 @@ function SaleEditModal({sale, role, promoters=[], onClose, onSave}) {
         <div className="sh-title">Editar venta</div>
 
         {/* Cabecera: producto */}
-        <div style={{background:"var(--s2)",borderRadius:"var(--rsm)",padding:"10px 13px",marginBottom:16,fontSize:".86rem"}}>
-          <div style={{fontWeight:700,color:"var(--gold)"}}>{sale.productName}</div>
-        </div>
+        {role==="admin"&&products.length>0?(
+          <div className="fg">
+            <label className="fl">Producto</label>
+            <select className="fs" value={f.productId} onChange={e=>{
+              const p=products.find(x=>x.id===e.target.value);
+              if(p) pickEditProduct(p);
+            }}>
+              {!products.find(p=>p.id===f.productId)&&(
+                <option value={f.productId}>{f.productName}</option>
+              )}
+              {products.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+        ):(
+          <div style={{background:"var(--s2)",borderRadius:"var(--rsm)",padding:"10px 13px",marginBottom:16,fontSize:".86rem"}}>
+            <div style={{fontWeight:700,color:"var(--gold)"}}>{f.productName||sale.productName}</div>
+          </div>
+        )}
 
         {/* 1. Fecha */}
         <div className="fg">
